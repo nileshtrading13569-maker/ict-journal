@@ -19,6 +19,7 @@ import { Route as PlaybookRouteImport } from './routes/playbook'
 import { Route as ProtocolRouteImport } from './routes/protocol'
 import { Route as ReplayRouteImport } from './routes/replay'
 import { Route as WeeklyRouteImport } from './routes/weekly'
+import { Route as ApiAuthConfigRouteImport } from './routes/api/auth-config'
 import { Route as ApiRtcRouteImport } from './routes/api/rtc'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -72,6 +73,11 @@ const WeeklyRoute = WeeklyRouteImport.update({
   path: '/weekly',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthConfigRoute = ApiAuthConfigRouteImport.update({
+  id: '/api/auth-config',
+  path: '/api/auth-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRtcRoute = ApiRtcRouteImport.update({
   id: '/api/rtc',
   path: '/api/rtc',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/protocol': typeof ProtocolRoute
   '/replay': typeof ReplayRoute
   '/weekly': typeof WeeklyRoute
+  '/api/auth-config': typeof ApiAuthConfigRoute
   '/api/rtc': typeof ApiRtcRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/protocol': typeof ProtocolRoute
   '/replay': typeof ReplayRoute
   '/weekly': typeof WeeklyRoute
+  '/api/auth-config': typeof ApiAuthConfigRoute
   '/api/rtc': typeof ApiRtcRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/protocol': typeof ProtocolRoute
   '/replay': typeof ReplayRoute
   '/weekly': typeof WeeklyRoute
+  '/api/auth-config': typeof ApiAuthConfigRoute
   '/api/rtc': typeof ApiRtcRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/protocol'
     | '/replay'
     | '/weekly'
+    | '/api/auth-config'
     | '/api/rtc'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/protocol'
     | '/replay'
     | '/weekly'
+    | '/api/auth-config'
     | '/api/rtc'
     | '/api/auth/$'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/protocol'
     | '/replay'
     | '/weekly'
+    | '/api/auth-config'
     | '/api/rtc'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   ProtocolRoute: typeof ProtocolRoute
   ReplayRoute: typeof ReplayRoute
   WeeklyRoute: typeof WeeklyRoute
+  ApiAuthConfigRoute: typeof ApiAuthConfigRoute
   ApiRtcRoute: typeof ApiRtcRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WeeklyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth-config': {
+      id: '/api/auth-config'
+      path: '/api/auth-config'
+      fullPath: '/api/auth-config'
+      preLoaderRoute: typeof ApiAuthConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/rtc': {
       id: '/api/rtc'
       path: '/api/rtc'
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProtocolRoute: ProtocolRoute,
   ReplayRoute: ReplayRoute,
   WeeklyRoute: WeeklyRoute,
+  ApiAuthConfigRoute: ApiAuthConfigRoute,
   ApiRtcRoute: ApiRtcRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

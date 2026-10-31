@@ -143,6 +143,21 @@ export async function signIn(
     return;
   }
 
+  // First-party provider (e.g. Google via the operator's own OAuth client).
+  // Uses the built-in social endpoint so the callback is
+  // `<origin>/api/auth/callback/<provider>`.
+  if (providerId === "google") {
+    const { data, error } = await authClient.signIn.social({
+      provider: "google",
+      callbackURL,
+      errorCallbackURL,
+      disableRedirect: true,
+    });
+    if (error) throw new Error(error.message ?? "Sign-in failed");
+    if (data?.url) window.location.href = data.url;
+    return;
+  }
+
   const { data, error } = await authClient.signIn.oauth2({
     providerId,
     callbackURL,

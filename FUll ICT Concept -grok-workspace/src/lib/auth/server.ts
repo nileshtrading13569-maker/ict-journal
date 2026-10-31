@@ -85,18 +85,61 @@ const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET
 export const authConfigured =
   !authDisabled && Boolean(grokClientId && grokClientSecret);
 
-// This app's own Better Auth origin. When deployed the deployer injects the
-// public URL. If it doesn't, fall back to the platform's own system env vars so
-// a plain Vercel import works without a chicken-and-egg "set the URL before the
-// first deploy" step (Vercel exposes both at build AND runtime):
-//   VERCEL_PROJECT_PRODUCTION_URL -> stable domain (project.vercel.app)
-//   VERCEL_URL                    -> this specific deployment/preview host
+// Optional FIRST-PARTY Google sign-in. The broker above is shared Grok
+// infrastructure and its OAuth client only accepts the callback hosts Grok
+// registered; on your own domain that can surface as `state_mismatch` or
+// `Invalid redirect URI`. Supplying your own Google OAuth client makes the whole
+// flow local to this app (callback: `<origin>/api/auth/callback/google`)
+// and removes the broker from the path. Opt-in: both vars must be set.
+const googleClientId = env("GOOGLE_CLIENT_ID");
+const googleClientSecret = env("GOOGLE_CLIENT_SECRET");
+
+/** Shown to the client (via `/api/auth-config`) to pick the right button. */
+export const directGoogleConfigured = Boolean(googleClientId && googleClientSecret);
+
+// This app's own Better Auth origin. Two independent things must live on the
+// SAME origin, or every social sign-in fails:
+//   1. the OAuth `redirect_uri` sent to the identity provider, and
+//   2. the short-lived OAuth `state` cookie the browser stores.
+// A fixed canonical URL breaks that whenever the browser is on a different host
+// (Vercel preview deployment, a custom domain, or the "wrong" alias): the state
+// cookie is written for the host in the address bar while the provider sends the
+// callback to the canonical host, so it arrives without the cookie and the
+// provider (or Better Auth) reports `state_mismatch`; a per-app OAuth client
+// whose registered callback list is canonical-only reports
+// `{"message":"Invalid redirect URI"}` instead. So:
+//   - Vercel: derive the origin from the REQUEST host (allowlisted), with the
+//     canonical URL only as the fallback.
+//   - Self-hosted with an explicit `BETTER_AUTH_URL`: use it verbatim.
+//   - Sandbox live preview / plain local dev: dynamic host (no fixed URL).
 const vercelProductionUrl = env("VERCEL_PROJECT_PRODUCTION_URL");
 const vercelUrl = env("VERCEL_URL");
-const explicitBaseURL =
-  env("BETTER_AUTH_URL") ??
+const onVercel = process.env.VERCEL === "1";
+const explicitBaseURL = env("BETTER_AUTH_URL");
+
+/** Host (no scheme/port normalization beyond URL's) of a base URL, if valid. */
+function hostOf(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+}
+
+/** The deployment's canonical public URL, when one is known. */
+const canonicalBaseURL =
+  explicitBaseURL ??
   (vercelProductionUrl ? `https://${vercelProductionUrl}` : undefined) ??
   (vercelUrl ? `https://${vercelUrl}` : undefined);
+
+// Hosts the request may legitimately arrive on (dynamic baseURL allowlist).
+const platformHosts: string[] = [
+  hostOf(explicitBaseURL),
+  vercelProductionUrl ?? null,
+  vercelUrl ?? null,
+].filter((host): host is string => Boolean(host));
+
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -112,20 +155,34 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8081",
   "http://[::1]:8081",
 ];
-// Without any explicit URL we're in the sandbox live preview, which has no fixed
-// URL (each preview gets a dynamic `*.grok-sandbox.com` host), so Better Auth
-// gets a dynamic baseURL: it derives the origin per-request from the (proxied)
-// host, validated against the preview allowlist, which makes the OAuth
-// `redirect_uri` the concrete preview URL the broker's preview client accepts.
-const baseURL = explicitBaseURL ?? {
+
+// Host allowlist entries for loopback. Better Auth matches the FULL `Host`
+// header (including the port), so a bare "localhost" does NOT match
+// "localhost:8080" and the request silently falls back to the fixed fallback
+// URL. That mismatch is exactly what produces `state_mismatch`: the state
+// cookie lands on the host in the address bar, while the OAuth callback is sent
+// to the fallback host. Wildcards cover any dev port.
+const LOOPBACK_HOST_PATTERNS: string[] = [
+  "localhost",
+  "localhost:*",
+  "127.0.0.1",
+  "127.0.0.1:*",
+  "[::1]",
+  "[::1]:*",
+];
+
+const dynamicBaseURL = {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
   // (not only the preview wildcard).
-  allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
+  allowedHosts: [...platformHosts, ...previewAllowedHosts, ...LOOPBACK_HOST_PATTERNS],
   // `auto` → trust both http:// and https:// expansions of allowedHosts
-  // (preview is https; local dev is http).
+  // (preview/Vercel are https; local dev is http).
   protocol: "auto" as const,
-  fallback: "http://localhost:8080",
+  fallback: canonicalBaseURL ?? "http://localhost:8080",
 };
+
+const baseURL =
+  !onVercel && explicitBaseURL ? explicitBaseURL : dynamicBaseURL;
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
@@ -231,6 +288,25 @@ export const auth = betterAuth({
   secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
   database,
 
+  // Land OAuth/token failures on OUR login screen instead of the bare
+  // `/api/auth/error` JSON/document page, so the visitor sees a human message
+  // and a retry button (`?error=<code>`, e.g. `state_mismatch`).
+  onAPIError: { errorURL: "/login" },
+
+  // First-party Google when the operator supplied their own OAuth client.
+  // Better Auth calls back at `<origin>/api/auth/callback/google`.
+  ...(directGoogleConfigured
+    ? {
+        socialProviders: {
+          google: {
+            clientId: googleClientId as string,
+            clientSecret: googleClientSecret as string,
+            prompt: "select_account" as const,
+          },
+        },
+      }
+    : {}),
+
   // CSRF / origin check for credentialed auth POSTs (email sign-up/sign-in, …).
   // See `trustedOrigins` construction above — must cover live preview hosts AND
   // local loopback variants, or clients get "Invalid origin".
@@ -249,6 +325,7 @@ export const auth = betterAuth({
       trustedProviders: [
         ...GROK_PROVIDERS.map((p) => p.providerId),
         GATE_PROVIDER_ID,
+        ...(directGoogleConfigured ? ["google"] : []),
       ],
       // X's synthetic email is never "verified", so don't gate linking on the
       // local user's email-verified state.
