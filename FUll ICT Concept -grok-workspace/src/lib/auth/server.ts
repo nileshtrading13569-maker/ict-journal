@@ -86,12 +86,17 @@ export const authConfigured =
   !authDisabled && Boolean(grokClientId && grokClientSecret);
 
 // This app's own Better Auth origin. When deployed the deployer injects the
-// public URL. In the sandbox live preview there's no fixed URL (each preview gets
-// a dynamic `*.grok-sandbox.com` host), so we hand Better Auth a dynamic baseURL:
-// it derives the origin per-request from the (proxied) host, validated against the
-// preview allowlist, which makes the OAuth `redirect_uri` the concrete preview URL
-// the broker's preview client accepts.
-const explicitBaseURL = env("BETTER_AUTH_URL");
+// public URL. If it doesn't, fall back to the platform's own system env vars so
+// a plain Vercel import works without a chicken-and-egg "set the URL before the
+// first deploy" step (Vercel exposes both at build AND runtime):
+//   VERCEL_PROJECT_PRODUCTION_URL -> stable domain (project.vercel.app)
+//   VERCEL_URL                    -> this specific deployment/preview host
+const vercelProductionUrl = env("VERCEL_PROJECT_PRODUCTION_URL");
+const vercelUrl = env("VERCEL_URL");
+const explicitBaseURL =
+  env("BETTER_AUTH_URL") ??
+  (vercelProductionUrl ? `https://${vercelProductionUrl}` : undefined) ??
+  (vercelUrl ? `https://${vercelUrl}` : undefined);
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -107,6 +112,11 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8081",
   "http://[::1]:8081",
 ];
+// Without any explicit URL we're in the sandbox live preview, which has no fixed
+// URL (each preview gets a dynamic `*.grok-sandbox.com` host), so Better Auth
+// gets a dynamic baseURL: it derives the origin per-request from the (proxied)
+// host, validated against the preview allowlist, which makes the OAuth
+// `redirect_uri` the concrete preview URL the broker's preview client accepts.
 const baseURL = explicitBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
   // (not only the preview wildcard).
@@ -119,17 +129,35 @@ const baseURL = explicitBaseURL ?? {
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
-  : [
-      // Host wildcards (matched against Origin's host)
-      ...previewAllowedHosts,
-      // Full-origin wildcards (matched against Origin)
-      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-      ...LOCAL_DEV_ORIGINS,
-    ];
+// Vercel preview deployments get their own host, so trust the stable production
+// domain AND the per-deployment URL (both are platform-provided, not user input).
+const platformOrigins: string[] = [
+  vercelProductionUrl ? `https://${vercelProductionUrl}` : null,
+  vercelUrl ? `https://${vercelUrl}` : null,
+].filter((origin): origin is string => Boolean(origin));
+
+const trustedOrigins: string[] = [
+  ...(explicitBaseURL
+    ? [explicitBaseURL]
+    : [
+        // Host wildcards (matched against Origin's host)
+        ...previewAllowedHosts,
+        // Full-origin wildcards (matched against Origin)
+        ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
+      ]),
+  ...platformOrigins,
+  ...LOCAL_DEV_ORIGINS,
+];
 
 const databaseUrl = env("DATABASE_URL");
+
+if (databaseUrl && !env("BETTER_AUTH_SECRET")) {
+  console.warn(
+    "[auth] DATABASE_URL is set without BETTER_AUTH_SECRET — each serverless " +
+      "instance would mint a different session secret, so sign-ins would not " +
+      "survive between requests. Set BETTER_AUTH_SECRET in the host's environment.",
+  );
+}
 
 // Static broker OAuth endpoints (skip OIDC discovery on every sign-in / callback).
 // Discovery would cost an extra network hop to the broker before the popup can
