@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+.output/
+.vercel/
+.tanstack/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs & cache
+*.log
+.npm
+.DS_Store
+*.local
+
+# Editor
+.vscode/
+.idea/
