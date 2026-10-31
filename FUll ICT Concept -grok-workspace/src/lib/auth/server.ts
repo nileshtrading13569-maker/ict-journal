@@ -95,13 +95,17 @@ const explicitBaseURL = env("BETTER_AUTH_URL");
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
-// Local `npm run dev` (port 8080 contract). Browsers may send Origin as any of
-// these for the same server — trusting only `localhost` rejects `127.0.0.1` and
-// breaks email/password with "Invalid origin".
+// Local `npm run dev` (port 8080 contract) and `npm run preview` (built output
+// on 8081). Browsers may send Origin as any of these for the same server —
+// trusting only `localhost` rejects `127.0.0.1` and breaks email/password with
+// "Invalid origin".
 const LOCAL_DEV_ORIGINS: string[] = [
   "http://localhost:8080",
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
+  "http://localhost:8081",
+  "http://127.0.0.1:8081",
+  "http://[::1]:8081",
 ];
 const baseURL = explicitBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
@@ -145,8 +149,28 @@ const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
   : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
+/**
+ * Whether the session cookie carries `Secure`. Browsers silently drop `Secure`
+ * (and therefore EVERY `__Host-` cookie, whose prefix REQUIRES it) when the page
+ * is served from plain `http://` — Chrome included, even on `localhost`. Getting
+ * this wrong is nasty: the auth API still returns `200` with a user + token, but
+ * the browser stores no cookie, so `get-session` stays `null` and sign-in looks
+ * broken with no server error. So follow the deployment protocol: HTTPS when a
+ * public `BETTER_AUTH_URL` says so (deployed), or on Vercel / via an explicit
+ * `AUTH_COOKIE_SECURE=true`; plain http otherwise (local dev AND the local
+ * built-output preview on 127.0.0.1, which serves over http despite a
+ * production bundle).
+ */
+const secureCookies =
+  explicitBaseURL !== undefined
+    ? explicitBaseURL.startsWith("https://")
+    : env("AUTH_COOKIE_SECURE") === "true" || process.env.VERCEL === "1";
+
+/** `__Host-` prefix only when Secure is actually set (see above). */
+const cookiePrefix = secureCookies ? "__Host-grok-auth" : "grok-auth";
+
 /** Session token cookie name — also read by the live-preview popup completion page. */
-export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
+export const SESSION_TOKEN_COOKIE = `${cookiePrefix}.session_token`;
 
 // Built separately so the `betterAuth({...})` call stays easy to edit without
 // breaking brackets (models often trip on the conditional plugin spread).
@@ -218,16 +242,17 @@ export const auth = betterAuth({
   // `Domain=.grok.me` session cookie onto this app. `__Host-` requires Secure +
   // Path=/ + no Domain; Better Auth otherwise uses `__Secure-` (which permits
   // Domain), so we drop its auto prefix (`useSecureCookies: false`) and set
-  // Secure + the names ourselves. (Browsers allow Secure cookies on
-  // `http://localhost`, so local dev still works.)
+  // Secure + the names ourselves. Both follow `secureCookies` above so local
+  // http dev keeps working (no `__Host-`, no Secure) while deploys stay locked
+  // down.
   advanced: {
     useSecureCookies: false,
-    defaultCookieAttributes: { secure: true, sameSite: "lax", path: "/" },
+    defaultCookieAttributes: { secure: secureCookies, sameSite: "lax", path: "/" },
     cookies: {
       session_token: { name: SESSION_TOKEN_COOKIE },
-      session_data: { name: "__Host-grok-auth.session_data" },
-      account_data: { name: "__Host-grok-auth.account_data" },
-      dont_remember: { name: "__Host-grok-auth.dont_remember" },
+      session_data: { name: `${cookiePrefix}.session_data` },
+      account_data: { name: `${cookiePrefix}.account_data` },
+      dont_remember: { name: `${cookiePrefix}.dont_remember` },
     },
   },
 

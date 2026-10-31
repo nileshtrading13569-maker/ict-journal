@@ -1,4 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,10 +23,24 @@ export function Field({
   hint?: string;
   className?: string;
 }) {
+  // Associate the caption with the control so screen readers (and browser
+  // tests) can resolve `getByLabel("Account name")` instead of only seeing an
+  // unlabeled input next to a plain span.
+  const autoId = useId();
+  const childId =
+    isValidElement(children) && typeof (children.props as { id?: unknown }).id === "string"
+      ? ((children.props as { id: string }).id)
+      : autoId;
+  const child = isValidElement(children)
+    ? cloneElement(children as ReactElement<Record<string, unknown>>, { id: childId })
+    : children;
+
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase">{label}</span>
-      {children}
+      <Label htmlFor={childId} className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+        {label}
+      </Label>
+      {child}
       {hint ? <span className="text-xs text-subtle">{hint}</span> : null}
     </div>
   );
