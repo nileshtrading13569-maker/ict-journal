@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { directGoogleConfigured } from "@/lib/auth/server";
+const directGoogleConfigured = Boolean(
+  process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim(),
+);
 
 /**
  * Public, non-secret auth capabilities for the login screen. The client cannot

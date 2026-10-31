@@ -6,6 +6,8 @@ import { getSql } from "../db.ts";
 import {
   loadUserDatabase,
   saveUserDatabase,
+  loadUserNotebook,
+  saveUserNotebook,
   resolveGoogleUserIdentity,
   ensureUserStorageDirectory,
 } from "./user-database.server.ts";
@@ -327,5 +329,74 @@ describe("Multi-User Google Isolated Database & Storage", () => {
     assert.equal(loaded.accountName, "Direct SQL Desk");
     assert.equal(Array.isArray(loaded.trades), true);
     assert.equal(Array.isArray(loaded.liquidity), true);
+  });
+
+  it("loads and saves isolated notebook state for each Google user account", async () => {
+    // 1. Initial load generates defaults and creates storage/users/<id>/notebook.json
+    const initialA = await loadUserNotebook(userA_Id);
+    assert.ok(initialA);
+    assert.ok(Array.isArray(initialA.folders));
+    assert.ok(initialA.folders.includes("Daily Journal"));
+    assert.ok(Array.isArray(initialA.notes));
+    assert.ok(initialA.notes.length > 0);
+
+    const dirA = ensureUserStorageDirectory(googleA_Id);
+    assert.equal(existsSync(join(dirA, "notebook.json")), true);
+
+    // 2. Save custom notes for User A
+    const customNoteA = {
+      id: "note-a-custom-1",
+      folder: "Daily Journal",
+      title: "Fri Oct 31, 2026 - User A Custom Tape",
+      date: "2026-10-31",
+      createdAt: "Oct 31, 2026 09:30AM",
+      updatedAt: "Oct 31, 2026 10:00AM",
+      pinned: true,
+      tags: ["NY AM", "Tape"],
+      content: "## Isolated Tape for User A",
+      manualMetrics: {
+        netPnl: 450.0,
+        grossPnl: 480.0,
+        commissions: 30.0,
+        totalTrades: 2,
+        winners: 2,
+        losers: 0,
+        winrate: 100,
+        volume: 8,
+        profitFactor: 99.9,
+      },
+    };
+
+    await saveUserNotebook(userA_Id, {
+      folders: [...initialA.folders, "User A Custom Folder"],
+      notes: [customNoteA, ...initialA.notes],
+    });
+
+    // 3. User B should have independent, isolated notebook data
+    const initialB = await loadUserNotebook(userB_Id);
+    assert.ok(initialB);
+    assert.equal(initialB.folders.includes("User A Custom Folder"), false);
+    assert.equal(initialB.notes.some((n) => n.id === "note-a-custom-1"), false);
+
+    // 4. Reload User A notebook from database/storage and verify exact data
+    const reloadedA = await loadUserNotebook(userA_Id);
+    assert.equal(reloadedA.folders.includes("User A Custom Folder"), true);
+    const foundCustom = reloadedA.notes.find((n) => n.id === "note-a-custom-1");
+    assert.ok(foundCustom);
+    assert.equal(foundCustom.manualMetrics?.netPnl, 450.0);
+    assert.equal(foundCustom.manualMetrics?.winrate, 100);
+
+    // 5. Verify file content on disk in storage/users/<googleUserId>/notebook.json
+    const diskContent = JSON.parse(readFileSync(join(dirA, "notebook.json"), "utf-8"));
+    assert.ok(diskContent.folders.includes("User A Custom Folder"));
+    assert.ok(diskContent.notes.some((n: any) => n.id === "note-a-custom-1"));
+
+    // 6. User A clears/deletes notes down to empty array -> verify it persists 0 notes and doesn't revert to seed notes
+    await saveUserNotebook(userA_Id, {
+      folders: initialA.folders,
+      notes: [],
+    });
+    const reloadedEmptyA = await loadUserNotebook(userA_Id);
+    assert.equal(reloadedEmptyA.notes.length, 0, "User A with 0 notes must not revert to seed notes");
   });
 });

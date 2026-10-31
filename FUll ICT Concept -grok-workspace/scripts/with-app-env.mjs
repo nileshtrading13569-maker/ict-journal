@@ -20,7 +20,7 @@
  * `process.env`, which is why the merge has to happen before Vite starts.
  */
 import { spawn } from "node:child_process";
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { constants as osConstants } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -111,6 +111,20 @@ function main(argv) {
     process.exit(2);
   }
   const root = projectRoot();
+  try {
+    const pluginPath = join(
+      root,
+      "node_modules/@tanstack/start-plugin-core/dist/esm/vite/start-router-plugin/plugin.js"
+    );
+    const code = readFileSync(pluginPath, "utf8");
+    if (code.includes("new RegExp(resolvedGeneratedRouteTreePath)")) {
+      const patched = code.replace(
+        "new RegExp(resolvedGeneratedRouteTreePath)",
+        "new RegExp(resolvedGeneratedRouteTreePath.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\"), \"i\")"
+      );
+      writeFileSync(pluginPath, patched, "utf8");
+    }
+  } catch {}
   try {
     if (typeof process.loadEnvFile === "function") {
       try { process.loadEnvFile(join(root, ".env.local")); } catch {}

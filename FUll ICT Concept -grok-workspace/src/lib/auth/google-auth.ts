@@ -3,7 +3,6 @@ import { createAuthEndpoint } from "better-auth/api";
 import { parseSetCookieHeader, setSessionCookie } from "better-auth/cookies";
 import { handleOAuthUserInfo } from "better-auth/oauth2";
 import { z } from "zod";
-import { loadUserDatabase } from "../storage/user-database.server.ts";
 
 const LOG = "[google-auth]";
 
@@ -130,6 +129,7 @@ export function googleDevAuthPlugin(): BetterAuthPlugin {
 
           // Eagerly initialize the user's isolated database environment
           try {
+            const { loadUserDatabase } = await import("../storage/user-database.server.ts");
             await loadUserDatabase(result.data.user.id);
           } catch (initErr) {
             console.warn(`${LOG} eager user database provision notice:`, initErr);

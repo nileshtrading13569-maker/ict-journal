@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { getSql } from "../db.ts";
 import { createResetState, ensureMinimumDeskData } from "../ict-defaults.ts";
 import type { DeskData, LiquidityLevel, DailyPlan, WeeklyNarrative, Trade, MissedTrade } from "../ict-types.ts";
+import { DEFAULT_FOLDERS, SEED_NOTES, type NotebookEntry } from "../notebook-defaults.ts";
 
 export type GoogleUserIdentity = {
   googleUserId: string;
@@ -403,5 +404,166 @@ function saveScreenshotFiles(userDir: string, screenshots: PartitionedScreenshot
         console.warn("[user-database] failed to write exec screenshot file:", err);
       }
     }
+  }
+}
+
+/**
+ * Load isolated notebook data (folders and notes) for a specific user.
+ */
+export async function loadUserNotebook(
+  userId: string,
+): Promise<{ folders: string[]; notes: NotebookEntry[] }> {
+  const identity = await resolveGoogleUserIdentity(userId);
+  const { googleUserId } = identity;
+  const sql = await getSql();
+
+  // 1. Check user_notebook_state table
+  try {
+    const nbRows = await sql<{ folders: unknown; notes: unknown }>`
+      select folders, notes
+      from user_notebook_state
+      where user_id = ${userId}
+      limit 1
+    `;
+    if (nbRows[0] && Array.isArray(nbRows[0].notes)) {
+      return {
+        folders:
+          Array.isArray(nbRows[0].folders) && nbRows[0].folders.length > 0
+            ? (nbRows[0].folders as string[])
+            : [...DEFAULT_FOLDERS],
+        notes: nbRows[0].notes as NotebookEntry[],
+      };
+    }
+  } catch (err) {
+    console.warn("[user-database] user_notebook_state query warning:", err);
+  }
+
+  // 2. Check google_user_databases table
+  try {
+    const rows = await sql<{ notebook_state: unknown }>`
+      select notebook_state
+      from google_user_databases
+      where google_user_id = ${googleUserId}
+      limit 1
+    `;
+    if (rows[0]?.notebook_state && typeof rows[0].notebook_state === "object") {
+      const nb = rows[0].notebook_state as { folders?: string[]; notes?: NotebookEntry[]; initialized?: boolean };
+      // Only treat as valid user state if explicitly initialized or has notes
+      if (nb.initialized === true || (Array.isArray(nb.notes) && nb.notes.length > 0)) {
+        return {
+          folders: Array.isArray(nb.folders) && nb.folders.length > 0 ? nb.folders : [...DEFAULT_FOLDERS],
+          notes: Array.isArray(nb.notes) ? nb.notes : [],
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[user-database] google_user_databases notebook query warning:", err);
+  }
+
+  // 3. Fallback: check filesystem storage
+  const userDir = ensureUserStorageDirectory(googleUserId);
+  const notebookFile = join(userDir, "notebook.json");
+  if (existsSync(notebookFile)) {
+    try {
+      const content = readFileSync(notebookFile, "utf-8");
+      const parsed = JSON.parse(content);
+      if (parsed && Array.isArray(parsed.notes)) {
+        const result = {
+          folders: Array.isArray(parsed.folders) && parsed.folders.length > 0 ? parsed.folders : [...DEFAULT_FOLDERS],
+          notes: parsed.notes as NotebookEntry[],
+        };
+        await saveUserNotebook(userId, result);
+        return result;
+      }
+    } catch (fsErr) {
+      console.warn("[user-database] filesystem notebook parse warning:", fsErr);
+    }
+  }
+
+  // 4. First time initialization for this account
+  const initial = {
+    folders: [...DEFAULT_FOLDERS],
+    notes: SEED_NOTES,
+  };
+  await saveUserNotebook(userId, initial);
+  return initial;
+}
+
+/**
+ * Save isolated notebook data (folders and notes) for a specific user to both SQL database and filesystem storage.
+ */
+export async function saveUserNotebook(
+  userId: string,
+  data: { folders: string[]; notes: NotebookEntry[] },
+): Promise<void> {
+  const identity = await resolveGoogleUserIdentity(userId);
+  const { googleUserId, email, name, picture } = identity;
+  const sql = await getSql();
+
+  const cleanFolders =
+    Array.isArray(data.folders) && data.folders.length > 0 ? data.folders : [...DEFAULT_FOLDERS];
+  const cleanNotes = Array.isArray(data.notes) ? data.notes : [];
+  const payload = { folders: cleanFolders, notes: cleanNotes, initialized: true };
+  const jsonStr = JSON.stringify(payload);
+
+  // 1. Atomically upsert to user_notebook_state
+  try {
+    await sql`
+      insert into user_notebook_state (user_id, folders, notes, updated_at)
+      values (${userId}, ${JSON.stringify(cleanFolders)}::jsonb, ${JSON.stringify(cleanNotes)}::jsonb, now())
+      on conflict (user_id)
+      do update set
+        folders = excluded.folders,
+        notes = excluded.notes,
+        updated_at = now()
+    `;
+  } catch (err) {
+    console.warn("[user-database] failed to update user_notebook_state:", err);
+  }
+
+  // 2. Upsert to google_user_databases table notebook_state
+  try {
+    await sql`
+      insert into google_user_databases (
+        google_user_id,
+        user_id,
+        email,
+        name,
+        picture,
+        trade_history,
+        map_data,
+        screenshots,
+        desk_state,
+        notebook_state,
+        updated_at
+      )
+      values (
+        ${googleUserId},
+        ${userId},
+        ${email},
+        ${name},
+        ${picture},
+        '[]'::jsonb,
+        '{}'::jsonb,
+        '{}'::jsonb,
+        '{}'::jsonb,
+        ${jsonStr}::jsonb,
+        now()
+      )
+      on conflict (google_user_id)
+      do update set
+        notebook_state = excluded.notebook_state,
+        updated_at = now()
+    `;
+  } catch (err) {
+    console.warn("[user-database] failed to update google_user_databases notebook_state:", err);
+  }
+
+  // 3. Atomically persist to filesystem storage/users/<googleUserId>/notebook.json
+  try {
+    const userDir = ensureUserStorageDirectory(googleUserId);
+    writeFileSync(join(userDir, "notebook.json"), jsonStr, "utf-8");
+  } catch (fsErr) {
+    console.warn("[user-database] failed to write notebook.json file:", fsErr);
   }
 }

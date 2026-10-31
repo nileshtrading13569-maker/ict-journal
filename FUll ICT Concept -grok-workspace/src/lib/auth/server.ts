@@ -38,7 +38,7 @@ import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db.ts";
 import { emailAndPasswordEnabled } from "./email-password.ts";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server.ts";
-import { googleDevAuthPlugin } from "./google-auth.server.ts";
+import { googleDevAuthPlugin } from "./google-auth.ts";
 import { GROK_PROVIDERS } from "./providers.ts";
 import { pgliteDialect } from "./pglite-dialect.ts";
 import {

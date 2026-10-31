@@ -67,7 +67,15 @@ const MOBILE_MORE = [
   { to: "/protocol", label: "Protocol" },
 ] as const;
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  fullWidth = false,
+  contentClassName,
+}: {
+  children: React.ReactNode;
+  fullWidth?: boolean;
+  contentClassName?: string;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const phaseId = useDeskStore((s) => s.phaseId);
@@ -366,7 +374,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 md:px-8 md:pb-12">{children}</main>
+        <main
+          className={cn(
+            "mx-auto w-full flex-1",
+            fullWidth
+              ? "max-w-[1920px] px-2 sm:px-4 md:px-5 py-2 sm:py-3 pb-18 lg:pb-3 flex flex-col min-h-0"
+              : "max-w-6xl px-4 py-6 pb-24 md:px-8 md:pb-12",
+            contentClassName,
+          )}
+        >
+          {children}
+        </main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/[0.08] bg-black/90 backdrop-blur-xl lg:hidden">

@@ -37,6 +37,14 @@ import { useDeskStore } from "@/lib/ict-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { fmtCurrency, tradeDollarPnl } from "@/lib/ict-calc";
 import type { Trade } from "@/lib/ict-types";
+import {
+  DEFAULT_FOLDERS,
+  SEED_NOTES,
+  type NotebookEntry,
+} from "@/lib/notebook-defaults";
+import { loadNotebookState, saveNotebookState } from "@/lib/notebook-sync";
+
+export type { NotebookEntry };
 
 export const Route = createFileRoute("/notebook")({ component: NotebookPage });
 
@@ -294,163 +302,17 @@ function IntradayEquityCurve({ metrics }: IntradayEquityCurveProps) {
   );
 }
 
-export interface NotebookEntry {
-  id: string;
-  folder: string;
-  title: string;
-  subDate?: string;
-  date: string;
-  createdAt: string;
-  updatedAt: string;
-  pinned: boolean;
-  tags: string[];
-  content: string;
-  // Performance metrics (either auto-computed or manually overridden)
-  manualMetrics?: {
-    netPnl: number;
-    grossPnl: number;
-    commissions: number;
-    totalTrades: number;
-    winners: number;
-    losers: number;
-    winrate: number;
-    volume: number;
-    profitFactor: number;
-  };
-}
-
-const DEFAULT_FOLDERS = [
-  "All notes",
-  "Trade Notes",
-  "Daily Journal",
-  "Sessions Recap",
-  "My notes",
-] as const;
-
 const NOTEBOOK_STORAGE_KEY_V2 = "first-payout-notebook-notes-v2";
 const NOTEBOOK_FOLDERS_KEY = "first-payout-notebook-folders-v1";
 const NOTEBOOK_STORAGE_KEY_V1 = "first-payout-notebook-notes-v1";
-
-const SEED_NOTES: NotebookEntry[] = [
-  {
-    id: "day-2024-06-28",
-    folder: "Daily Journal",
-    title: "Fri Jun 28, 2024",
-    subDate: "07/01/2025",
-    date: "2024-06-28",
-    createdAt: "Jul 01, 2025 05:18PM",
-    updatedAt: "Jul 01, 2025 05:18PM",
-    pinned: true,
-    tags: ["NY AM", "XAUUSD", "Displacement"],
-    manualMetrics: {
-      netPnl: 185.47,
-      grossPnl: 200.0,
-      commissions: 14.53,
-      totalTrades: 2,
-      winners: 1,
-      losers: 1,
-      winrate: 50,
-      volume: 11,
-      profitFactor: 24.50697,
-    },
-    content: `## 🎯 NY AM Session Tape & Execution Narrative
-Market opened with a clean Judas swing clearing previous session high at **2,338.50** before immediate aggressive displacement downward into 5m Fair Value Gap.
-
-> **⚡ Rule Confluence Check**
-> - HTF Daily bias was confirmed Bearish into sell-side liquidity.
-> - 09:30 NY open purged Asian Session High liquidity pool.
-> - 5m Market Structure Shift left clear displacement FVG.
-> - Risk managed strictly at 1.0% with TP at internal range low.
-
-### ⏱️ Session Tape Log
-- **09:35** - Expansion high into 4H bearish breaker.
-- **09:48** - MSS confirmation with heavy sell volume displacement.
-- **10:02** - Trade #1 entered on OTE 62% retracement; partials taken at 2R.
-- **10:45** - Final runner closed before high-impact 11:00 news. Net P&L locked at +$185.47.`,
-  },
-  {
-    id: "day-2024-06-24",
-    folder: "Daily Journal",
-    title: "Mon, Jun 24, 2024",
-    subDate: "07/01/2025",
-    date: "2024-06-24",
-    createdAt: "Jul 01, 2025 04:10PM",
-    updatedAt: "Jul 01, 2025 04:10PM",
-    pinned: false,
-    tags: ["London Open", "EURUSD", "Judas"],
-    manualMetrics: {
-      netPnl: 342.1,
-      grossPnl: 370.0,
-      commissions: 27.9,
-      totalTrades: 3,
-      winners: 2,
-      losers: 1,
-      winrate: 66.7,
-      volume: 18,
-      profitFactor: 8.45,
-    },
-    content: `## 📊 London Open Reversal Breakdown
-Classic Monday weekly profile expansion. Asian range remained tight (18 pips). London swept Asian low at 02:15 GMT and rapidly reclaimed structure.
-
-- Swept Asian Low (1.0825) by 8 pips
-- Formed Bullish Order Block + 15m FVG
-- Long execution delivered full TP into Asian High liquidity pool.`,
-  },
-  {
-    id: "note-prep-1",
-    folder: "Trade Notes",
-    title: "Pre-Market Dealing Range Matrix",
-    subDate: "07/01/2025",
-    date: "2026-10-31",
-    createdAt: "Oct 31, 2026 08:00AM",
-    updatedAt: "Oct 31, 2026 08:30AM",
-    pinned: true,
-    tags: ["Playbook", "Rules", "HTF"],
-    content: `## 📋 Pre-Market Dealing Range Blueprint
-1. **Midnight Open**: Mark the 00:00 EST true day open price.
-2. **Previous Day Range**: High (PDH), Low (PDL), and Consequent Encroachment (50%).
-3. **Session High/Low**: Asian session high and low must be marked as primary external liquidity pools.
-4. **Key Draw on Liquidity**: Determine whether algorithm seeks BSL or SSL first.`,
-  },
-  {
-    id: "note-psych-1",
-    folder: "Sessions Recap",
-    title: "Weekly Psychology & Discipline Audit",
-    subDate: "06/29/2025",
-    date: "2026-10-25",
-    createdAt: "Oct 25, 2026 06:00PM",
-    updatedAt: "Oct 25, 2026 06:00PM",
-    pinned: false,
-    tags: ["Psychology", "Discipline"],
-    content: `## 🧠 Weekly Mental Tape & Emotional Discipline
-- **Zero revenge trades** taken across the entire week.
-- Managed FOMO during midday chop by stepping away from screens post 11:30 AM EST.
-- Adhered strictly to max 2 trades per session protocol.`,
-  },
-  {
-    id: "note-my-1",
-    folder: "My notes",
-    title: "Algorithmic Delivery Rules & Kill Zones",
-    subDate: "06/25/2025",
-    date: "2026-10-20",
-    createdAt: "Oct 20, 2026 02:15PM",
-    updatedAt: "Oct 20, 2026 02:15PM",
-    pinned: false,
-    tags: ["ICT", "KillZone"],
-    content: `## ⚡ Core Algorithmic Tenets
-- Time + Price = Setup. Never compromise on the Kill Zone window.
-- London Kill Zone: 02:00 - 05:00 EST.
-- NY AM Kill Zone: 09:30 - 11:00 EST.
-- If no displacement occurs within the kill zone, capital preservation is the winning trade.`,
-  },
-];
 
 function NotebookPage() {
   const deskTrades = useDeskStore((s) => s.trades);
   const accountName = useDeskStore((s) => s.accountName);
 
   const { user } = useCurrentUserState();
-  const userScope = user?.id ? `user_${user.id}` : "guest";
+  const userId = user?.id ?? null;
+  const userScope = userId ? `user_${userId}` : "guest";
 
   const getScopedKey = (base: string) => `${base}:${userScope}`;
 
@@ -462,10 +324,11 @@ function NotebookPage() {
   const [selectedNoteId, setSelectedNoteId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== "undefined" && window.innerWidth < 1024);
+  const [mobileView, setMobileView] = useState<"list" | "detail" | "folders">("list");
   const [perfCollapsed, setPerfCollapsed] = useState(false);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "pnl" | "title">("newest");
-  const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving">("saved");
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | "local">("saved");
   const [currentFontSize, setCurrentFontSize] = useState<number>(15);
   const [currentFontFamily, setCurrentFontFamily] = useState<string>("font-sans");
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
@@ -476,85 +339,140 @@ function NotebookPage() {
   const [newTagInput, setNewTagInput] = useState("");
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const foldersRef = useRef(folders);
+  foldersRef.current = folders;
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
 
-  // Load and isolate folders & notes per authenticated user
+  // Load and sync folders & notes: full backend database/storage when authenticated, local cache fallback
   useEffect(() => {
-    // 1. Folders
-    try {
-      const storedFolders =
-        window.localStorage.getItem(getScopedKey(NOTEBOOK_FOLDERS_KEY)) ??
-        (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_FOLDERS_KEY) : null);
-      if (storedFolders) {
-        const parsed = JSON.parse(storedFolders);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setFolders(parsed);
-        } else {
-          setFolders([...DEFAULT_FOLDERS]);
+    let cancelled = false;
+
+    const readLocalCache = () => {
+      try {
+        const storedFolders =
+          window.localStorage.getItem(getScopedKey(NOTEBOOK_FOLDERS_KEY)) ??
+          (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_FOLDERS_KEY) : null);
+        if (storedFolders) {
+          const parsed = JSON.parse(storedFolders);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setFolders(parsed);
+          }
         }
-      } else {
-        setFolders([...DEFAULT_FOLDERS]);
+
+        const storedV2 =
+          window.localStorage.getItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2)) ??
+          (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_STORAGE_KEY_V2) : null);
+        if (storedV2) {
+          const parsed = JSON.parse(storedV2);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setNotes(parsed);
+            setSelectedNoteId((curr) => (curr && parsed.some((p: NotebookEntry) => p.id === curr) ? curr : parsed[0].id));
+            return;
+          }
+        }
+
+        // Check migration from v1
+        const storedV1 =
+          window.localStorage.getItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V1)) ??
+          (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_STORAGE_KEY_V1) : null);
+        if (storedV1) {
+          const parsedV1 = JSON.parse(storedV1);
+          if (Array.isArray(parsedV1) && parsedV1.length > 0) {
+            const migrated: NotebookEntry[] = parsedV1.map((item: any) => ({
+              id: item.id || `migrated-${Date.now()}-${Math.random()}`,
+              folder: item.category === "Execution Log" ? "Daily Journal" : "Trade Notes",
+              title: item.title || "Untitled Note",
+              subDate: item.date || "07/01/2025",
+              date: item.date || new Date().toISOString().split("T")[0],
+              createdAt: item.updatedAt ? `${item.date || ""} ${item.updatedAt}` : "Earlier",
+              updatedAt: item.updatedAt || "Earlier",
+              pinned: !!item.pinned,
+              tags: Array.isArray(item.tags) ? item.tags : ["Imported"],
+              content: item.content || "",
+            }));
+            const combined = [...migrated, ...SEED_NOTES.filter((s) => !migrated.some((m) => m.id === s.id))];
+            setNotes(combined);
+            setSelectedNoteId(combined[0].id);
+            window.localStorage.setItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2), JSON.stringify(combined));
+            return;
+          }
+        }
+      } catch (e) {
+        console.error("[notebook] failed to read local cache:", e);
       }
-    } catch (e) {
-      console.error("[notebook] failed to read folders:", e);
-      setFolders([...DEFAULT_FOLDERS]);
+      setNotes(SEED_NOTES);
+      setSelectedNoteId(SEED_NOTES[0].id);
+    };
+
+    if (userId) {
+      void (async () => {
+        try {
+          const remote = await loadNotebookState();
+          if (cancelled) return;
+          if (remote && Array.isArray(remote.notes)) {
+            const cleanFolders =
+              Array.isArray(remote.folders) && remote.folders.length > 0 ? remote.folders : [...DEFAULT_FOLDERS];
+            setFolders(cleanFolders);
+            setNotes(remote.notes);
+            setSelectedNoteId((curr) =>
+              curr && remote.notes.some((n) => n.id === curr) ? curr : (remote.notes[0]?.id ?? "")
+            );
+            try {
+              window.localStorage.setItem(getScopedKey(NOTEBOOK_FOLDERS_KEY), JSON.stringify(cleanFolders));
+              window.localStorage.setItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2), JSON.stringify(remote.notes));
+            } catch {}
+            setAutoSaveStatus("saved");
+            return;
+          }
+        } catch (err) {
+          if (cancelled) return;
+          console.warn("[notebook] backend load error, falling back to local cache:", err);
+        }
+        if (!cancelled) {
+          readLocalCache();
+        }
+      })();
+    } else {
+      readLocalCache();
+      setAutoSaveStatus("local");
     }
 
-    // 2. Notes
-    try {
-      const storedV2 =
-        window.localStorage.getItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2)) ??
-        (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_STORAGE_KEY_V2) : null);
-      if (storedV2) {
-        const parsed = JSON.parse(storedV2);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setNotes(parsed);
-          setSelectedNoteId(parsed[0].id);
-          return;
-        }
-      }
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, userScope]);
 
-      // Check migration from v1
-      const storedV1 =
-        window.localStorage.getItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V1)) ??
-        (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_STORAGE_KEY_V1) : null);
-      if (storedV1) {
-        const parsedV1 = JSON.parse(storedV1);
-        if (Array.isArray(parsedV1) && parsedV1.length > 0) {
-          const migrated: NotebookEntry[] = parsedV1.map((item: any) => ({
-            id: item.id || `migrated-${Date.now()}-${Math.random()}`,
-            folder: item.category === "Execution Log" ? "Daily Journal" : "Trade Notes",
-            title: item.title || "Untitled Note",
-            subDate: item.date || "07/01/2025",
-            date: item.date || new Date().toISOString().split("T")[0],
-            createdAt: item.updatedAt ? `${item.date || ""} ${item.updatedAt}` : "Earlier",
-            updatedAt: item.updatedAt || "Earlier",
-            pinned: !!item.pinned,
-            tags: Array.isArray(item.tags) ? item.tags : ["Imported"],
-            content: item.content || "",
-          }));
-          const combined = [...migrated, ...SEED_NOTES.filter((s) => !migrated.some((m) => m.id === s.id))];
-          setNotes(combined);
-          setSelectedNoteId(combined[0].id);
-          window.localStorage.setItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2), JSON.stringify(combined));
-          return;
-        }
-      }
-    } catch (e) {
-      console.error("[notebook] failed to load notes:", e);
-    }
-    setNotes(SEED_NOTES);
-    setSelectedNoteId(SEED_NOTES[0].id);
-  }, [userScope]);
-
-  // Save notes helper scoped to the active account
+  // Save notes: instant local cache + debounced full backend persistence
   const persistNotes = (updated: NotebookEntry[]) => {
     setNotes(updated);
     setAutoSaveStatus("saving");
+
+    // 1. Instant local storage write
     try {
       window.localStorage.setItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2), JSON.stringify(updated));
-      setTimeout(() => setAutoSaveStatus("saved"), 350);
     } catch (e) {
-      console.error("[notebook] failed to persist notes:", e);
+      console.error("[notebook] failed to persist notes to localStorage:", e);
+    }
+
+    // 2. Full backend sync if authenticated
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    if (userId) {
+      saveTimerRef.current = setTimeout(async () => {
+        try {
+          await saveNotebookState({ data: { folders: foldersRef.current, notes: updated } });
+          setAutoSaveStatus("saved");
+        } catch (err) {
+          console.error("[notebook] failed to persist notes to backend:", err);
+          setAutoSaveStatus("saved");
+        }
+      }, 400);
+    } else {
+      setTimeout(() => setAutoSaveStatus("saved"), 350);
     }
   };
 
@@ -564,6 +482,14 @@ function NotebookPage() {
       window.localStorage.setItem(getScopedKey(NOTEBOOK_FOLDERS_KEY), JSON.stringify(updatedFolders));
     } catch (e) {
       console.error("[notebook] failed to persist folders:", e);
+    }
+
+    if (userId) {
+      void saveNotebookState({ data: { folders: updatedFolders, notes: notesRef.current } })
+        .then(() => setAutoSaveStatus("saved"))
+        .catch((err) => {
+          console.error("[notebook] failed to persist folders to backend:", err);
+        });
     }
   };
 
@@ -640,16 +566,38 @@ function NotebookPage() {
     };
   }, [selectedNote, deskTrades]);
 
+  // Helper to compute metrics for any note (combining live desk trades matching date and manual metrics)
+  const getNoteMetrics = (n: NotebookEntry) => {
+    const dayTrades = deskTrades.filter((t) => t.date === n.date);
+    if (dayTrades.length > 0) {
+      let net = 0;
+      dayTrades.forEach((t) => {
+        net += tradeDollarPnl(t).net ?? 0;
+      });
+      return {
+        netPnl: Number(net.toFixed(2)),
+        totalTrades: dayTrades.length,
+      };
+    }
+    if (n.manualMetrics) {
+      return {
+        netPnl: n.manualMetrics.netPnl,
+        totalTrades: n.manualMetrics.totalTrades,
+      };
+    }
+    return null;
+  };
+
   // Filtered & sorted notes
   const filteredNotes = useMemo(() => {
     return notes
       .filter((n) => {
         if (activeFolder !== "All notes" && n.folder !== activeFolder) return false;
         if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase();
+          const q = searchQuery.toLowerCase().replace(/^#/, "");
           const matchTitle = n.title.toLowerCase().includes(q);
           const matchContent = n.content.toLowerCase().includes(q);
-          const matchTag = n.tags.some((t) => t.toLowerCase().includes(q));
+          const matchTag = n.tags.some((t) => t.toLowerCase().replace(/^#/, "").includes(q));
           if (!matchTitle && !matchContent && !matchTag) return false;
         }
         return true;
@@ -668,13 +616,13 @@ function NotebookPage() {
           return a.title.localeCompare(b.title);
         }
         if (sortOrder === "pnl") {
-          const pnlA = a.manualMetrics?.netPnl ?? 0;
-          const pnlB = b.manualMetrics?.netPnl ?? 0;
+          const pnlA = getNoteMetrics(a)?.netPnl ?? 0;
+          const pnlB = getNoteMetrics(b)?.netPnl ?? 0;
           return pnlB - pnlA;
         }
         return 0;
       });
-  }, [notes, activeFolder, searchQuery, sortOrder]);
+  }, [notes, activeFolder, searchQuery, sortOrder, deskTrades]);
 
   // All distinct tags with count
   const allTagsWithCount = useMemo(() => {
@@ -705,7 +653,7 @@ function NotebookPage() {
   };
 
   const handleCreateEntry = (folderParam?: string) => {
-    const targetFolder = folderParam || activeFolder === "All notes" ? "Daily Journal" : activeFolder;
+    const targetFolder = folderParam ?? (activeFolder === "All notes" ? "Daily Journal" : activeFolder);
     const today = new Date();
     const isDaily = targetFolder === "Daily Journal";
     const title = isDaily
@@ -745,6 +693,7 @@ function NotebookPage() {
     const updated = [newNote, ...notes];
     persistNotes(updated);
     setSelectedNoteId(newNote.id);
+    setMobileView("detail");
     toast.success(isDaily ? "New daily journal log created" : "New note created");
   };
 
@@ -756,9 +705,24 @@ function NotebookPage() {
     const updated = notes.filter((n) => n.id !== id);
     persistNotes(updated);
     if (selectedNoteId === id) {
-      setSelectedNoteId(updated[0].id);
+      const remainingInFolder = updated.filter((n) => activeFolder === "All notes" || n.folder === activeFolder);
+      setSelectedNoteId(remainingInFolder[0]?.id ?? updated[0]?.id ?? "");
     }
     toast.success("Note removed");
+  };
+
+  const handleDeleteFolder = (folderName: string) => {
+    if (DEFAULT_FOLDERS.includes(folderName)) return;
+    if (window.confirm(`Delete folder "${folderName}"? Notes in this folder will be moved to "Trade Notes".`)) {
+      const nextFolders = folders.filter((f) => f !== folderName);
+      const updatedNotes = notes.map((n) => (n.folder === folderName ? { ...n, folder: "Trade Notes" } : n));
+      persistFolders(nextFolders);
+      persistNotes(updatedNotes);
+      if (activeFolder === folderName) {
+        setActiveFolder("Trade Notes");
+      }
+      toast.success(`Folder "${folderName}" removed`);
+    }
   };
 
   const handleTogglePin = (id: string) => {
@@ -921,8 +885,8 @@ function NotebookPage() {
   };
 
   return (
-    <AppShell>
-      <div className="flex flex-col h-[calc(100vh-7.5rem)] min-h-[580px] w-full min-w-0 overflow-hidden bg-black text-[#f5f5f4] rounded-lg border border-white/[0.08] shadow-2xl">
+    <AppShell fullWidth>
+      <div className="flex flex-col flex-1 h-[calc(100dvh-7.6rem)] lg:h-[calc(100dvh-4.6rem)] w-full min-w-0 overflow-hidden bg-black text-[#f5f5f4] rounded-xl border border-white/[0.08] shadow-2xl">
         
         {/* Top Header Bar matching TradeZella Notebook UI */}
         <header className="border-b border-white/[0.08] bg-[#070709] px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between shrink-0 gap-2 sm:gap-3 min-w-0 overflow-x-auto z-30">
@@ -995,15 +959,29 @@ function NotebookPage() {
         </header>
 
         {/* 3-Column Split Workspace */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex min-h-0 overflow-hidden">
           
           {/* COLUMN 1: Folders & Tags Sidebar */}
           <aside
             className={cn(
-              "border-r border-white/[0.08] bg-[#09090b] flex flex-col shrink-0 transition-all duration-200",
-              sidebarCollapsed ? "w-12 items-center" : "w-48 xl:w-52"
+              "border-r border-white/[0.08] bg-[#09090b] flex-col shrink-0 min-h-0 transition-all duration-200",
+              mobileView === "folders" ? "flex w-full" : "hidden md:flex",
+              sidebarCollapsed ? "md:w-11 sm:md:w-12 md:items-center" : "md:w-44 lg:w-48 xl:w-52"
             )}
           >
+            {/* Mobile return to Notes List bar */}
+            <div className="md:hidden p-2.5 border-b border-white/[0.08] bg-[#0c0c0e] flex items-center justify-between w-full">
+              <button
+                type="button"
+                onClick={() => setMobileView("list")}
+                className="flex items-center gap-1.5 text-xs text-[#d6d6d4] hover:text-white"
+              >
+                <ChevronLeft className="size-4 text-[#e50914]" />
+                <span className="font-medium">Back to notes list</span>
+              </button>
+              <span className="text-[10px] uppercase font-mono tracking-wider text-[#6f6f6d]">Folders &amp; Tags</span>
+            </div>
+
             {/* Search Input & Add Folder */}
             <div className="p-2.5 border-b border-white/[0.06] space-y-1.5 w-full">
               {!sidebarCollapsed ? (
@@ -1032,7 +1010,7 @@ function NotebookPage() {
                     <button
                       type="button"
                       onClick={() => setSidebarCollapsed(true)}
-                      className="text-[#6f6f6d] hover:text-white p-1 rounded"
+                      className="text-[#6f6f6d] hover:text-white p-1 rounded hidden md:block"
                       title="Collapse sidebar"
                     >
                       <ChevronLeft className="size-3.5" />
@@ -1064,12 +1042,18 @@ function NotebookPage() {
                 <div className="mt-0.5 space-y-0.5">
                   {folders.map((f) => {
                     const isActive = activeFolder === f;
+                    const isDefault = DEFAULT_FOLDERS.includes(f);
                     const count = f === "All notes" ? notes.length : notes.filter((n) => n.folder === f).length;
                     return (
                       <button
                         key={f}
                         type="button"
-                        onClick={() => setActiveFolder(f)}
+                        onClick={() => {
+                          setActiveFolder(f);
+                          if (typeof window !== "undefined" && window.innerWidth < 768) {
+                            setMobileView("list");
+                          }
+                        }}
                         className={cn(
                           "w-full text-left px-2 py-1 rounded-md text-xs font-medium flex items-center justify-between group transition-colors",
                           isActive
@@ -1089,9 +1073,24 @@ function NotebookPage() {
                           {!sidebarCollapsed && <span className="truncate">{f}</span>}
                         </div>
                         {!sidebarCollapsed && (
-                          <span className="font-mono text-[10px] text-[#6f6f6d] group-hover:text-white shrink-0">
-                            {count}
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono text-[10px] text-[#6f6f6d] group-hover:text-white">
+                              {count}
+                            </span>
+                            {!isDefault && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteFolder(f);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-0.5 text-[#6f6f6d] hover:text-[#ff6b7d] rounded transition-opacity"
+                                title={`Delete folder "${f}"`}
+                              >
+                                <Trash2 className="size-3" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </button>
                     );
@@ -1111,7 +1110,13 @@ function NotebookPage() {
                       <button
                         key={tag}
                         type="button"
-                        onClick={() => setSearchQuery(tag)}
+                        onClick={() => {
+                          setActiveFolder("All notes");
+                          setSearchQuery(tag);
+                          if (typeof window !== "undefined" && window.innerWidth < 768) {
+                            setMobileView("list");
+                          }
+                        }}
                         className="w-full flex items-center justify-between px-2 py-0.5 text-xs text-[#a2a2a0] hover:text-white hover:bg-white/[0.03] rounded-md transition-colors"
                       >
                         <div className="flex items-center gap-1.5 truncate">
@@ -1133,16 +1138,30 @@ function NotebookPage() {
                   Total logs: <strong className="text-white font-mono">{notes.length}</strong>
                 </span>
                 <span className="flex items-center gap-1 text-[#3ddc84] font-mono text-[10px]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#3ddc84]" /> Synced
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#3ddc84]" /> {userId ? "Cloud Synced" : "Synced"}
                 </span>
               </div>
             )}
           </aside>
 
           {/* COLUMN 2: Middle Log Day List / Notes Feed */}
-          <section className="w-56 xl:w-60 border-r border-white/[0.08] bg-[#0c0c0e] flex flex-col shrink-0">
+          <section
+            className={cn(
+              "border-r border-white/[0.08] bg-[#0c0c0e] flex-col shrink-0 min-h-0",
+              mobileView === "list" ? "flex w-full" : "hidden md:flex md:w-56 lg:w-64 xl:w-72"
+            )}
+          >
             {/* Actions Bar */}
             <div className="p-2 sm:p-2.5 border-b border-white/[0.06] flex items-center justify-between gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMobileView("folders")}
+                className="md:hidden p-1.5 rounded-lg border border-white/[0.08] bg-[#17171b] text-[#a2a2a0] hover:text-white"
+                title="View folders and tags"
+              >
+                <Folder className="size-3.5 text-[#e50914]" />
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleCreateEntry()}
@@ -1209,12 +1228,19 @@ function NotebookPage() {
                 filteredNotes.map((n) => {
                   const isSelected = selectedNote?.id === n.id;
                   const isChecked = selectedNoteIds.has(n.id);
-                  const pnl = n.manualMetrics?.netPnl;
+                  const noteMetrics = getNoteMetrics(n);
+                  const pnl = noteMetrics?.netPnl;
+                  const tradesCount = noteMetrics?.totalTrades;
 
                   return (
                     <div
                       key={n.id}
-                      onClick={() => setSelectedNoteId(n.id)}
+                      onClick={() => {
+                        setSelectedNoteId(n.id);
+                        if (typeof window !== "undefined" && window.innerWidth < 768) {
+                          setMobileView("detail");
+                        }
+                      }}
                       className={cn(
                         "p-2.5 rounded-lg border cursor-pointer transition-all relative group",
                         isSelected
@@ -1252,9 +1278,9 @@ function NotebookPage() {
 
                       <div className="mt-1 flex items-center justify-between text-[10px] text-[#6f6f6d]">
                         <span className="font-mono">{n.subDate || n.date}</span>
-                        {n.manualMetrics?.totalTrades ? (
+                        {tradesCount ? (
                           <span className="bg-white/[0.06] px-1.5 py-0.5 rounded text-[10px] text-[#a2a2a0]">
-                            {n.manualMetrics.totalTrades} trades
+                            {tradesCount} {tradesCount === 1 ? "trade" : "trades"}
                           </span>
                         ) : null}
                       </div>
@@ -1266,20 +1292,31 @@ function NotebookPage() {
           </section>
 
           {/* COLUMN 3: Right Note Editor & Detail View */}
-          <section className="flex-1 min-w-0 bg-black flex flex-col overflow-y-auto">
+          <section
+            className={cn(
+              "flex-1 min-w-0 bg-black flex-col overflow-y-auto min-h-0",
+              mobileView === "detail" ? "flex w-full" : "hidden md:flex"
+            )}
+          >
             {selectedNote ? (
               <div className="flex flex-col flex-1">
                 {/* Header & Title Area */}
-                <div className="p-4 sm:p-5 border-b border-white/[0.08] bg-[#070709] space-y-3.5">
+                <div className="p-3.5 sm:p-5 border-b border-white/[0.08] bg-[#070709] space-y-3.5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <button
                         type="button"
-                        onClick={() => setSidebarCollapsed((v) => !v)}
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth < 768) {
+                            setMobileView("list");
+                          } else {
+                            setSidebarCollapsed((v) => !v);
+                          }
+                        }}
                         className="p-1.5 rounded-md hover:bg-white/[0.06] text-[#6f6f6d] hover:text-white shrink-0 transition-colors"
-                        title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                        title={sidebarCollapsed ? "Expand sidebar" : "Back to list / collapse"}
                       >
-                        <ChevronLeft className={cn("size-4 transition-transform", sidebarCollapsed && "rotate-180")} />
+                        <ChevronLeft className={cn("size-4 transition-transform", sidebarCollapsed && "md:rotate-180")} />
                       </button>
                       <div className="p-1.5 rounded-md bg-[#17171b] border border-white/[0.08] text-[#a2a2a0] shrink-0">
                         <Calendar className="size-4 text-[#e50914]" />
@@ -1288,7 +1325,7 @@ function NotebookPage() {
                         type="text"
                         value={selectedNote.title}
                         onChange={(e) => handleUpdateNote({ title: e.target.value })}
-                        className="flex-1 min-w-0 bg-transparent font-display font-bold text-lg sm:text-2xl text-white focus:outline-none placeholder-[#6f6f6d] truncate"
+                        className="flex-1 min-w-[140px] bg-transparent font-display font-bold text-base sm:text-xl lg:text-2xl text-white focus:outline-none placeholder-[#6f6f6d]"
                         placeholder="Note Title..."
                       />
                     </div>
@@ -1296,7 +1333,9 @@ function NotebookPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="font-mono text-[11px] text-[#3ddc84] flex items-center gap-1">
                         {autoSaveStatus === "saving" ? (
-                          <span className="text-amber-400">Saving...</span>
+                          <span className="text-amber-400 animate-pulse">Saving...</span>
+                        ) : autoSaveStatus === "local" ? (
+                          <span className="text-[#a2a2a0]">● Local</span>
                         ) : (
                           <span>✓ Synced</span>
                         )}
@@ -1377,6 +1416,34 @@ function NotebookPage() {
                             </span>
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[#6f6f6d]">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[#888886]">Session Date:</span>
+                              <input
+                                type="date"
+                                value={selectedNote.date}
+                                onChange={(e) => {
+                                  const newDate = e.target.value;
+                                  if (!newDate) return;
+                                  const d = new Date(newDate + "T00:00:00");
+                                  const formattedTitle =
+                                    selectedNote.folder === "Daily Journal"
+                                      ? d.toLocaleDateString("en-US", {
+                                          weekday: "short",
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        })
+                                      : selectedNote.title;
+                                  handleUpdateNote({
+                                    date: newDate,
+                                    subDate: d.toLocaleDateString("en-US"),
+                                    title: formattedTitle,
+                                  });
+                                }}
+                                className="bg-[#121215] border border-white/[0.1] rounded px-1.5 py-0.5 text-[11px] font-mono text-white focus:outline-none focus:border-[#e50914]"
+                              />
+                            </div>
+                            <span>•</span>
                             <span>
                               Created:{" "}
                               <strong className="text-[#a2a2a0] font-normal">
@@ -1410,9 +1477,9 @@ function NotebookPage() {
 
                       {/* Collapsible Body with P&L Chart & Stats */}
                       {!perfCollapsed && (
-                        <div className="mt-3 pt-3 border-t border-white/[0.06] grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
+                        <div className="mt-3 pt-3 border-t border-white/[0.06] grid grid-cols-1 2xl:grid-cols-12 gap-3.5 items-stretch">
                           {/* Intraday Cumulative P&L Area Chart */}
-                          <div className="xl:col-span-5 bg-[#070709] border border-white/[0.06] rounded-lg p-2.5 min-w-0">
+                          <div className="2xl:col-span-5 bg-[#070709] border border-white/[0.06] rounded-lg p-2.5 min-w-0">
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="text-[10px] uppercase font-semibold tracking-wider text-[#6f6f6d]">
                                 Intraday Equity Curve
@@ -1429,68 +1496,94 @@ function NotebookPage() {
                             <IntradayEquityCurve metrics={liveDayMetrics} />
                           </div>
 
-                          {/* 8 Stats Metrics - 4 Columns matching TradeZella reference screenshot */}
-                          <div className="xl:col-span-7 grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08] bg-[#070709] border border-white/[0.06] rounded-lg p-2.5 min-w-0">
+                          {/* 8 Stats Metrics - 4 Columns matching TradeZella reference */}
+                          <div className="2xl:col-span-7 grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08] bg-[#070709] border border-white/[0.06] rounded-lg p-2.5 min-w-0">
                             {/* Column 1: Total trades & Winrate */}
-                            <div className="flex flex-col justify-between py-1 px-2.5 min-w-0 space-y-2.5">
+                            <div className="flex flex-col justify-between py-1 px-2.5 sm:px-3 min-w-0 space-y-2.5">
                               <div className="min-w-0" title="Total trades">
-                                <span className="text-[10px] text-[#888886] block font-medium uppercase tracking-wider truncate">Total trades</span>
-                                <span className="font-mono font-semibold text-xs sm:text-sm text-white mt-0.5 block truncate">
+                                <span className="text-[10px] text-[#888886] block font-semibold uppercase tracking-wider leading-tight">
+                                  Total trades
+                                </span>
+                                <span className="font-mono font-bold text-xs sm:text-sm text-white mt-0.5 block whitespace-nowrap">
                                   {liveDayMetrics?.totalTrades ?? 0}
                                 </span>
                               </div>
                               <div className="min-w-0" title="Winrate">
-                                <span className="text-[10px] text-[#888886] block font-medium uppercase tracking-wider truncate">Winrate</span>
-                                <span className="font-mono font-semibold text-xs sm:text-sm text-[#3ddc84] mt-0.5 block truncate">
+                                <span className="text-[10px] text-[#888886] block font-semibold uppercase tracking-wider leading-tight">
+                                  Winrate
+                                </span>
+                                <span className="font-mono font-bold text-xs sm:text-sm text-[#3ddc84] mt-0.5 block whitespace-nowrap">
                                   {liveDayMetrics?.winrate ?? 0}%
                                 </span>
                               </div>
                             </div>
 
                             {/* Column 2: Winners & Losers */}
-                            <div className="flex flex-col justify-between py-1 px-2.5 min-w-0 space-y-2.5">
+                            <div className="flex flex-col justify-between py-1 px-2.5 sm:px-3 min-w-0 space-y-2.5">
                               <div className="min-w-0" title="Winners">
-                                <span className="text-[10px] text-[#888886] block font-medium uppercase tracking-wider truncate">Winners</span>
-                                <span className="font-mono font-semibold text-xs sm:text-sm text-[#3ddc84] mt-0.5 block truncate">
+                                <span className="text-[10px] text-[#888886] block font-semibold uppercase tracking-wider leading-tight">
+                                  Winners
+                                </span>
+                                <span className="font-mono font-bold text-xs sm:text-sm text-[#3ddc84] mt-0.5 block whitespace-nowrap">
                                   {liveDayMetrics?.winners ?? 0}
                                 </span>
                               </div>
                               <div className="min-w-0" title="Losers">
-                                <span className="text-[10px] text-[#888886] block font-medium uppercase tracking-wider truncate">Losers</span>
-                                <span className="font-mono font-semibold text-xs sm:text-sm text-[#ff6b7d] mt-0.5 block truncate">
+                                <span className="text-[10px] text-[#888886] block font-semibold uppercase tracking-wider leading-tight">
+                                  Losers
+                                </span>
+                                <span className="font-mono font-bold text-xs sm:text-sm text-[#ff6b7d] mt-0.5 block whitespace-nowrap">
                                   {liveDayMetrics?.losers ?? 0}
                                 </span>
                               </div>
                             </div>
 
                             {/* Column 3: Gross P&L & Volume */}
-                            <div className="flex flex-col justify-between py-1 px-2.5 min-w-0 space-y-2.5">
+                            <div className="flex flex-col justify-between py-1 px-2.5 sm:px-3 min-w-0 space-y-2.5">
                               <div className="min-w-0" title="Gross P&L">
-                                <span className="text-[10px] text-[#888886] block font-medium uppercase tracking-wider truncate">Gross P&amp;L</span>
-                                <span className="font-mono font-semibold text-xs sm:text-sm text-white mt-0.5 block truncate">
+                                <span className="text-[10px] text-[#888886] block font-semibold uppercase tracking-wider leading-tight">
+                                  Gross P&amp;L
+                                </span>
+                                <span
+                                  className={cn(
+                                    "font-mono font-bold text-xs sm:text-sm mt-0.5 block whitespace-nowrap",
+                                    (liveDayMetrics?.grossPnl ?? 0) >= 0 ? "text-white" : "text-[#ff6b7d]"
+                                  )}
+                                >
                                   {fmtCurrency(liveDayMetrics?.grossPnl ?? 0)}
                                 </span>
                               </div>
                               <div className="min-w-0" title="Volume">
-                                <span className="text-[10px] text-[#888886] block font-medium uppercase tracking-wider truncate">Volume</span>
-                                <span className="font-mono font-semibold text-xs sm:text-sm text-white mt-0.5 block truncate">
+                                <span className="text-[10px] text-[#888886] block font-semibold uppercase tracking-wider leading-tight">
+                                  Volume
+                                </span>
+                                <span className="font-mono font-bold text-xs sm:text-sm text-white mt-0.5 block whitespace-nowrap">
                                   {liveDayMetrics?.volume ?? 0}
                                 </span>
                               </div>
                             </div>
 
                             {/* Column 4: Commissions & Profit factor */}
-                            <div className="flex flex-col justify-between py-1 px-2.5 min-w-0 space-y-2.5">
+                            <div className="flex flex-col justify-between py-1 px-2.5 sm:px-3 min-w-0 space-y-2.5">
                               <div className="min-w-0" title="Commissions">
-                                <span className="text-[10px] text-[#888886] block font-medium uppercase tracking-wider truncate">Commissions</span>
-                                <span className="font-mono font-semibold text-xs sm:text-sm text-[#ff6b7d] mt-0.5 block truncate">
+                                <span className="text-[10px] text-[#888886] block font-semibold uppercase tracking-wider leading-tight">
+                                  Commissions
+                                </span>
+                                <span className="font-mono font-bold text-xs sm:text-sm text-[#ff6b7d] mt-0.5 block whitespace-nowrap">
                                   ${((liveDayMetrics?.commissions ?? 0)).toFixed(2)}
                                 </span>
                               </div>
                               <div className="min-w-0" title="Profit factor">
-                                <span className="text-[10px] text-[#888886] block font-medium uppercase tracking-wider truncate">Profit factor</span>
-                                <span className="font-mono font-semibold text-xs sm:text-sm text-[#3ddc84] mt-0.5 block truncate">
-                                  {liveDayMetrics?.profitFactor ?? 0}
+                                <span className="text-[10px] text-[#888886] block font-semibold uppercase tracking-wider leading-tight">
+                                  Profit factor
+                                </span>
+                                <span
+                                  className={cn(
+                                    "font-mono font-bold text-xs sm:text-sm mt-0.5 block whitespace-nowrap",
+                                    (liveDayMetrics?.profitFactor ?? 0) >= 1 ? "text-[#3ddc84]" : "text-[#ff6b7d]"
+                                  )}
+                                >
+                                  {Number(liveDayMetrics?.profitFactor ?? 0).toFixed(2)}
                                 </span>
                               </div>
                             </div>
