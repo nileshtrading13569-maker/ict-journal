@@ -35,17 +35,28 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
-import { ensureDbReady, getPglite } from "../db";
-import { emailAndPasswordEnabled } from "./email-password";
-import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
-import { GROK_PROVIDERS } from "./providers";
-import { pgliteDialect } from "./pglite-dialect";
+import { ensureDbReady, getPglite } from "../db.ts";
+import { emailAndPasswordEnabled } from "./email-password.ts";
+import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server.ts";
+import { googleDevAuthPlugin } from "./google-auth.server.ts";
+import { GROK_PROVIDERS } from "./providers.ts";
+import { pgliteDialect } from "./pglite-dialect.ts";
 import {
   GROK_ISSUER_DEFAULT,
   PREVIEW_ALLOWED_HOSTS,
   PREVIEW_CLIENT_ID,
   PREVIEW_CLIENT_SECRET,
-} from "./preview";
+} from "./preview.ts";
+
+// Auto-load .env and .env.local if present so GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are recognized
+try {
+  if (typeof process !== "undefined" && typeof process.loadEnvFile === "function") {
+    try { process.loadEnvFile(".env.local"); } catch {}
+    try { process.loadEnvFile(".env"); } catch {}
+  }
+} catch {
+  // Ignored if files do not exist
+}
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
@@ -325,7 +336,7 @@ export const auth = betterAuth({
       trustedProviders: [
         ...GROK_PROVIDERS.map((p) => p.providerId),
         GATE_PROVIDER_ID,
-        ...(directGoogleConfigured ? ["google"] : []),
+        "google",
       ],
       // X's synthetic email is never "verified", so don't gate linking on the
       // local user's email-verified state.
@@ -363,6 +374,7 @@ export const auth = betterAuth({
 
   plugins: [
     gateIdentitySessions(),
+    googleDevAuthPlugin(),
 
     // One genericOAuth provider per upstream (when auth is on), all federating
     // to the broker with the SAME client and differing only by the `idp` hint.
@@ -388,4 +400,4 @@ export function readSessionToken(): string | null {
 
 // Re-exported for convenience; the array lives in the dependency-free
 // `providers.ts` so the client can import it too.
-export { GROK_PROVIDERS } from "./providers";
+export { GROK_PROVIDERS } from "./providers.ts";

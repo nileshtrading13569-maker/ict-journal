@@ -34,6 +34,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useDeskStore } from "@/lib/ict-store";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { fmtCurrency, tradeDollarPnl } from "@/lib/ict-calc";
 import type { Trade } from "@/lib/ict-types";
 
@@ -448,19 +449,13 @@ function NotebookPage() {
   const deskTrades = useDeskStore((s) => s.trades);
   const accountName = useDeskStore((s) => s.accountName);
 
+  const { user } = useCurrentUserState();
+  const userScope = user?.id ? `user_${user.id}` : "guest";
+
+  const getScopedKey = (base: string) => `${base}:${userScope}`;
+
   // Folders state
-  const [folders, setFolders] = useState<string[]>(() => {
-    try {
-      const stored = window.localStorage.getItem(NOTEBOOK_FOLDERS_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error("[notebook] failed to read folders:", e);
-    }
-    return [...DEFAULT_FOLDERS];
-  });
+  const [folders, setFolders] = useState<string[]>([...DEFAULT_FOLDERS]);
 
   const [activeFolder, setActiveFolder] = useState<string>("Daily Journal");
   const [notes, setNotes] = useState<NotebookEntry[]>([]);
@@ -482,10 +477,33 @@ function NotebookPage() {
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Load and migrate notes
+  // Load and isolate folders & notes per authenticated user
   useEffect(() => {
+    // 1. Folders
     try {
-      const storedV2 = window.localStorage.getItem(NOTEBOOK_STORAGE_KEY_V2);
+      const storedFolders =
+        window.localStorage.getItem(getScopedKey(NOTEBOOK_FOLDERS_KEY)) ??
+        (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_FOLDERS_KEY) : null);
+      if (storedFolders) {
+        const parsed = JSON.parse(storedFolders);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setFolders(parsed);
+        } else {
+          setFolders([...DEFAULT_FOLDERS]);
+        }
+      } else {
+        setFolders([...DEFAULT_FOLDERS]);
+      }
+    } catch (e) {
+      console.error("[notebook] failed to read folders:", e);
+      setFolders([...DEFAULT_FOLDERS]);
+    }
+
+    // 2. Notes
+    try {
+      const storedV2 =
+        window.localStorage.getItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2)) ??
+        (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_STORAGE_KEY_V2) : null);
       if (storedV2) {
         const parsed = JSON.parse(storedV2);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -496,7 +514,9 @@ function NotebookPage() {
       }
 
       // Check migration from v1
-      const storedV1 = window.localStorage.getItem(NOTEBOOK_STORAGE_KEY_V1);
+      const storedV1 =
+        window.localStorage.getItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V1)) ??
+        (userScope === "guest" ? window.localStorage.getItem(NOTEBOOK_STORAGE_KEY_V1) : null);
       if (storedV1) {
         const parsedV1 = JSON.parse(storedV1);
         if (Array.isArray(parsedV1) && parsedV1.length > 0) {
@@ -515,7 +535,7 @@ function NotebookPage() {
           const combined = [...migrated, ...SEED_NOTES.filter((s) => !migrated.some((m) => m.id === s.id))];
           setNotes(combined);
           setSelectedNoteId(combined[0].id);
-          window.localStorage.setItem(NOTEBOOK_STORAGE_KEY_V2, JSON.stringify(combined));
+          window.localStorage.setItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2), JSON.stringify(combined));
           return;
         }
       }
@@ -524,14 +544,14 @@ function NotebookPage() {
     }
     setNotes(SEED_NOTES);
     setSelectedNoteId(SEED_NOTES[0].id);
-  }, []);
+  }, [userScope]);
 
-  // Save notes helper
+  // Save notes helper scoped to the active account
   const persistNotes = (updated: NotebookEntry[]) => {
     setNotes(updated);
     setAutoSaveStatus("saving");
     try {
-      window.localStorage.setItem(NOTEBOOK_STORAGE_KEY_V2, JSON.stringify(updated));
+      window.localStorage.setItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2), JSON.stringify(updated));
       setTimeout(() => setAutoSaveStatus("saved"), 350);
     } catch (e) {
       console.error("[notebook] failed to persist notes:", e);
@@ -541,7 +561,7 @@ function NotebookPage() {
   const persistFolders = (updatedFolders: string[]) => {
     setFolders(updatedFolders);
     try {
-      window.localStorage.setItem(NOTEBOOK_FOLDERS_KEY, JSON.stringify(updatedFolders));
+      window.localStorage.setItem(getScopedKey(NOTEBOOK_FOLDERS_KEY), JSON.stringify(updatedFolders));
     } catch (e) {
       console.error("[notebook] failed to persist folders:", e);
     }

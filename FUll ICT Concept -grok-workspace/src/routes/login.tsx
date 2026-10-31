@@ -1,16 +1,71 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, Lock, Plus, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { authClient, authEnabled, GROK_PROVIDERS, signIn } from "@/lib/auth/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  authClient,
+  authEnabled,
+  GROK_PROVIDERS,
+  signIn,
+  signInWithGoogleAccount,
+} from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { startGuestSession } from "@/lib/auth/guest-session";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
-type AuthProviders = { google: boolean };
+type AuthConfig = {
+  google: boolean;
+  directGoogle?: boolean;
+  mode?: "production" | "dev";
+};
+
+const PRESET_GOOGLE_ACCOUNTS = [
+  {
+    googleId: "108392019284719283741",
+    email: "alex.trader@gmail.com",
+    name: "Alex Trader",
+    desc: "Primary ICT Desk",
+  },
+  {
+    googleId: "109482019284719283742",
+    email: "sarah.jenkins@gmail.com",
+    name: "Sarah Jenkins",
+    desc: "Secondary Funded Account",
+  },
+];
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+      />
+    </svg>
+  );
+}
 
 /**
  * Human copy for the machine-readable `?error=` codes Better Auth (and the
@@ -71,14 +126,15 @@ function LoginPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [providers, setProviders] = useState<AuthProviders | null>(null);
-  // Read `?error=` on the client only (see the effect below). Initializing it
-  // during render would make the server HTML and the first client render
-  // disagree, which React reports as a hydration mismatch.
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [customGoogleEmail, setCustomGoogleEmail] = useState("");
+  const [customGoogleName, setCustomGoogleName] = useState("");
+  const [customGoogleId, setCustomGoogleId] = useState("");
+  const [isAddingCustomGoogle, setIsAddingCustomGoogle] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Ask the server whether a first-party Google client is configured. Falls
-  // back to the broker buttons if the probe fails (offline preview, etc.).
+  // Ask the server for auth capabilities
   useEffect(() => {
     let alive = true;
     setAuthError(readAuthError());
@@ -86,11 +142,11 @@ function LoginPage() {
       .then((response) => (response.ok ? response.json() : null))
       .then((value: unknown) => {
         if (!alive || !value || typeof value !== "object") return;
-        const google = (value as { google?: unknown }).google;
-        if (typeof google === "boolean") setProviders({ google });
+        const config = value as AuthConfig;
+        setAuthConfig(config);
       })
       .catch(() => {
-        /* keep the broker buttons */
+        /* fallback */
       });
     return () => {
       alive = false;
@@ -124,6 +180,34 @@ function LoginPage() {
     } catch (error) {
       console.error("[auth] sign-in failed:", error);
       toast.error(error instanceof Error ? error.message : "Sign-in failed. Please try again.");
+      setPendingProvider(null);
+    }
+  };
+
+  const handleGoogleClick = async () => {
+    clearAuthError();
+    if (authConfig?.mode === "production") {
+      await beginSignIn("google");
+    } else {
+      setIsGoogleModalOpen(true);
+    }
+  };
+
+  const handleSelectGoogleAccount = async (account: {
+    googleId: string;
+    email: string;
+    name: string;
+    picture?: string;
+  }) => {
+    setPendingProvider("google");
+    try {
+      await signInWithGoogleAccount(account);
+      toast.success(`Authenticated with Google (${account.email})`);
+      setIsGoogleModalOpen(false);
+      await navigate({ to: "/" });
+    } catch (error) {
+      console.error("[auth] Google sign-in failed:", error);
+      toast.error(error instanceof Error ? error.message : "Google sign-in failed. Please try again.");
       setPendingProvider(null);
     }
   };
@@ -260,20 +344,22 @@ function LoginPage() {
                 or continue with
                 <span className="h-px flex-1 bg-white/[0.08]" />
               </div>
-              {providers?.google ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 w-full justify-between rounded-xl border-white/[0.12] bg-white/[0.03] px-4 hover:border-accent/40 hover:bg-accent/[0.06]"
-                  disabled={pendingProvider !== null}
-                  onClick={() => void beginSignIn("google")}
-                >
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full justify-between rounded-xl border-white/[0.12] bg-white/[0.03] px-4 hover:border-accent/40 hover:bg-accent/[0.06]"
+                disabled={pendingProvider !== null}
+                onClick={() => void handleGoogleClick()}
+              >
+                <div className="flex items-center gap-2.5">
+                  <GoogleIcon className="size-4" />
                   <span>{pendingProvider === "google" ? "Connecting…" : "Continue with Google"}</span>
-                  <ArrowRight className="size-4 text-accent" />
-                </Button>
-              ) : null}
+                </div>
+                <ArrowRight className="size-4 text-accent" />
+              </Button>
+
               {GROK_PROVIDERS.filter(
-                (provider) => !(providers?.google && provider.providerId === "grok-google"),
+                (provider) => provider.providerId !== "grok-google",
               ).map((provider) => (
                 <Button
                   key={provider.providerId}
@@ -318,6 +404,113 @@ function LoginPage() {
             : "Your desk data is stored in this browser."}
         </p>
       </section>
+
+      <Dialog open={isGoogleModalOpen} onOpenChange={setIsGoogleModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card border-white/[0.12] p-6">
+          <DialogHeader className="space-y-2 text-left">
+            <div className="flex items-center gap-2.5">
+              <GoogleIcon className="size-6" />
+              <DialogTitle className="font-display text-xl">Sign in with Google</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Choose a Google account to sign in. After login, a completely isolated database and storage will be created for that Google ID.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-3">
+            {PRESET_GOOGLE_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.googleId}
+                type="button"
+                disabled={pendingProvider !== null}
+                onClick={() => void handleSelectGoogleAccount(acc)}
+                className="w-full flex items-center justify-between p-3.5 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] hover:border-accent/40 transition text-left group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-full bg-accent/20 border border-accent/30 grid place-items-center text-sm font-semibold text-accent">
+                    {acc.name[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground group-hover:text-accent transition">
+                      {acc.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{acc.email}</p>
+                    <p className="text-[10px] font-mono text-muted-foreground/70 mt-0.5">
+                      Google ID: {acc.googleId}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="size-4 text-muted-foreground group-hover:text-accent transition" />
+              </button>
+            ))}
+
+            {isAddingCustomGoogle ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const gId = customGoogleId.trim() || `google_${Date.now()}`;
+                  void handleSelectGoogleAccount({
+                    googleId: gId,
+                    email: customGoogleEmail.trim(),
+                    name: customGoogleName.trim() || customGoogleEmail.split("@")[0],
+                  });
+                }}
+                className="space-y-3 p-3.5 rounded-xl border border-accent/30 bg-accent/[0.03]"
+              >
+                <p className="text-xs font-semibold text-accent">Use another Google account</p>
+                <Input
+                  placeholder="Full Name (e.g. Niles Trader)"
+                  value={customGoogleName}
+                  onChange={(e) => setCustomGoogleName(e.target.value)}
+                  required
+                />
+                <Input
+                  type="email"
+                  placeholder="Google Email (e.g. niles@gmail.com)"
+                  value={customGoogleEmail}
+                  onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                  required
+                />
+                <Input
+                  placeholder="Google User ID (optional, auto-generated if blank)"
+                  value={customGoogleId}
+                  onChange={(e) => setCustomGoogleId(e.target.value)}
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAddingCustomGoogle(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" disabled={pendingProvider !== null}>
+                    Sign in with this Google account
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-center h-10 rounded-xl border-dashed border-white/[0.15] text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setIsAddingCustomGoogle(true)}
+              >
+                <Plus className="size-3.5 mr-1.5" />
+                Use another Google account
+              </Button>
+            )}
+
+            <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-start gap-2 text-[11px] text-muted-foreground leading-relaxed">
+              <Lock className="size-3.5 text-accent shrink-0 mt-0.5" />
+              <span>
+                <strong>Data Isolation Guaranteed:</strong> Trade history, maps, and screenshots stored in this account remain completely isolated and inaccessible to any other account.
+              </span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

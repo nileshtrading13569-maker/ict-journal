@@ -110,7 +110,14 @@ function main(argv) {
     console.error("usage: node scripts/with-app-env.mjs <command> [args…]");
     process.exit(2);
   }
-  const env = mergeAppEnv(readAppEnv(projectRoot()), process.env);
+  const root = projectRoot();
+  try {
+    if (typeof process.loadEnvFile === "function") {
+      try { process.loadEnvFile(join(root, ".env.local")); } catch {}
+      try { process.loadEnvFile(join(root, ".env")); } catch {}
+    }
+  } catch {}
+  const env = mergeAppEnv(readAppEnv(root), process.env);
   const child = spawn(command, args, {
     stdio: "inherit",
     env,

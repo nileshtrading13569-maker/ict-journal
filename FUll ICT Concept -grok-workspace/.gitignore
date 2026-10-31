@@ -23,3 +23,7 @@ dist/
 # Editor
 .vscode/
 .idea/
+
+# Local Storage Runtime Data
+/storage/
+

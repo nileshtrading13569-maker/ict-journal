@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Default model for this project: Claude Sonnet 5.5 through OpenRouter.
+  // Catalog limits apply (1M context / 128k output) and tool calling is on by default.
+  "model": "openrouter/anthropic/claude-sonnet-5.5",
+  "providers": {
+    "openrouter": {
+      // The key is read from the environment, never stored in this file.
+      "settings": {
+        "apiKey": "{env:OPENROUTER_API_KEY}"
+      }
+    }
+  }
+}

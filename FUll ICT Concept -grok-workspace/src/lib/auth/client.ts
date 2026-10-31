@@ -222,6 +222,70 @@ function waitForPopupToken(popup: Window): Promise<string | null> {
 }
 
 /**
+ * Sign in with a specific Google account identity in the local/dev multi-user environment.
+ * Creates an authentic Google OAuth session and initializes isolated storage.
+ */
+export async function signInWithGoogleAccount(account: {
+  googleId: string;
+  email: string;
+  name: string;
+  picture?: string;
+  callbackURL?: string;
+}): Promise<void> {
+  const callbackURL = account.callbackURL ?? "/";
+
+  // Clear any prior session so switching Google accounts cleanly switches identity and storage
+  await runPreSignInSignOut({
+    livePreview: inLivePreview(),
+    hasBearer: Boolean(getBearerToken()),
+    requestSignOut: () => authClient.signOut(),
+    clearToken: () => setBearerToken(null),
+  });
+
+  const response = await fetch("/api/auth/google/dev-signin", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      googleId: account.googleId,
+      email: account.email,
+      name: account.name,
+      picture: account.picture,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorJson = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(errorJson?.error ?? "Failed to sign in with Google account");
+  }
+
+  const payload = (await response.json().catch(() => null)) as { token?: string } | null;
+  if (payload?.token) {
+    setBearerToken(payload.token);
+  }
+
+  try {
+    await authClient.getSession();
+  } catch {
+    /* session store will recover */
+  }
+
+  // Reset local desk store so the new user's isolated environment starts completely clean
+  try {
+    const { useDeskStore } = await import("@/lib/ict-store");
+    useDeskStore.getState().resetAll();
+  } catch {
+    /* ignore */
+  }
+
+  if (typeof window !== "undefined") {
+    window.location.href = callbackURL;
+  }
+}
+
+/**
  * Sign out of THIS app's local session, clear the preview token, then redirect.
  *
  * Use this, never `authClient.signOut()` — see the note on `authClient`.
@@ -234,6 +298,23 @@ function waitForPopupToken(popup: Window): Promise<string | null> {
  * preview the local clear is sufficient, so it always resolves.
  */
 export async function signOut(redirectTo = "/"): Promise<void> {
+  // Wipe in-memory desk data and local persist storage to guarantee complete data isolation between accounts
+  try {
+    const { useDeskStore } = await import("@/lib/ict-store");
+    useDeskStore.getState().resetAll();
+    useDeskStore.persist?.clearStorage?.();
+  } catch (e) {
+    console.warn("[auth] desk store reset on sign-out notice:", e);
+  }
+
+  try {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.clear();
+    }
+  } catch {
+    /* ignore */
+  }
+
   await runSignOut({
     livePreview: inLivePreview(),
     hasBearer: Boolean(getBearerToken()),

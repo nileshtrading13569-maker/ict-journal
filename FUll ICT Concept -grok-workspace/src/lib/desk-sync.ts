@@ -35,40 +35,36 @@ export function isDeskData(value: unknown): value is DeskData {
   );
 }
 
-const deskDataSchema = z.custom<DeskData>(isDeskData, "Invalid desk data");
-const savePayloadSchema = deskDataSchema.refine((data) => JSON.stringify(data).length <= 1_000_000, {
-  message: "Desk data exceeds the 1 MB limit",
+const deskDataSchema = z.custom<DeskData>(isDeskData, {
+  message: "Invalid DeskData structure",
+});
+
+// Allow up to 50 MB payload to safely accommodate chart screenshots and map data
+const savePayloadSchema = deskDataSchema.refine((data: DeskData) => JSON.stringify(data).length <= 50_000_000, {
+  message: "Desk data exceeds the 50 MB limit",
 });
 
 export const loadDeskState = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    const sql = await getSql();
-    const rows = await sql<{ state: unknown }>`
-      select state
-      from user_desk_state
-      where user_id = ${context.userId}
-      limit 1
-    `;
-    if (!rows[0]) return null;
-    if (!isDeskData(rows[0].state)) {
-      throw new Error("Stored desk state is invalid");
-    }
-    return rows[0].state;
+    const { loadUserDatabase } = await import("@/lib/storage/user-database.server");
+    return loadUserDatabase(context.userId);
   });
 
 export const saveDeskState = createServerFn({ method: "POST" })
   .validator((input: unknown) => savePayloadSchema.parse(input))
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
-    const sql = await getSql();
-    await sql`
-      insert into user_desk_state (user_id, state, updated_at)
-      values (${context.userId}, ${JSON.stringify(data)}::jsonb, now())
-      on conflict (user_id)
-      do update set state = excluded.state, updated_at = now()
-    `;
+    const { saveUserDatabase } = await import("@/lib/storage/user-database.server");
+    await saveUserDatabase(context.userId, data);
     return { saved: true };
+  });
+
+export const getIsolatedStorageInfo = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const { resolveGoogleUserIdentity } = await import("@/lib/storage/user-database.server");
+    return resolveGoogleUserIdentity(context.userId);
   });
 
 export async function syncDeskToServer(): Promise<{ saved: boolean }> {

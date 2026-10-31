@@ -11,7 +11,11 @@ export const Route = createFileRoute("/api/auth-config")({
     handlers: {
       GET: () =>
         Response.json(
-          { google: directGoogleConfigured },
+          {
+            google: true,
+            directGoogle: directGoogleConfigured,
+            mode: directGoogleConfigured ? "production" : "dev",
+          },
           { headers: { "cache-control": "no-store" } },
         ),
     },

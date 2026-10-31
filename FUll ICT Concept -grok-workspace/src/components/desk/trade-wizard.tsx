@@ -186,8 +186,8 @@ export function TradeWizard({
         toast.error("Choose an image file.");
         return;
       }
-      if (file.size > 300_000) {
-        toast.error("Screenshot must be 300 KB or smaller to keep cloud sync reliable.");
+      if (file.size > 10_000_000) {
+        toast.error("Screenshot must be 10 MB or smaller.");
         return;
       }
       const reader = new FileReader();

@@ -77,6 +77,8 @@ export function DeskProvider({ children }: { children: React.ReactNode }) {
     if (authEnabled) {
       if (isPending) return;
       if (!userId) {
+        setLoadedUserId(null);
+        useDeskStore.getState().resetAll();
         if (!guestSession) return;
         let cancelled = false;
         setSyncStatus("local");
@@ -106,6 +108,9 @@ export function DeskProvider({ children }: { children: React.ReactNode }) {
       let cancelled = false;
       setSyncStatus("loading");
       setLoadError(null);
+      if (loadedUserId !== userId) {
+        useDeskStore.getState().resetAll();
+      }
       try {
         clearGuestSession();
       } catch (error) {
