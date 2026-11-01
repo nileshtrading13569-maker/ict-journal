@@ -1,6 +1,6 @@
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import fs, { existsSync } from "node:fs";
 import { join } from "node:path";
 import { getSql } from "../db.ts";
 import {
@@ -9,10 +9,77 @@ import {
   loadUserNotebook,
   saveUserNotebook,
   resolveGoogleUserIdentity,
-  ensureUserStorageDirectory,
 } from "./user-database.server.ts";
 import { createInitialState } from "../ict-defaults.ts";
 import type { DeskData, Trade, LiquidityLevel, DailyPlan, WeeklyNarrative } from "../ict-types.ts";
+
+/**
+ * Intercept and spy on all node:fs directory creation and file write methods.
+ * Simulates a serverless read-only filesystem (e.g. Vercel on AWS Lambda) by throwing
+ * ENOENT if any write/mkdir targets storage/ or /var/task.
+ */
+function setupFsWriteInterceptor() {
+  const calls: Array<{ method: string; path: string }> = [];
+
+  const origMkdirSync = fs.mkdirSync;
+  const origWriteFileSync = fs.writeFileSync;
+  const origAppendFileSync = fs.appendFileSync;
+  const origPromisesMkdir = fs.promises.mkdir;
+  const origPromisesWriteFile = fs.promises.writeFile;
+  const origPromisesAppendFile = fs.promises.appendFile;
+
+  function intercept(method: string, targetPath: unknown) {
+    const pathStr = String(targetPath ?? "");
+    calls.push({ method, path: pathStr });
+    if (
+      pathStr.includes("storage") ||
+      pathStr.includes("/var/task") ||
+      pathStr.includes("\\var\\task") ||
+      pathStr.includes("users")
+    ) {
+      const err = new Error(`ENOENT: no such file or directory, mkdir '${pathStr}'`);
+      (err as any).code = "ENOENT";
+      throw err;
+    }
+  }
+
+  (fs as any).mkdirSync = function (p: any, ...args: any[]) {
+    intercept("mkdirSync", p);
+    return (origMkdirSync as Function).apply(fs, [p, ...args]);
+  };
+  (fs as any).writeFileSync = function (p: any, ...args: any[]) {
+    intercept("writeFileSync", p);
+    return (origWriteFileSync as Function).apply(fs, [p, ...args]);
+  };
+  (fs as any).appendFileSync = function (p: any, ...args: any[]) {
+    intercept("appendFileSync", p);
+    return (origAppendFileSync as Function).apply(fs, [p, ...args]);
+  };
+  (fs.promises as any).mkdir = async function (p: any, ...args: any[]) {
+    intercept("promises.mkdir", p);
+    return (origPromisesMkdir as Function).apply(fs.promises, [p, ...args]);
+  };
+  (fs.promises as any).writeFile = async function (p: any, ...args: any[]) {
+    intercept("promises.writeFile", p);
+    return (origPromisesWriteFile as Function).apply(fs.promises, [p, ...args]);
+  };
+  (fs.promises as any).appendFile = async function (p: any, ...args: any[]) {
+    intercept("promises.appendFile", p);
+    return (origPromisesAppendFile as Function).apply(fs.promises, [p, ...args]);
+  };
+
+  return {
+    calls,
+    restore() {
+      (fs as any).mkdirSync = origMkdirSync;
+      (fs as any).writeFileSync = origWriteFileSync;
+      (fs as any).appendFileSync = origAppendFileSync;
+      (fs.promises as any).mkdir = origPromisesMkdir;
+      (fs.promises as any).writeFile = origPromisesWriteFile;
+      (fs.promises as any).appendFile = origPromisesAppendFile;
+    },
+  };
+}
 
 describe("Multi-User Google Isolated Database & Storage", () => {
   const stamp = Date.now();
@@ -174,30 +241,42 @@ describe("Multi-User Google Isolated Database & Storage", () => {
     assert.equal(reloadA.liquidity.length, 1);
     assert.equal(reloadA.liquidity[0].id, "liq-map-a-1");
 
-    // 5. Verify isolated filesystem folders and files were created for each Google User ID
-    const dirA = ensureUserStorageDirectory(googleA_Id);
-    const dirB = ensureUserStorageDirectory(googleB_Id);
-    assert.ok(existsSync(join(dirA, "trades.json")), "trades.json exists for Google User A");
-    assert.ok(existsSync(join(dirA, "map-data.json")), "map-data.json exists for Google User A");
-    assert.ok(existsSync(join(dirA, "screenshots.json")), "screenshots.json exists for Google User A");
-    assert.ok(existsSync(join(dirB, "trades.json")), "trades.json exists for Google User B");
+    // 5. Verify isolated Postgres database persistence and account isolation
+    const sql = await getSql();
+    const dbRowsA = await sql<{
+      trade_history: any;
+      map_data: any;
+      screenshots: any;
+      desk_state: any;
+    }>`
+      select trade_history, map_data, screenshots, desk_state
+      from google_user_databases
+      where google_user_id = ${googleA_Id}
+      limit 1
+    `;
+    assert.equal(dbRowsA.length, 1, "Account A row exists in google_user_databases");
+    assert.equal(dbRowsA[0].trade_history.trades.length, 1);
+    assert.equal(dbRowsA[0].trade_history.trades[0].id, "trade-a-101");
+    assert.equal(dbRowsA[0].screenshots.tradeScreenshots.length, 1);
+    assert.equal(dbRowsA[0].screenshots.tradeScreenshots[0].tradeId, "trade-a-101");
+    assert.ok(dbRowsA[0].screenshots.tradeScreenshots[0].screenshotHtf.startsWith("data:image/png;base64,"));
+    assert.equal(dbRowsA[0].map_data.liquidity.length, 1);
+    assert.equal(dbRowsA[0].map_data.liquidity[0].id, "liq-map-a-1");
+    assert.equal(dbRowsA[0].desk_state.accountName, "Account A ICT Fund");
 
-    const contentTradesA = readFileSync(join(dirA, "trades.json"), "utf-8");
-    assert.ok(contentTradesA.includes("trade-a-101"));
+    // Verify user_desk_state legacy sync table is also persisted
+    const legacyRowsA = await sql<{ state: any }>`
+      select state from user_desk_state where user_id = ${userA_Id} limit 1
+    `;
+    assert.equal(legacyRowsA.length, 1);
+    assert.equal(legacyRowsA[0].state.accountName, "Account A ICT Fund");
 
-    const contentTradesB = readFileSync(join(dirB, "trades.json"), "utf-8");
-    assert.ok(!contentTradesB.includes("trade-a-101"), "Account B files must NEVER contain Account A trades");
-
-    // Verify individual decoded screenshot image files were saved in User A's screenshots directory
-    const safeTradeId = customTradeA.id.replace(/[^a-zA-Z0-9_-]/g, "_");
-    const screenshotHtfFile = join(dirA, "screenshots", `${safeTradeId}_htf.png`);
-    const screenshotExecFile = join(dirA, "screenshots", `${safeTradeId}_exec.png`);
-    assert.ok(existsSync(screenshotHtfFile), "Physical HTF screenshot image exists in User A storage");
-    assert.ok(existsSync(screenshotExecFile), "Physical Exec screenshot image exists in User A storage");
-
-    // Verify User B's screenshot directory does NOT have User A's screenshots
-    const userBScreenshotHtf = join(dirB, "screenshots", `${safeTradeId}_htf.png`);
-    assert.ok(!existsSync(userBScreenshotHtf), "User B must NEVER have User A's physical screenshot files");
+    // Verify Account B's database row does NOT contain Account A's trades or data
+    const dbRowsB = await sql<{ trade_history: any }>`
+      select trade_history from google_user_databases where google_user_id = ${googleB_Id} limit 1
+    `;
+    assert.equal(dbRowsB.length, 1);
+    assert.equal(dbRowsB[0].trade_history.trades.length, 0, "Account B database must NEVER contain Account A trades");
 
     // 6. Account B adds their own trades & map data
     const customTradeB: Trade = {
@@ -258,8 +337,16 @@ describe("Multi-User Google Isolated Database & Storage", () => {
     assert.ok(userDesk);
     assert.equal(userDesk.trades.length, 0);
 
-    const userDir = ensureUserStorageDirectory(testGoogleId);
-    assert.ok(existsSync(join(userDir, "manifest.json")));
+    // Verify database record was persisted in google_user_databases
+    const sql = await getSql();
+    const rows = await sql<{ google_user_id: string; email: string }>`
+      select google_user_id, email
+      from google_user_databases
+      where google_user_id = ${testGoogleId}
+      limit 1
+    `;
+    assert.equal(rows.length, 1, "User record exists in google_user_databases table");
+    assert.equal(rows[0].email, testEmail);
   });
 
   it("resolves Google User ID when authenticated via grok-google broker provider", async () => {
@@ -340,8 +427,11 @@ describe("Multi-User Google Isolated Database & Storage", () => {
     assert.ok(Array.isArray(initialA.notes));
     assert.ok(initialA.notes.length > 0);
 
-    const dirA = ensureUserStorageDirectory(googleA_Id);
-    assert.equal(existsSync(join(dirA, "notebook.json")), true);
+    const sql = await getSql();
+    const nbRowsInitial = await sql<{ folders: any; notes: any }>`
+      select folders, notes from user_notebook_state where user_id = ${userA_Id} limit 1
+    `;
+    assert.equal(nbRowsInitial.length, 1, "Initial notebook row created in user_notebook_state");
 
     // 2. Save custom notes for User A
     const customNoteA = {
@@ -386,10 +476,20 @@ describe("Multi-User Google Isolated Database & Storage", () => {
     assert.equal(foundCustom.manualMetrics?.netPnl, 450.0);
     assert.equal(foundCustom.manualMetrics?.winrate, 100);
 
-    // 5. Verify file content on disk in storage/users/<googleUserId>/notebook.json
-    const diskContent = JSON.parse(readFileSync(join(dirA, "notebook.json"), "utf-8"));
-    assert.ok(diskContent.folders.includes("User A Custom Folder"));
-    assert.ok(diskContent.notes.some((n: any) => n.id === "note-a-custom-1"));
+    // 5. Verify database persistence in user_notebook_state and google_user_databases
+    const nbRowsCustom = await sql<{ folders: any; notes: any }>`
+      select folders, notes from user_notebook_state where user_id = ${userA_Id} limit 1
+    `;
+    assert.equal(nbRowsCustom.length, 1);
+    assert.ok(nbRowsCustom[0].folders.includes("User A Custom Folder"));
+    assert.ok(nbRowsCustom[0].notes.some((n: any) => n.id === "note-a-custom-1"));
+
+    const gdbRowsCustom = await sql<{ notebook_state: any }>`
+      select notebook_state from google_user_databases where google_user_id = ${googleA_Id} limit 1
+    `;
+    assert.equal(gdbRowsCustom.length, 1);
+    assert.ok(gdbRowsCustom[0].notebook_state.folders.includes("User A Custom Folder"));
+    assert.ok(gdbRowsCustom[0].notebook_state.notes.some((n: any) => n.id === "note-a-custom-1"));
 
     // 6. User A clears/deletes notes down to empty array -> verify it persists 0 notes and doesn't revert to seed notes
     await saveUserNotebook(userA_Id, {
@@ -398,5 +498,285 @@ describe("Multi-User Google Isolated Database & Storage", () => {
     });
     const reloadedEmptyA = await loadUserNotebook(userA_Id);
     assert.equal(reloadedEmptyA.notes.length, 0, "User A with 0 notes must not revert to seed notes");
+  });
+
+  it("guarantees zero filesystem write or mkdir operations during desk load, save, and sync", async () => {
+    const interceptor = setupFsWriteInterceptor();
+    const storageUsersDir = join(process.cwd(), "storage", "users");
+    const initialFiles = existsSync(storageUsersDir) ? fs.readdirSync(storageUsersDir) : [];
+
+    try {
+      // 1. Perform desk load for Account A
+      const deskData = await loadUserDatabase(userA_Id);
+      assert.ok(deskData, "Desk state loaded successfully");
+
+      // 2. Perform desk save with updated data for Account A
+      const modifiedDesk: DeskData = {
+        ...deskData,
+        accountName: "Zero-FS Verified Desk",
+        trades: [
+          ...deskData.trades,
+          {
+            id: "trade-zero-fs-999",
+            date: "2026-11-01",
+            time: "10:00",
+            market: "ES",
+            side: "long",
+            modelId: "m1",
+            modelName: "Silver Bullet",
+            weeklyBias: "bullish",
+            dailyBias: "bullish",
+            drawOnLiquidity: "PDH",
+            location: "discount",
+            dealingRange: { high: 5900, low: 5850 },
+            dealingRangeLabel: "Daily",
+            taken: ["SSL"],
+            targetLiq: ["BSL"],
+            pdArray: "Fair Value Gap",
+            pdTimeframe: "5m",
+            pdCondition: "fresh",
+            triggers: ["Displacement"],
+            session: "NY",
+            killZone: "NY AM Kill Zone",
+            timeModel: "NY open",
+            structureBefore: "bullish",
+            displacementQuality: "strong",
+            fvgCreated: true,
+            fvgTimeframe: "5m",
+            judas: { present: "no", direction: "", aligned: false, after: "" },
+            ote: { used: "not-used", swingHigh: 0, swingLow: 0, retracement: 0, inside: false, confluence: false },
+            smt: { present: "no", pair: "", sweptMarket: "", failedMarket: "", beforeTrigger: false },
+            crt: { used: false, reference: "", high: null, low: null, raidSide: "", purge: false, reclaim: false, entryAfterReclaim: false, target: "" },
+            intermarket: { dxy: "bearish", yields: "", silver: "", indices: "" },
+            entry: 5860,
+            sl: 5850,
+            tp1: 5890,
+            tp2: null,
+            tp3: null,
+            exitPrice: 5890,
+            exitTime: "10:30",
+            exitReason: "TP",
+            riskPct: 1,
+            lots: 1,
+            management: "BE",
+            partialAtR: 2,
+            be: true,
+            maeR: 0.1,
+            mfeR: 3.0,
+            narrativeCorrect: true,
+            liquidityCorrect: true,
+            locationCorrect: true,
+            triggerCorrect: true,
+            executionQuality: "optimal",
+            managementQuality: "good",
+            errors: [],
+            primaryError: "No actual error",
+            deliveryStatus: "delivered",
+            grade: "A",
+            emotion: "calm",
+            ruleFollowed: true,
+            notes: "Zero filesystem write test trade",
+            screenshotHtf: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+            screenshotExec: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+            result: "win",
+            rMultiple: 3.0,
+          },
+        ],
+      };
+      await saveUserDatabase(userA_Id, modifiedDesk);
+
+      // 3. Perform notebook load and save
+      const nb = await loadUserNotebook(userA_Id);
+      assert.ok(nb);
+      await saveUserNotebook(userA_Id, nb);
+
+      // 4. Assert zero write or mkdir calls were made to fs
+      assert.equal(
+        interceptor.calls.length,
+        0,
+        `Zero filesystem write/mkdir calls should occur, but received: ${JSON.stringify(interceptor.calls)}`,
+      );
+
+      // 5. Assert no new files or folders were created on disk under storage/users/
+      const currentFiles = existsSync(storageUsersDir) ? fs.readdirSync(storageUsersDir) : [];
+      const createdEntries = currentFiles.filter((f) => !initialFiles.includes(f));
+      assert.deepEqual(createdEntries, [], "Zero directories or files created on disk");
+
+      // 6. Verify data was persisted directly into Neon Postgres
+      const sql = await getSql();
+      const rows = await sql<{ desk_state: any }>`
+        select desk_state from google_user_databases where google_user_id = ${googleA_Id}
+      `;
+      assert.equal(rows[0]?.desk_state?.accountName, "Zero-FS Verified Desk");
+    } finally {
+      interceptor.restore();
+    }
+  });
+
+  it("recovers desk state from legacy user_desk_state Postgres fallback with zero filesystem operations", async () => {
+    const interceptor = setupFsWriteInterceptor();
+    const sql = await getSql();
+    const legacyStamp = Date.now() + 100;
+    const legacyUserId = `legacy-desk-user-${legacyStamp}`;
+    const legacyGoogleId = `google-legacy-sub-${legacyStamp}`;
+
+    try {
+      // Setup user & account
+      await sql`
+        insert into "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
+        values (${legacyUserId}, 'Legacy Desk Trader', ${`legacy.${legacyStamp}@gmail.com`}, true, now(), now())
+        on conflict ("id") do nothing
+      `;
+      await sql`
+        insert into "account" ("id", "accountId", "providerId", "userId", "createdAt", "updatedAt")
+        values (${'acc-legacy-' + legacyUserId}, ${legacyGoogleId}, 'google', ${legacyUserId}, now(), now())
+        on conflict ("id") do nothing
+      `;
+
+      // Seed state ONLY in user_desk_state (no google_user_databases row exists yet)
+      const legacyState = {
+        ...createInitialState(),
+        accountName: "Legacy Restored Account",
+        mantra: "Follow the plan",
+      };
+      await sql`
+        insert into user_desk_state (user_id, state, updated_at)
+        values (${legacyUserId}, ${JSON.stringify(legacyState)}::jsonb, now())
+      `;
+
+      // Verify no row in google_user_databases yet
+      const preRows = await sql`
+        select google_user_id from google_user_databases where google_user_id = ${legacyGoogleId}
+      `;
+      assert.equal(preRows.length, 0);
+
+      // Load user database - should recover from user_desk_state and migrate forward
+      const recovered = await loadUserDatabase(legacyUserId);
+      assert.equal(recovered.accountName, "Legacy Restored Account");
+      assert.equal(recovered.mantra, "Follow the plan");
+
+      // Verify row now exists in google_user_databases
+      const postRows = await sql<{ desk_state: any }>`
+        select desk_state from google_user_databases where google_user_id = ${legacyGoogleId}
+      `;
+      assert.equal(postRows.length, 1);
+      assert.equal(postRows[0]?.desk_state?.accountName, "Legacy Restored Account");
+
+      // Verify zero filesystem calls occurred
+      assert.equal(interceptor.calls.length, 0, "Zero filesystem operations during fallback migration");
+    } finally {
+      interceptor.restore();
+    }
+  });
+
+  it("recovers notebook state from google_user_databases Postgres fallback with zero filesystem operations", async () => {
+    const interceptor = setupFsWriteInterceptor();
+    const sql = await getSql();
+    const nbStamp = Date.now() + 200;
+    const nbFallbackUserId = `nb-fallback-user-${nbStamp}`;
+    const nbFallbackGoogleId = `google-nb-sub-${nbStamp}`;
+
+    try {
+      await sql`
+        insert into "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt")
+        values (${nbFallbackUserId}, 'Notebook Trader', ${`nb.${nbStamp}@gmail.com`}, true, now(), now())
+        on conflict ("id") do nothing
+      `;
+      await sql`
+        insert into "account" ("id", "accountId", "providerId", "userId", "createdAt", "updatedAt")
+        values (${'acc-nb-' + nbFallbackUserId}, ${nbFallbackGoogleId}, 'google', ${nbFallbackUserId}, now(), now())
+        on conflict ("id") do nothing
+      `;
+
+      // Seed notebook state ONLY in google_user_databases (user_notebook_state has no row)
+      const testNotes = [
+        {
+          id: "note-pg-fallback-1",
+          folder: "Daily Journal",
+          title: "Postgres Recovered Tape",
+          date: "2026-11-01",
+          createdAt: "Nov 01, 2026",
+          updatedAt: "Nov 01, 2026",
+          pinned: false,
+          tags: ["Tape"],
+          content: "Pure DB state recovered without filesystem",
+        },
+      ];
+      await sql`
+        insert into google_user_databases (
+          google_user_id,
+          user_id,
+          email,
+          name,
+          trade_history,
+          map_data,
+          screenshots,
+          desk_state,
+          notebook_state,
+          updated_at
+        )
+        values (
+          ${nbFallbackGoogleId},
+          ${nbFallbackUserId},
+          ${`nb.${nbStamp}@gmail.com`},
+          'Notebook Trader',
+          '[]'::jsonb,
+          '{}'::jsonb,
+          '{}'::jsonb,
+          '{}'::jsonb,
+          ${JSON.stringify({ folders: ["Daily Journal", "Postgres Folder"], notes: testNotes, initialized: true })}::jsonb,
+          now()
+        )
+      `;
+
+      // Load user notebook
+      const nb = await loadUserNotebook(nbFallbackUserId);
+      assert.ok(nb.folders.includes("Postgres Folder"));
+      assert.equal(nb.notes.length, 1);
+      assert.equal(nb.notes[0].id, "note-pg-fallback-1");
+
+      // Verify zero filesystem calls occurred
+      assert.equal(interceptor.calls.length, 0, "Zero filesystem operations during notebook load");
+    } finally {
+      interceptor.restore();
+    }
+  });
+
+  it("serverless simulation: verifies desk load and sync succeed when /var/task and storage/ are strictly read-only", async () => {
+    const origVercel = process.env.VERCEL;
+    const origLambda = process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+    // Simulate Vercel / AWS Lambda environment
+    process.env.VERCEL = "1";
+    process.env.AWS_LAMBDA_FUNCTION_NAME = "serverless-desk-sync-fn";
+
+    const interceptor = setupFsWriteInterceptor();
+
+    try {
+      // 1. Desk load executes cleanly without ENOENT: no such file or directory, mkdir '/var/task/storage/users/...'
+      const deskData = await loadUserDatabase(userA_Id);
+      assert.ok(deskData);
+
+      // 2. Desk save executes cleanly without ENOENT
+      const updatedDesk: DeskData = {
+        ...deskData,
+        accountName: "Serverless Neon Desk",
+      };
+      const saveResult = await saveUserDatabase(userA_Id, updatedDesk);
+      assert.deepEqual(saveResult, { success: true });
+
+      // 3. Reload desk state from Postgres
+      const reloaded = await loadUserDatabase(userA_Id);
+      assert.equal(reloaded.accountName, "Serverless Neon Desk");
+
+      // 4. Confirm zero write/mkdir calls occurred
+      assert.equal(interceptor.calls.length, 0, "No filesystem operations should be invoked in serverless context");
+    } finally {
+      interceptor.restore();
+      if (origVercel !== undefined) process.env.VERCEL = origVercel;
+      else delete process.env.VERCEL;
+      if (origLambda !== undefined) process.env.AWS_LAMBDA_FUNCTION_NAME = origLambda;
+      else delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+    }
   });
 });

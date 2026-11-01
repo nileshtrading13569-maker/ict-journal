@@ -1,5 +1,3 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { getSql } from "../db.ts";
 import { createResetState, ensureMinimumDeskData } from "../ict-defaults.ts";
 import type { DeskData, LiquidityLevel, DailyPlan, WeeklyNarrative, Trade, MissedTrade } from "../ict-types.ts";
@@ -31,48 +29,6 @@ export type PartitionedScreenshots = {
     screenshotExec: string;
   }>;
 };
-
-/**
- * Base root directory for server-side file storage per Google account.
- */
-function getStorageRoot(): string {
-  // Vercel / serverless pe filesystem writable nahi hota
-  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    return join("/tmp", "storage", "users");
-  }
-  const root = process.cwd();
-  return join(root, "storage", "users");
-}
-
-/**
- * Sanitize Google User ID for safe filesystem folder naming.
- */
-function sanitizeFolderId(id: string): string {
-  return id.replace(/[^a-zA-Z0-9_-]/g, "_");
-}
-
-/**
- * Ensure the user's isolated filesystem directory structure exists.
- */
-export function ensureUserStorageDirectory(googleUserId: string): string {
-  const safeId = sanitizeFolderId(googleUserId);
-  const dir = join(getStorageRoot(), safeId);
-
-  // Serverless pe sirf /tmp use karo, fail hone do mat
-  try {
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-    const screenshotsDir = join(dir, "screenshots");
-    if (!existsSync(screenshotsDir)) {
-      mkdirSync(screenshotsDir, { recursive: true });
-    }
-  } catch (err) {
-    console.warn("[user-database] filesystem storage unavailable (serverless):", err);
-  }
-
-  return dir;
-}
 
 /**
  * Resolve the Google User ID (unique Google account `sub` claim) from the authenticated Better Auth userId.
@@ -196,75 +152,38 @@ export async function loadUserDatabase(userId: string): Promise<DeskData> {
     return ensureMinimumDeskData(reconstructed);
   }
 
-  // Fallback: check filesystem storage if database row was not found yet
-  const userDir = ensureUserStorageDirectory(googleUserId);
-  const deskStateFile = join(userDir, "desk-state.json");
-  const tradesFile = join(userDir, "trades.json");
-  const mapDataFile = join(userDir, "map-data.json");
-
-  if (existsSync(deskStateFile)) {
-    try {
-      const content = readFileSync(deskStateFile, "utf-8");
-      const parsed = JSON.parse(content);
-      const normalized = ensureMinimumDeskData(parsed);
-      // Synchronize back to database
-      await saveUserDatabase(userId, normalized);
-      return normalized;
-    } catch (e) {
-      console.warn("[user-database] fallback file parse warning:", e);
-    }
-  } else if (existsSync(tradesFile) || existsSync(mapDataFile)) {
-    try {
-      let parsedTrades: Trade[] = [];
-      let parsedMissed: MissedTrade[] = [];
-      let parsedLiquidity: LiquidityLevel[] = [];
-      let parsedPlans: Record<string, DailyPlan> = {};
-      let parsedWeeklies: WeeklyNarrative[] = [];
-
-      if (existsSync(tradesFile)) {
-        const rawT = JSON.parse(readFileSync(tradesFile, "utf-8"));
-        if (Array.isArray(rawT)) parsedTrades = rawT;
-        else if (rawT && typeof rawT === "object") {
-          parsedTrades = Array.isArray(rawT.trades) ? rawT.trades : [];
-          parsedMissed = Array.isArray(rawT.missed) ? rawT.missed : [];
-        }
-      }
-      if (existsSync(mapDataFile)) {
-        const rawM = JSON.parse(readFileSync(mapDataFile, "utf-8"));
-        if (Array.isArray(rawM)) parsedLiquidity = rawM;
-        else if (rawM && typeof rawM === "object") {
-          parsedLiquidity = Array.isArray(rawM.liquidity) ? rawM.liquidity : [];
-          parsedPlans = rawM.dailyPlans && typeof rawM.dailyPlans === "object" ? rawM.dailyPlans : {};
-          parsedWeeklies = Array.isArray(rawM.weeklies) ? rawM.weeklies : [];
-        }
-      }
-
-      const reconstructed: DeskData = {
+  // Fallback: check legacy user_desk_state table in Postgres if database row was not found in google_user_databases
+  try {
+    const legacyRows = await sql<{ state: unknown }>`
+      select state
+      from user_desk_state
+      where user_id = ${userId}
+      limit 1
+    `;
+    if (legacyRows[0]?.state && typeof legacyRows[0].state === "object") {
+      const parsedLegacy = legacyRows[0].state as Partial<DeskData>;
+      const normalized = ensureMinimumDeskData({
         ...createResetState(),
-        trades: parsedTrades,
-        missed: parsedMissed,
-        liquidity: parsedLiquidity,
-        dailyPlans: parsedPlans,
-        weeklies: parsedWeeklies,
-      };
-      const normalized = ensureMinimumDeskData(reconstructed);
+        ...parsedLegacy,
+      });
+      // Synchronize forward to google_user_databases
       await saveUserDatabase(userId, normalized);
       return normalized;
-    } catch (fsFallbackErr) {
-      console.warn("[user-database] filesystem fallback reconstruction warning:", fsFallbackErr);
     }
+  } catch (legacyErr) {
+    console.warn("[user-database] user_desk_state fallback query notice:", legacyErr);
   }
 
-  // First time login for this Google account: Automatically initialize isolated database & storage!
+  // First time login for this Google account: Automatically initialize isolated database in Postgres
   const initialState = ensureMinimumDeskData(createResetState());
   await saveUserDatabase(userId, initialState);
   return initialState;
 }
 
 /**
- * Save desk state into the user's isolated Google account database and filesystem storage.
+ * Save desk state into the user's isolated Google account database in Neon Postgres.
  */
-export async function saveUserDatabase(userId: string, data: DeskData): Promise<void> {
+export async function saveUserDatabase(userId: string, data: DeskData): Promise<{ success: boolean }> {
   const identity = await resolveGoogleUserIdentity(userId);
   const { googleUserId, email, name, picture } = identity;
   const sql = await getSql();
@@ -364,58 +283,7 @@ export async function saveUserDatabase(userId: string, data: DeskData): Promise<
     do update set state = excluded.state, updated_at = now()
   `;
 
-  // 3. Atomically persist to the user's isolated filesystem directory
-  try {
-    const userDir = ensureUserStorageDirectory(googleUserId);
-    writeFileSync(join(userDir, "manifest.json"), JSON.stringify(identity, null, 2), "utf-8");
-    writeFileSync(join(userDir, "trades.json"), tradeHistoryJson, "utf-8");
-    writeFileSync(join(userDir, "map-data.json"), mapDataJson, "utf-8");
-    writeFileSync(join(userDir, "screenshots.json"), screenshotsJson, "utf-8");
-    writeFileSync(join(userDir, "desk-state.json"), deskStateJson, "utf-8");
-
-    // Also persist decoded screenshot image files in user's screenshots/ directory
-    saveScreenshotFiles(userDir, screenshots);
-  } catch (fsErr) {
-    console.warn("[user-database] filesystem storage notice:", fsErr);
-  }
-}
-
-/**
- * Write binary screenshot images into the user's isolated screenshots directory.
- */
-function saveScreenshotFiles(userDir: string, screenshots: PartitionedScreenshots): void {
-  const screenshotsDir = join(userDir, "screenshots");
-  if (!existsSync(screenshotsDir)) {
-    mkdirSync(screenshotsDir, { recursive: true });
-  }
-
-  for (const item of screenshots.tradeScreenshots) {
-    const safeTradeId = sanitizeFolderId(item.tradeId);
-    if (item.screenshotHtf && item.screenshotHtf.startsWith("data:image/")) {
-      try {
-        const matches = item.screenshotHtf.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
-        if (matches) {
-          const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
-          const buffer = Buffer.from(matches[2], "base64");
-          writeFileSync(join(screenshotsDir, `${safeTradeId}_htf.${ext}`), buffer);
-        }
-      } catch (err) {
-        console.warn("[user-database] failed to write htf screenshot file:", err);
-      }
-    }
-    if (item.screenshotExec && item.screenshotExec.startsWith("data:image/")) {
-      try {
-        const matches = item.screenshotExec.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
-        if (matches) {
-          const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
-          const buffer = Buffer.from(matches[2], "base64");
-          writeFileSync(join(screenshotsDir, `${safeTradeId}_exec.${ext}`), buffer);
-        }
-      } catch (err) {
-        console.warn("[user-database] failed to write exec screenshot file:", err);
-      }
-    }
-  }
+  return { success: true };
 }
 
 /**
@@ -471,27 +339,7 @@ export async function loadUserNotebook(
     console.warn("[user-database] google_user_databases notebook query warning:", err);
   }
 
-  // 3. Fallback: check filesystem storage
-  const userDir = ensureUserStorageDirectory(googleUserId);
-  const notebookFile = join(userDir, "notebook.json");
-  if (existsSync(notebookFile)) {
-    try {
-      const content = readFileSync(notebookFile, "utf-8");
-      const parsed = JSON.parse(content);
-      if (parsed && Array.isArray(parsed.notes)) {
-        const result = {
-          folders: Array.isArray(parsed.folders) && parsed.folders.length > 0 ? parsed.folders : [...DEFAULT_FOLDERS],
-          notes: parsed.notes as NotebookEntry[],
-        };
-        await saveUserNotebook(userId, result);
-        return result;
-      }
-    } catch (fsErr) {
-      console.warn("[user-database] filesystem notebook parse warning:", fsErr);
-    }
-  }
-
-  // 4. First time initialization for this account
+  // 3. First time initialization for this account
   const initial = {
     folders: [...DEFAULT_FOLDERS],
     notes: SEED_NOTES,
@@ -501,12 +349,12 @@ export async function loadUserNotebook(
 }
 
 /**
- * Save isolated notebook data (folders and notes) for a specific user to both SQL database and filesystem storage.
+ * Save isolated notebook data (folders and notes) for a specific user to Neon Postgres database tables.
  */
 export async function saveUserNotebook(
   userId: string,
   data: { folders: string[]; notes: NotebookEntry[] },
-): Promise<void> {
+): Promise<{ success: boolean }> {
   const identity = await resolveGoogleUserIdentity(userId);
   const { googleUserId, email, name, picture } = identity;
   const sql = await getSql();
@@ -570,11 +418,5 @@ export async function saveUserNotebook(
     console.warn("[user-database] failed to update google_user_databases notebook_state:", err);
   }
 
-  // 3. Atomically persist to filesystem storage/users/<googleUserId>/notebook.json
-  try {
-    const userDir = ensureUserStorageDirectory(googleUserId);
-    writeFileSync(join(userDir, "notebook.json"), jsonStr, "utf-8");
-  } catch (fsErr) {
-    console.warn("[user-database] failed to write notebook.json file:", fsErr);
-  }
+  return { success: true };
 }
