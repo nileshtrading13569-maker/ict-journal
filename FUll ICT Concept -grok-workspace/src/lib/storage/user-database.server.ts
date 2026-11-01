@@ -34,8 +34,12 @@ export type PartitionedScreenshots = {
 
 /**
  * Base root directory for server-side file storage per Google account.
+ * Uses /tmp when running in Vercel or AWS Lambda serverless environments.
  */
-function getStorageRoot(): string {
+export function getStorageRoot(): string {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return join("/tmp", "storage", "users");
+  }
   const root = process.cwd();
   return join(root, "storage", "users");
 }
@@ -53,12 +57,16 @@ function sanitizeFolderId(id: string): string {
 export function ensureUserStorageDirectory(googleUserId: string): string {
   const safeId = sanitizeFolderId(googleUserId);
   const dir = join(getStorageRoot(), safeId);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-  const screenshotsDir = join(dir, "screenshots");
-  if (!existsSync(screenshotsDir)) {
-    mkdirSync(screenshotsDir, { recursive: true });
+  try {
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    const screenshotsDir = join(dir, "screenshots");
+    if (!existsSync(screenshotsDir)) {
+      mkdirSync(screenshotsDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn("[user-database] filesystem storage unavailable (serverless):", err);
   }
   return dir;
 }

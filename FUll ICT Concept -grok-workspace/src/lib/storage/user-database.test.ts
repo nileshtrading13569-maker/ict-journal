@@ -1,6 +1,6 @@
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { getSql } from "../db.ts";
 import {
@@ -10,6 +10,7 @@ import {
   saveUserNotebook,
   resolveGoogleUserIdentity,
   ensureUserStorageDirectory,
+  getStorageRoot,
 } from "./user-database.server.ts";
 import { createInitialState } from "../ict-defaults.ts";
 import type { DeskData, Trade, LiquidityLevel, DailyPlan, WeeklyNarrative } from "../ict-types.ts";
@@ -399,4 +400,95 @@ describe("Multi-User Google Isolated Database & Storage", () => {
     const reloadedEmptyA = await loadUserNotebook(userA_Id);
     assert.equal(reloadedEmptyA.notes.length, 0, "User A with 0 notes must not revert to seed notes");
   });
+
+  it("resolves storage root to /tmp when running in Vercel or AWS Lambda environments", () => {
+    const originalVercel = process.env.VERCEL;
+    const originalLambda = process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+    try {
+      // 1. Default (neither set) -> process.cwd() / storage / users
+      delete process.env.VERCEL;
+      delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      assert.equal(getStorageRoot(), join(process.cwd(), "storage", "users"));
+
+      // 2. Vercel environment defined
+      process.env.VERCEL = "1";
+      delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      assert.equal(getStorageRoot(), join("/tmp", "storage", "users"));
+
+      // 3. AWS Lambda environment defined
+      delete process.env.VERCEL;
+      process.env.AWS_LAMBDA_FUNCTION_NAME = "trade-sync-handler";
+      assert.equal(getStorageRoot(), join("/tmp", "storage", "users"));
+
+      // 4. Both defined
+      process.env.VERCEL = "1";
+      process.env.AWS_LAMBDA_FUNCTION_NAME = "trade-sync-handler";
+      assert.equal(getStorageRoot(), join("/tmp", "storage", "users"));
+    } finally {
+      if (originalVercel !== undefined) {
+        process.env.VERCEL = originalVercel;
+      } else {
+        delete process.env.VERCEL;
+      }
+      if (originalLambda !== undefined) {
+        process.env.AWS_LAMBDA_FUNCTION_NAME = originalLambda;
+      } else {
+        delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      }
+    }
+  });
+
+  it("gracefully catches filesystem errors in ensureUserStorageDirectory without throwing", () => {
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: any[]) => {
+      warnings.push(args.join(" "));
+    };
+
+    const root = getStorageRoot();
+    const blockingFileName = "test-fs-error-user-" + Date.now();
+    const blockingFilePath = join(root, blockingFileName);
+
+    try {
+      // Ensure root exists so we can place a file blocking the directory creation
+      if (!existsSync(root)) {
+        mkdirSync(root, { recursive: true });
+      }
+      // Create a file where a directory should be so mkdirSync of screenshots subdirectory fails with ENOTDIR
+      writeFileSync(blockingFilePath, "blocking-file-content", "utf-8");
+
+      const resolvedDir = ensureUserStorageDirectory(blockingFileName);
+      assert.equal(resolvedDir, blockingFilePath);
+      assert.ok(
+        warnings.some((w) => w.includes("[user-database] filesystem storage unavailable (serverless):")),
+        "Expected console.warn log about serverless filesystem unavailability"
+      );
+    } finally {
+      console.warn = originalWarn;
+      try {
+        if (existsSync(blockingFilePath)) {
+          unlinkSync(blockingFilePath);
+        }
+      } catch {
+        // ignore cleanup error
+      }
+    }
+  });
+
+  it("creates storage directory under /tmp when running in serverless environment", () => {
+    const originalVercel = process.env.VERCEL;
+    try {
+      process.env.VERCEL = "1";
+      const resolvedDir = ensureUserStorageDirectory("google-sub-serverless-test");
+      assert.equal(resolvedDir, join("/tmp", "storage", "users", "google-sub-serverless-test"));
+    } finally {
+      if (originalVercel !== undefined) {
+        process.env.VERCEL = originalVercel;
+      } else {
+        delete process.env.VERCEL;
+      }
+    }
+  });
 });
+
