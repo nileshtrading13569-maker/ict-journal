@@ -43,6 +43,7 @@ import {
   type NotebookEntry,
 } from "@/lib/notebook-defaults";
 import { loadNotebookState, saveNotebookState } from "@/lib/notebook-sync";
+import { NotionEditor, TEMPLATES } from "@/components/notebook/notion-editor";
 
 export type { NotebookEntry };
 
@@ -331,14 +332,11 @@ function NotebookPage() {
   const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | "local">("saved");
   const [currentFontSize, setCurrentFontSize] = useState<number>(15);
   const [currentFontFamily, setCurrentFontFamily] = useState<string>("font-sans");
-  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
-  const [slashQuery, setSlashQuery] = useState("");
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [activeAccountLabel, setActiveAccountLabel] = useState<string>(accountName || "Demo account");
   const [newTagInput, setNewTagInput] = useState("");
 
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const foldersRef = useRef(folders);
   foldersRef.current = folders;
@@ -596,7 +594,8 @@ function NotebookPage() {
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().replace(/^#/, "");
           const matchTitle = n.title.toLowerCase().includes(q);
-          const matchContent = n.content.toLowerCase().includes(q);
+          const plainContent = n.content.replace(/<[^>]*>/g, " ");
+          const matchContent = plainContent.toLowerCase().includes(q);
           const matchTag = n.tags.some((t) => t.toLowerCase().replace(/^#/, "").includes(q));
           if (!matchTitle && !matchContent && !matchTag) return false;
         }
@@ -806,63 +805,13 @@ function NotebookPage() {
     toast.success("Selected notes deleted");
   };
 
-  // Text formatting commands
-  const insertTextAtCursor = (text: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea || !selectedNote) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const before = selectedNote.content.substring(0, start);
-    const after = selectedNote.content.substring(end);
-    const nextContent = before + text + after;
-    handleUpdateNote({ content: nextContent });
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + text.length, start + text.length);
-    }, 50);
-  };
-
-  const wrapTextSelection = (prefix: string, suffix = prefix) => {
-    const textarea = textareaRef.current;
-    if (!textarea || !selectedNote) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = selectedNote.content.substring(start, end) || "text";
-    const before = selectedNote.content.substring(0, start);
-    const after = selectedNote.content.substring(end);
-    const replacement = `${prefix}${selected}${suffix}`;
-    const nextContent = before + replacement + after;
-    handleUpdateNote({ content: nextContent });
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
-    }, 50);
-  };
-
-  // Template snippets
-  const insertTemplateSnippet = (type: "prep" | "tape" | "confluence" | "psych") => {
-    let snippet = "";
-    if (type === "prep") {
-      snippet = `\n\n### 📋 Pre-Market Dealing Range Blueprint\n- **Midnight Open (00:00 EST)**: \n- **HTF Bias**: Bullish / Bearish continuation\n- **Target Liquidity**: BSL [ ] SSL [ ]\n- **Red Folder News**: Flat before 10:00 AM\n`;
-    } else if (type === "tape") {
-      snippet = `\n\n### ⏱️ Session Tape Reading\n- **09:30**: Opening drive & Asian high/low liquidity check\n- **09:45**: 5m MSS with Displacement candle\n- **10:00**: Consequent Encroachment retracement to FVG\n- **10:30**: Delivery to external liquidity pool\n`;
-    } else if (type === "confluence") {
-      snippet = `\n\n> **🛡️ ICT Confluence Checklist**\n> - [x] HTF Dealing range alignment\n> - [x] Liquidity raid confirmed before entry\n> - [x] Displacement created clean FVG / Breaker\n> - [x] Executed within session Kill Zone\n`;
-    } else {
-      snippet = `\n\n> **⚡ Trader Psychology & Discipline Audit**\n> - State of mind: Calm / Focused\n> - Did I wait for candle close? Yes / No\n> - Rule compliance: 100%\n`;
-    }
-    insertTextAtCursor(snippet);
-    toast.success("Template snippet inserted");
-  };
-
-  // Slash command handler
-  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "/" && !slashMenuOpen) {
-      setSlashMenuOpen(true);
-      setSlashQuery("");
-    } else if (e.key === "Escape" && slashMenuOpen) {
-      setSlashMenuOpen(false);
-    }
+  // Quick ICT template appender
+  const handleInsertTemplate = (type: "premarket" | "sessionTape" | "confluence" | "psychology") => {
+    if (!selectedNote) return;
+    const tpl = TEMPLATES[type];
+    const prev = selectedNote.content || "";
+    handleUpdateNote({ content: prev + tpl });
+    toast.success("ICT template inserted into note");
   };
 
   const handleExportMarkdown = () => {
@@ -1599,28 +1548,28 @@ function NotebookPage() {
                       <span className="text-[#6f6f6d] font-medium text-[11px]">Recently used templates:</span>
                       <button
                         type="button"
-                        onClick={() => insertTemplateSnippet("prep")}
+                        onClick={() => handleInsertTemplate("premarket")}
                         className="px-2.5 py-1 rounded-md bg-[#121215] hover:bg-[#1a1a1f] border border-white/[0.07] text-[#d6d6d4] hover:text-white transition-colors"
                       >
                         Pre-Market Prep
                       </button>
                       <button
                         type="button"
-                        onClick={() => insertTemplateSnippet("tape")}
+                        onClick={() => handleInsertTemplate("sessionTape")}
                         className="px-2.5 py-1 rounded-md bg-[#121215] hover:bg-[#1a1a1f] border border-white/[0.07] text-[#d6d6d4] hover:text-white transition-colors"
                       >
                         Session Tape
                       </button>
                       <button
                         type="button"
-                        onClick={() => insertTemplateSnippet("confluence")}
+                        onClick={() => handleInsertTemplate("confluence")}
                         className="px-2.5 py-1 rounded-md bg-[#121215] hover:bg-[#1a1a1f] border border-white/[0.07] text-[#d6d6d4] hover:text-white transition-colors"
                       >
                         Confluence Checklist
                       </button>
                       <button
                         type="button"
-                        onClick={() => insertTemplateSnippet("psych")}
+                        onClick={() => handleInsertTemplate("psychology")}
                         className="px-2.5 py-1 rounded-md bg-[#121215] hover:bg-[#1a1a1f] border border-white/[0.07] text-[#d6d6d4] hover:text-white transition-colors"
                       >
                         Psychology Check
@@ -1664,236 +1613,22 @@ function NotebookPage() {
                   </div>
                 </div>
 
-                {/* Rich Formatting Toolbar */}
-                <div className="border-b border-white/[0.07] bg-[#0c0c0e] px-4 py-2 flex flex-wrap items-center gap-1 sticky top-0 z-20 text-[#a2a2a0]">
-                  {/* Undo / Redo */}
-                  <button
-                    type="button"
-                    onClick={() => insertTextAtCursor("\n")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white"
-                    title="New line"
-                  >
-                    <RotateCcw className="size-3.5" />
-                  </button>
-
-                  {/* Dictation voice notes helper */}
-                  <button
-                    type="button"
-                    onClick={() => toast.info("Voice note dictation active")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#e50914]"
-                    title="Voice notes"
-                  >
-                    <Mic className="size-3.5" />
-                  </button>
-
-                  <span className="w-px h-4 bg-white/[0.1] mx-1" />
-
-                  {/* Font Family Selector */}
-                  <select
-                    value={currentFontFamily}
-                    onChange={(e) => setCurrentFontFamily(e.target.value)}
-                    className="bg-[#121215] border border-white/[0.08] text-white text-[11px] rounded px-2 py-1 focus:outline-none"
-                  >
-                    <option value="font-sans">IBM Plex Sans</option>
-                    <option value="font-display">Plus Jakarta Sans</option>
-                    <option value="font-mono">IBM Plex Mono</option>
-                  </select>
-
-                  {/* Font Size Selector */}
-                  <div className="flex items-center border border-white/[0.08] rounded bg-[#121215] text-[11px] px-1">
-                    <button
-                      type="button"
-                      onClick={() => setCurrentFontSize((s) => Math.max(12, s - 1))}
-                      className="px-1.5 py-0.5 hover:text-white"
-                    >
-                      -
-                    </button>
-                    <span className="font-mono px-1.5 text-white">{currentFontSize}</span>
-                    <button
-                      type="button"
-                      onClick={() => setCurrentFontSize((s) => Math.min(24, s + 1))}
-                      className="px-1.5 py-0.5 hover:text-white"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  <span className="w-px h-4 bg-white/[0.1] mx-1" />
-
-                  {/* Bold, Italic, Underline, Code */}
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection("**")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white font-bold text-xs"
-                    title="Bold"
-                  >
-                    B
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection("*")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white italic text-xs"
-                    title="Italic"
-                  >
-                    I
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection("<u>", "</u>")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white underline text-xs"
-                    title="Underline"
-                  >
-                    U
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection("`")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white font-mono text-xs"
-                    title="Code"
-                  >
-                    &lt;&gt;
-                  </button>
-
-                  <span className="w-px h-4 bg-white/[0.1] mx-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection('<span style="color:#e50914">', "</span>")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#e50914] font-bold text-xs"
-                    title="Crimson Highlight"
-                  >
-                    A
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection('<span style="color:#3ddc84">', "</span>")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#3ddc84] font-bold text-xs"
-                    title="Profit Green Highlight"
-                  >
-                    A
-                  </button>
-
-                  <span className="flex-1" />
-
-                  <div className="text-[11px] text-[#6f6f6d] hidden md:flex items-center gap-1 font-mono">
-                    <span>press</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-[#17171b] border border-white/[0.1] text-white text-[10px]">
-                      /
-                    </kbd>
-                    <span>for commands</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm("Clear all text from this note?")) {
-                        handleUpdateNote({ content: "" });
-                      }
-                    }}
-                    className="p-1.5 rounded hover:bg-[#ff6b7d]/20 hover:text-[#ff6b7d] ml-1"
-                    title="Clear content"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-
-                {/* Editor Textarea with Slash Command Menu */}
-                <div className="relative flex-1 p-6 sm:p-8 min-h-[460px]">
-                  {/* Floating Slash Commands Menu */}
-                  {slashMenuOpen && (
-                    <div className="absolute top-4 left-8 z-50 w-72 bg-[#121215] border border-white/[0.14] rounded-xl shadow-2xl overflow-hidden text-xs">
-                      <div className="p-2 border-b border-white/[0.08] bg-[#0c0c0e] text-[10px] uppercase font-semibold text-[#6f6f6d] tracking-wider flex items-center justify-between">
-                        <span>Insert ICT Block / Format</span>
-                        <button
-                          type="button"
-                          onClick={() => setSlashMenuOpen(false)}
-                          className="text-[#6f6f6d] hover:text-white"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </div>
-                      <div className="p-1 max-h-60 overflow-y-auto space-y-0.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            insertTextAtCursor("\n# Main Section Heading\n");
-                            setSlashMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#e50914]/15 hover:text-white flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded bg-white/[0.05] flex items-center justify-center font-bold text-xs text-white">
-                            H1
-                          </span>
-                          <div>
-                            <p className="font-medium text-white leading-tight">Heading 1</p>
-                            <p className="text-[10px] text-[#6f6f6d]">Big section headline</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            insertTemplateSnippet("confluence");
-                            setSlashMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#e50914]/15 hover:text-white flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded bg-[#3ddc84]/10 text-[#3ddc84] flex items-center justify-center text-xs">
-                            ✓
-                          </span>
-                          <div>
-                            <p className="font-medium text-white leading-tight">ICT Rule Confluence Check</p>
-                            <p className="text-[10px] text-[#6f6f6d]">Checklist for HTF bias &amp; kill zone</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            insertTemplateSnippet("psych");
-                            setSlashMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#e50914]/15 hover:text-white flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded bg-[#e50914]/10 text-[#e50914] flex items-center justify-center text-xs">
-                            ⚡
-                          </span>
-                          <div>
-                            <p className="font-medium text-white leading-tight">Psychology / Warning Callout</p>
-                            <p className="text-[10px] text-[#6f6f6d]">Highlighted execution warning</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            insertTemplateSnippet("tape");
-                            setSlashMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#e50914]/15 hover:text-white flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded bg-white/[0.05] flex items-center justify-center text-xs">
-                            ⏱️
-                          </span>
-                          <div>
-                            <p className="font-medium text-white leading-tight">Session Tape Timeline</p>
-                            <p className="text-[10px] text-[#6f6f6d]">Timestamped candle breakdown</p>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <textarea
-                    ref={textareaRef}
-                    value={selectedNote.content}
-                    onChange={(e) => handleUpdateNote({ content: e.target.value })}
-                    onKeyDown={handleEditorKeyDown}
-                    style={{ fontSize: `${currentFontSize}px` }}
-                    className={cn(
-                      "w-full h-full min-h-[440px] resize-none bg-transparent outline-none leading-relaxed text-[#e8e8e6] placeholder-[#6f6f6d]",
-                      currentFontFamily
-                    )}
-                    placeholder="Write something, or press '/' for commands"
-                  />
-                </div>
+                {/* Notion-style WYSIWYG Editor */}
+                <NotionEditor
+                  key={selectedNote.id}
+                  noteId={selectedNote.id}
+                  initialContent={selectedNote.content}
+                  onUpdate={(html) => handleUpdateNote({ content: html })}
+                  fontSize={currentFontSize}
+                  onFontSizeChange={setCurrentFontSize}
+                  fontFamily={currentFontFamily}
+                  onFontFamilyChange={setCurrentFontFamily}
+                  onClearNote={() => {
+                    if (window.confirm("Clear all text from this note?")) {
+                      handleUpdateNote({ content: "" });
+                    }
+                  }}
+                />
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full py-24 text-center text-[#a2a2a0]">
