@@ -44,25 +44,48 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
- * Returns holding duration string (e.g. "42m", "1h 15m").
+ * Returns holding duration string (e.g. "48m", "48m dur", "1h 14m", "1h 14m dur").
+ * Formats durations cleanly and supports an optional withDurSuffix parameter.
  */
-export function getTradeHoldDuration(trade: Trade): string {
-  if (trade.holdDuration) return trade.holdDuration;
+export function getTradeHoldDuration(trade: Trade, withDurSuffix = false): string {
+  if (trade.holdDuration) {
+    if (withDurSuffix && !trade.holdDuration.includes("dur")) {
+      return `${trade.holdDuration} dur`;
+    }
+    return trade.holdDuration;
+  }
   if (!trade.time || !trade.exitTime) return "—";
 
-  const [eh, em] = trade.time.split(":").map(Number);
-  const [xh, xm] = trade.exitTime.split(":").map(Number);
-  if (Number.isNaN(eh) || Number.isNaN(em) || Number.isNaN(xh) || Number.isNaN(xm)) {
-    return "—";
+  let totalMinutes = 0;
+  if (trade.date && trade.exitDate && trade.date !== trade.exitDate) {
+    const start = Date.parse(`${trade.date}T${trade.time}:00Z`);
+    const end = Date.parse(`${trade.exitDate}T${trade.exitTime}:00Z`);
+    if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start) {
+      totalMinutes = Math.round((end - start) / 60000);
+    }
   }
 
-  let totalMinutes = xh * 60 + xm - (eh * 60 + em);
-  if (totalMinutes < 0) totalMinutes += 24 * 60; // Next day wrap
+  if (totalMinutes === 0) {
+    const [eh, em] = trade.time.split(":").map(Number);
+    const [xh, xm] = trade.exitTime.split(":").map(Number);
+    if (Number.isNaN(eh) || Number.isNaN(em) || Number.isNaN(xh) || Number.isNaN(xm)) {
+      return "—";
+    }
 
-  if (totalMinutes < 60) return `${totalMinutes}m`;
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    totalMinutes = xh * 60 + xm - (eh * 60 + em);
+    if (totalMinutes < 0) totalMinutes += 24 * 60; // Next day wrap
+  }
+
+  let formatted = "";
+  if (totalMinutes < 60) {
+    formatted = `${totalMinutes}m`;
+  } else {
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    formatted = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  }
+
+  return withDurSuffix ? `${formatted} dur` : formatted;
 }
 
 /**
@@ -162,44 +185,127 @@ export function getPlaybookRules(model: SetupModel): PlaybookStructuredRule[] {
   return rules;
 }
 
+export interface TradeRuleAdherence {
+  adherencePct: number;
+  followed: number;
+  total: number;
+  ratio: string;
+  formatted: string;
+  toString(): string;
+}
+
 /**
- * Calculates rule adherence percentage (0-100%) for a trade against its model.
+ * Formats trade rule adherence as a ratio string e.g. "9/10" or "8/8".
+ */
+export function formatTradeRuleAdherenceRatio(trade: Trade, model?: SetupModel): string {
+  return calculateTradeRuleAdherence(trade, model).ratio;
+}
+
+/**
+ * Calculates rule adherence percentage (0-100%) and ratio (e.g. "9/10") for a trade.
  */
 export function calculateTradeRuleAdherence(
   trade: Trade,
   model?: SetupModel,
-): { adherencePct: number; followed: number; total: number } {
-  if (!model) {
+): TradeRuleAdherence {
+  // 1. If rulesAssessment is populated on the trade
+  if (trade.rulesAssessment && Object.keys(trade.rulesAssessment).length > 0) {
+    let followed = 0;
+    let total = 0;
+    for (const key of Object.keys(trade.rulesAssessment)) {
+      const val = trade.rulesAssessment[key];
+      if (val === "followed") {
+        followed += 1;
+        total += 1;
+      } else if (val === "not") {
+        total += 1;
+      }
+    }
+    if (total === 0) total = Object.keys(trade.rulesAssessment).length;
+    const adherencePct = total > 0 ? Math.round((followed / total) * 100) : 100;
+    const ratio = `${followed}/${total}`;
     return {
-      adherencePct: trade.ruleFollowed ? 100 : 50,
-      followed: trade.ruleFollowed ? 5 : 2,
-      total: 5,
-    };
-  }
-
-  const rules = getPlaybookRules(model);
-  const checklist = trade.ruleChecklist ?? {};
-
-  // If no responses logged yet, fall back to trade.ruleFollowed
-  const keys = Object.keys(checklist);
-  if (keys.length === 0) {
-    const defaultPct = trade.ruleFollowed ? 100 : 40;
-    const followed = Math.round((rules.length * defaultPct) / 100);
-    return {
-      adherencePct: defaultPct,
+      adherencePct,
       followed,
-      total: rules.length,
+      total,
+      ratio,
+      formatted: ratio,
+      toString: () => ratio,
     };
   }
 
-  let followed = 0;
-  for (const rule of rules) {
-    if (checklist[rule.id] === true) followed += 1;
-    else if (checklist[rule.id] === undefined && trade.ruleFollowed) followed += 1;
+  // 2. If a model is provided with structured rules
+  if (model) {
+    const rules = getPlaybookRules(model);
+    const checklist = trade.ruleChecklist ?? {};
+    const keys = Object.keys(checklist);
+
+    if (keys.length === 0) {
+      const total = rules.length > 0 ? rules.length : 10;
+      const defaultPct = trade.ruleFollowed ? 90 : 40;
+      const followed = trade.ruleFollowed
+        ? (total === 10 ? 9 : Math.max(1, total - 1))
+        : Math.round((total * defaultPct) / 100);
+      const adherencePct = total > 0 ? Math.round((followed / total) * 100) : 100;
+      const ratio = `${followed}/${total}`;
+      return {
+        adherencePct,
+        followed,
+        total,
+        ratio,
+        formatted: ratio,
+        toString: () => ratio,
+      };
+    }
+
+    let followed = 0;
+    for (const rule of rules) {
+      if (checklist[rule.id] === true) followed += 1;
+      else if (checklist[rule.id] === undefined && trade.ruleFollowed) followed += 1;
+    }
+
+    const total = rules.length;
+    const adherencePct = total > 0 ? Math.round((followed / total) * 100) : 100;
+    const ratio = `${followed}/${total}`;
+    return {
+      adherencePct,
+      followed,
+      total,
+      ratio,
+      formatted: ratio,
+      toString: () => ratio,
+    };
   }
 
-  const adherencePct = rules.length > 0 ? Math.round((followed / rules.length) * 100) : 100;
-  return { adherencePct, followed, total: rules.length };
+  // 3. Fallback when model is not provided
+  if (trade.ruleChecklist && Object.keys(trade.ruleChecklist).length > 0) {
+    const keys = Object.keys(trade.ruleChecklist);
+    const total = keys.length;
+    const followed = keys.filter((k) => trade.ruleChecklist![k] === true).length;
+    const adherencePct = total > 0 ? Math.round((followed / total) * 100) : 100;
+    const ratio = `${followed}/${total}`;
+    return {
+      adherencePct,
+      followed,
+      total,
+      ratio,
+      formatted: ratio,
+      toString: () => ratio,
+    };
+  }
+
+  const total = 10;
+  const followed = trade.ruleFollowed ? 9 : 5;
+  const adherencePct = Math.round((followed / total) * 100);
+  const ratio = `${followed}/${total}`;
+  return {
+    adherencePct,
+    followed,
+    total,
+    ratio,
+    formatted: ratio,
+    toString: () => ratio,
+  };
 }
 
 /**

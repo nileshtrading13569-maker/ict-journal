@@ -1,40 +1,109 @@
 import { useMemo, useState } from "react";
 import {
-  ArrowDown,
-  ArrowUp,
   Calendar as CalendarIcon,
   Check,
+  CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Columns3,
-  Copy,
-  Download,
-  Ellipsis,
-  RotateCcw,
   Search,
-  SlidersHorizontal,
 } from "lucide-react";
-import { toast } from "sonner";
 import { useDeskStore } from "@/lib/ict-store";
-import { fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
+import { formatKPIR } from "@/lib/ict-stats";
+import {
+  calculateTradeRuleAdherence,
+  formatCurrency,
+  getTradeHoldDuration,
+  getTradePnL,
+} from "@/lib/tradezella-helpers";
 import { paginateJournalRows } from "@/lib/journal-pagination";
-import { cn, formatR } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Trade } from "@/lib/ict-types";
+import type { SetupModel, Trade } from "@/lib/ict-types";
 
-interface AllViewProps {
+export const JOURNAL_TABLE_COLUMNS = [
+  "checkbox",
+  "open_time",
+  "symbol",
+  "side",
+  "status",
+  "lots",
+  "entry",
+  "exit",
+  "net_pnl",
+  "realized_r",
+  "playbook",
+  "tags",
+  "rules",
+  "grade",
+  "reviewed",
+] as const;
+
+export function formatPrice(price: number, market?: string): string {
+  const m = (market || "").toUpperCase();
+  const isForex =
+    (/^(EUR|GBP|USD|AUD|NZD|CAD|CHF)/.test(m) && !m.includes("BTC") && !m.includes("ETH")) ||
+    m.includes("EURUSD");
+  const isJpy = m.includes("JPY");
+  const digits = isForex ? (isJpy ? 3 : 5) : 2;
+  return price.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+export function formatOpenDateTime(dateStr: string, timeStr?: string): string {
+  if (!dateStr) return "—";
+  const parts = dateStr.split("-");
+  const mm = parts[1] || "";
+  const dd = parts[2] || "";
+  const time = timeStr ? timeStr.slice(0, 5) : "00:00";
+  return mm && dd ? `${mm}/${dd} ${time}` : `${dateStr} ${time}`;
+}
+
+export function isMistakeTag(tag: string): boolean {
+  const t = tag.toLowerCase();
+  return (
+    t.includes("late") ||
+    t.includes("chase") ||
+    t.includes("early") ||
+    t.includes("fomo") ||
+    t.includes("outside") ||
+    t.includes("impulse") ||
+    t.includes("revenge") ||
+    t.includes("greed") ||
+    t.includes("fear") ||
+    t.includes("hesitat") ||
+    t.includes("overleverag") ||
+    t.includes("mistake")
+  );
+}
+
+export function getPlaybookLetter(trade: Trade, models: SetupModel[] = []): string {
+  const m = models.find(
+    (mod) => mod.id === trade.modelId || mod.name.toLowerCase() === trade.modelName?.toLowerCase(),
+  );
+  if (m?.code) return m.code.toUpperCase();
+  const name = (trade.modelName || "").toLowerCase();
+  if (name.includes("raid")) return "A";
+  if (name.includes("soup")) return "B";
+  if (name.includes("judas")) return "C";
+  if (name.includes("fvg")) return "B";
+  if (name.includes("breaker")) return "A";
+  return "A";
+}
+
+export interface AllViewProps {
   trades: Trade[];
   selectedTradeId: string | null;
   onSelectTrade: (trade: Trade | null) => void;
   onEditTrade: (trade: Trade) => void;
+  onLogTrade?: () => void;
 }
 
 export function AllView({
@@ -42,612 +111,551 @@ export function AllView({
   selectedTradeId,
   onSelectTrade,
 }: AllViewProps) {
-  const data = useDeskStore();
   const models = useDeskStore((s) => s.models);
 
-  const [query, setQuery] = useState("");
-  const [filterSide, setFilterSide] = useState<"all" | "long" | "short">("all");
-  const [filterStatus, setFilterStatus] = useState<"all" | "open" | "win" | "loss" | "be">("all");
-  const [filterReviewed, setFilterReviewed] = useState<"all" | "reviewed" | "unreviewed">("all");
-  const [sortDirection, setSortDirection] = useState<"desc" | "asc">("desc");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRangeKey, setSelectedRangeKey] = useState<string>("oct_2026");
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 12;
+  const pageSize = 6; // Matching screenshot 2: 6 trades per page
 
-  // Customizable visible columns state
-  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
-    time: true,
-    symbol: true,
-    side: true,
-    status: true,
-    lots: true,
-    entry: true,
-    exit: true,
-    netPnl: true,
-    rMultiple: true,
-    playbook: true,
-    tags: true,
-    reviewed: true,
-  });
+  // Label for Date Range Selector button
+  const dateRangeLabel = useMemo(() => {
+    switch (selectedRangeKey) {
+      case "oct_2026":
+        return "Oct 1 – Oct 29, 2026";
+      case "all":
+        return "All Logged Dates";
+      case "last_7":
+        return "Last 7 Days";
+      case "last_30":
+        return "Last 30 Days";
+      default:
+        return "Oct 1 – Oct 29, 2026";
+    }
+  }, [selectedRangeKey]);
 
-  // Filtered & sorted trades
-  const filtered = useMemo(() => {
-    return trades
-      .filter((t) => {
-        // Query search
-        if (query.trim()) {
-          const q = query.toLowerCase();
-          const matchSymbol = t.market.toLowerCase().includes(q);
-          const matchPlaybook = t.modelName.toLowerCase().includes(q);
-          const matchTags = (t.tags || []).some((tag) => tag.toLowerCase().includes(q));
-          if (!matchSymbol && !matchPlaybook && !matchTags) return false;
+  // Filter trades by search query and date range
+  const filteredTrades = useMemo(() => {
+    return trades.filter((t) => {
+      // 1. Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchSymbol = t.market.toLowerCase().includes(q);
+        const matchPlaybook = (t.modelName || "").toLowerCase().includes(q);
+        const matchTags = (t.tags || []).some((tag) => tag.toLowerCase().includes(q));
+        const matchSetupTags = (t.setupTags || []).some((tag) => tag.toLowerCase().includes(q));
+        const matchMistakeTags = (t.mistakeTags || []).some((tag) => tag.toLowerCase().includes(q));
+        const matchNotes = (t.notes || "").toLowerCase().includes(q);
+
+        if (
+          !matchSymbol &&
+          !matchPlaybook &&
+          !matchTags &&
+          !matchSetupTags &&
+          !matchMistakeTags &&
+          !matchNotes
+        ) {
+          return false;
         }
+      }
 
-        // Side filter
-        if (filterSide !== "all" && t.side !== filterSide) return false;
+      // 2. Date Range Filter
+      if (selectedRangeKey === "oct_2026") {
+        if (t.date && (t.date < "2026-10-01" || t.date > "2026-10-31")) {
+          return false;
+        }
+      } else if (selectedRangeKey === "last_7") {
+        const now = new Date("2026-10-29T23:59:59Z").getTime();
+        const tradeTime = new Date(`${t.date}T12:00:00Z`).getTime();
+        if (now - tradeTime > 7 * 86400000 || tradeTime > now) {
+          return false;
+        }
+      } else if (selectedRangeKey === "last_30") {
+        const now = new Date("2026-10-29T23:59:59Z").getTime();
+        const tradeTime = new Date(`${t.date}T12:00:00Z`).getTime();
+        if (now - tradeTime > 30 * 86400000 || tradeTime > now) {
+          return false;
+        }
+      }
 
-        // Status filter
-        if (filterStatus !== "all" && t.result !== filterStatus) return false;
+      return true;
+    });
+  }, [trades, searchQuery, selectedRangeKey]);
 
-        // Reviewed filter
-        if (filterReviewed === "reviewed" && !t.reviewed) return false;
-        if (filterReviewed === "unreviewed" && t.reviewed) return false;
+  // Sort trades descending by date/time
+  const sortedTrades = useMemo(() => {
+    return filteredTrades.slice().sort((a, b) => {
+      const timeA = `${a.date}T${a.time || "00:00"}`;
+      const timeB = `${b.date}T${b.time || "00:00"}`;
+      return timeB.localeCompare(timeA);
+    });
+  }, [filteredTrades]);
 
-        return true;
-      })
-      .sort((a, b) => {
-        const timeA = new Date(`${a.date}T${a.time || "00:00"}`).getTime();
-        const timeB = new Date(`${b.date}T${b.time || "00:00"}`).getTime();
-        return sortDirection === "desc" ? timeB - timeA : timeA - timeB;
-      });
-  }, [trades, query, filterSide, filterStatus, filterReviewed, sortDirection]);
-
-  // Pagination
+  // Pagination (6 items per page)
   const { rows, totalPages, page, startIndex } = useMemo(() => {
-    return paginateJournalRows(filtered, currentPage, pageSize);
-  }, [filtered, currentPage, pageSize]);
+    return paginateJournalRows(sortedTrades, currentPage, pageSize);
+  }, [sortedTrades, currentPage, pageSize]);
 
-  // Overall totals
-  const totalClosed = trades.filter((t) => t.result !== "open");
-  const totalNetPnL = totalClosed.reduce((acc, t) => {
-    const pnl = tradeDollarPnl(t, instrumentOf(data, t.market));
-    return acc + (pnl.net ?? 0);
-  }, 0);
+  // Master checkbox selection helpers
+  const currentPageIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  const isAllCurrentSelected =
+    currentPageIds.length > 0 && currentPageIds.every((id) => selectedRowIds.has(id));
 
-  const getModelCode = (trade: Trade) => {
-    const m = models.find((mod) => mod.id === trade.modelId || mod.name.toLowerCase() === trade.modelName.toLowerCase());
-    return m ? `[${m.code}]` : "[A]";
-  };
-
-  const formatOpenTime = (trade: Trade) => {
-    try {
-      const d = new Date(`${trade.date}T${trade.time || "00:00"}`);
-      const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      const timePart = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-      return `${datePart}, ${timePart}`;
-    } catch {
-      return `${trade.date} ${trade.time}`;
-    }
-  };
-
-  const exportToCSV = () => {
-    if (trades.length === 0) {
-      toast.error("No trades to export.");
-      return;
-    }
-    const headers = ["ID", "Date", "Time", "Symbol", "Side", "Lots", "Entry", "Exit", "P&L", "R", "Status", "Playbook", "Grade", "Notes"];
-    const rows = trades.map((t) => {
-      const inst = instrumentOf(data, t.market);
-      const pnl = tradeDollarPnl(t, inst);
-      return [
-        t.id,
-        t.date,
-        t.time,
-        t.market,
-        t.side,
-        t.lots ?? "",
-        t.entry ?? "",
-        t.exitPrice ?? "",
-        pnl.net ?? 0,
-        t.rMultiple ?? 0,
-        t.result,
-        `"${(t.modelName || "").replace(/"/g, '""')}"`,
-        t.grade ?? "",
-        `"${(t.notes || "").replace(/"/g, '""')}"`,
-      ].join(",");
+  const toggleSelectAll = () => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (isAllCurrentSelected) {
+        for (const id of currentPageIds) next.delete(id);
+      } else {
+        for (const id of currentPageIds) next.add(id);
+      }
+      return next;
     });
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `journal-trades-${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Trades exported to CSV");
   };
 
-  const copySummaryToClipboard = () => {
-    const totalCount = trades.length;
-    const winsCount = trades.filter((t) => t.result === "win").length;
-    const wr = totalCount > 0 ? Math.round((winsCount / totalCount) * 100) : 0;
-    const totalPnl = trades.reduce((acc, t) => {
-      const pnl = tradeDollarPnl(t, instrumentOf(data, t.market));
-      return acc + (pnl.net ?? 0);
-    }, 0);
-    const summary = `Journal Performance Summary:\n• Total Trades: ${totalCount}\n• Win Rate: ${wr}%\n• Net P&L: ${fmtCurrency(totalPnl)}`;
-    navigator.clipboard.writeText(summary);
-    toast.success("Summary copied to clipboard!");
-  };
-
-  const resetColumns = () => {
-    setVisibleColumns({
-      time: true,
-      symbol: true,
-      side: true,
-      status: true,
-      lots: true,
-      entry: true,
-      exit: true,
-      netPnl: true,
-      rMultiple: true,
-      playbook: true,
-      tags: true,
-      reviewed: true,
+  const toggleRowSelect = (id: string) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-    toast.success("Columns reset to default");
   };
-
-  const totalVisibleCols = Object.values(visibleColumns).filter(Boolean).length;
 
   return (
-    <div className="space-y-3">
-      {/* Search and filter toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Search */}
-        <div className="flex h-10 w-[260px] items-center gap-2 rounded-md border border-white/[0.09] bg-[#151515]/80 px-3 text-[13px] text-white">
-          <Search className="size-3.5 text-[#6f6f6d]" />
-          <input
-            type="text"
-            placeholder="Search trades..."
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full bg-transparent text-[13px] placeholder-[#6f6f6d] outline-none"
-          />
-        </div>
+    <div data-testid="journal-all-view" className="space-y-3">
+      {/* Filter Toolbar: Search Bar + Date Range Selector */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Instant Search Bar */}
+          <div className="flex h-10 w-80 items-center gap-2 rounded-lg border border-neutral-800/80 bg-[#141416] px-3 text-sm text-white">
+            <Search className="size-4 text-[#71717a] shrink-0" />
+            <input
+              type="text"
+              placeholder="Search symbol, playbook, tag, notes..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full bg-transparent text-sm placeholder-[#71717a] outline-none"
+            />
+          </div>
 
-        {/* Side filter dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex h-10 items-center gap-2 rounded-md border border-white/[0.09] bg-white/[0.03] px-3 text-[13px] font-medium text-[#d6d6d4] transition-colors hover:bg-white/[0.06]"
-            >
-              <SlidersHorizontal className="size-3.5 text-[#a2a2a0]" />
-              <span>Side: {filterSide === "all" ? "All" : filterSide === "long" ? "Long" : "Short"}</span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="border-white/[0.1] bg-[#121212] text-white">
-            <DropdownMenuCheckboxItem checked={filterSide === "all"} onCheckedChange={() => setFilterSide("all")}>
-              All sides
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={filterSide === "long"} onCheckedChange={() => setFilterSide("long")}>
-              Long only
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={filterSide === "short"} onCheckedChange={() => setFilterSide("short")}>
-              Short only
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Status filter dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex h-10 items-center gap-2 rounded-md border border-white/[0.09] bg-white/[0.03] px-3 text-[13px] font-medium text-[#d6d6d4] transition-colors hover:bg-white/[0.06]"
-            >
-              <span>
-                Status:{" "}
-                {filterStatus === "all"
-                  ? "All"
-                  : filterStatus === "win"
-                    ? "Wins"
-                    : filterStatus === "loss"
-                      ? "Losses"
-                      : filterStatus === "be"
-                        ? "Break-even"
-                        : "Open"}
-              </span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="border-white/[0.1] bg-[#121212] text-white">
-            <DropdownMenuCheckboxItem checked={filterStatus === "all"} onCheckedChange={() => setFilterStatus("all")}>
-              All outcomes
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={filterStatus === "win"} onCheckedChange={() => setFilterStatus("win")}>
-              Wins
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={filterStatus === "loss"} onCheckedChange={() => setFilterStatus("loss")}>
-              Losses
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={filterStatus === "be"} onCheckedChange={() => setFilterStatus("be")}>
-              Break-even
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={filterStatus === "open"} onCheckedChange={() => setFilterStatus("open")}>
-              Open positions
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Reviewed filter dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex h-10 items-center gap-2 rounded-md border border-white/[0.09] bg-white/[0.03] px-3 text-[13px] font-medium text-[#d6d6d4] transition-colors hover:bg-white/[0.06]"
-            >
-              <span>Reviewed: {filterReviewed === "all" ? "All" : filterReviewed === "reviewed" ? "Reviewed" : "To review"}</span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="border-white/[0.1] bg-[#121212] text-white">
-            <DropdownMenuCheckboxItem checked={filterReviewed === "all"} onCheckedChange={() => setFilterReviewed("all")}>
-              All
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={filterReviewed === "reviewed"} onCheckedChange={() => setFilterReviewed("reviewed")}>
-              Reviewed only
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={filterReviewed === "unreviewed"} onCheckedChange={() => setFilterReviewed("unreviewed")}>
-              To review only
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Columns & Actions Dropdowns */}
-        <div className="ml-auto flex items-center gap-2">
-          {/* Columns Selector Dropdown */}
+          {/* Date Range Selector Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex h-10 items-center gap-2 rounded-md border border-white/[0.09] bg-white/[0.03] px-3 text-[13px] font-medium text-[#d6d6d4] transition-colors hover:bg-white/[0.06] hover:text-white"
+                className="flex h-10 items-center gap-2 rounded-lg border border-neutral-800/80 bg-[#141416] px-3.5 text-xs sm:text-sm font-medium text-neutral-200 transition-colors hover:border-neutral-700 hover:text-white cursor-pointer"
               >
-                <Columns3 className="size-3.5" />
-                <span>Columns</span>
+                <CalendarIcon className="size-4 text-neutral-400 shrink-0" />
+                <span>{dateRangeLabel}</span>
+                <ChevronDown className="size-3.5 text-neutral-400 shrink-0" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 border-white/[0.1] bg-[#121212] text-white">
-              <DropdownMenuLabel className="text-[11px] font-semibold text-[#a2a2a0] uppercase tracking-wider">
-                Toggle Table Columns
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/[0.08]" />
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.time}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, time: v }))}
-              >
-                Open Time (ET)
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.symbol}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, symbol: v }))}
-              >
-                Symbol / Market
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.side}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, side: v }))}
-              >
-                Side
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.status}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, status: v }))}
-              >
-                Status
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.lots}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, lots: v }))}
-              >
-                Lots / Size
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.entry}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, entry: v }))}
-              >
-                Entry Price
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.exit}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, exit: v }))}
-              >
-                Exit Price
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.netPnl}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, netPnl: v }))}
-              >
-                Net P&amp;L
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.rMultiple}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, rMultiple: v }))}
-              >
-                R-Multiple
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.playbook}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, playbook: v }))}
-              >
-                Playbook Setup
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.tags}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, tags: v }))}
-              >
-                Tags / Session
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={visibleColumns.reviewed}
-                onCheckedChange={(v) => setVisibleColumns((p) => ({ ...p, reviewed: v }))}
-              >
-                Reviewed Check
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator className="bg-white/[0.08]" />
-              <DropdownMenuItem onClick={resetColumns} className="text-xs text-[#a2a2a0] hover:text-white">
-                <RotateCcw className="mr-2 size-3.5" /> Reset to default
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* More Actions Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label="More options"
-                className="flex size-10 items-center justify-center rounded-md border border-white/[0.09] bg-white/[0.03] text-[15px] text-[#d6d6d4] transition-colors hover:bg-white/[0.06] hover:text-white"
-              >
-                <Ellipsis className="size-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 border-white/[0.1] bg-[#121212] text-white">
-              <DropdownMenuLabel className="text-[11px] font-semibold text-[#a2a2a0] uppercase tracking-wider">
-                Journal Actions
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/[0.08]" />
-              <DropdownMenuItem onClick={exportToCSV} className="text-xs">
-                <Download className="mr-2 size-3.5 text-[#a2a2a0]" />
-                Export to CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={copySummaryToClipboard} className="text-xs">
-                <Copy className="mr-2 size-3.5 text-[#a2a2a0]" />
-                Copy Summary
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-white/[0.08]" />
+            <DropdownMenuContent className="w-56 border-white/[0.1] bg-[#121212] text-white">
               <DropdownMenuItem
                 onClick={() => {
-                  setFilterSide("all");
-                  setFilterStatus("all");
-                  setFilterReviewed("all");
-                  setQuery("");
-                  toast.success("Filters reset to default");
+                  setSelectedRangeKey("oct_2026");
+                  setCurrentPage(1);
                 }}
-                className="text-xs text-[#a2a2a0] hover:text-white"
+                className={cn(
+                  "cursor-pointer text-xs",
+                  selectedRangeKey === "oct_2026" && "font-semibold text-white",
+                )}
               >
-                <RotateCcw className="mr-2 size-3.5" />
-                Reset all filters
+                Oct 1 – Oct 29, 2026 (Active)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedRangeKey("all");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "cursor-pointer text-xs",
+                  selectedRangeKey === "all" && "font-semibold text-white",
+                )}
+              >
+                All Logged Dates
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedRangeKey("last_7");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "cursor-pointer text-xs",
+                  selectedRangeKey === "last_7" && "font-semibold text-white",
+                )}
+              >
+                Last 7 Days
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedRangeKey("last_30");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "cursor-pointer text-xs",
+                  selectedRangeKey === "last_30" && "font-semibold text-white",
+                )}
+              >
+                Last 30 Days
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
-      {/* Trade journal table section */}
-      <section className="relative overflow-hidden rounded-xl border border-white/[0.09] bg-[#0a0a0a]/85">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e50914]/60 to-transparent" />
-
+      {/* 15-Column Table Section */}
+      <section className="relative overflow-hidden rounded-xl border border-neutral-800/80 bg-[#0c0c0e]">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] table-fixed text-[13px]">
+          <table className="w-full min-w-[1024px] table-fixed text-[13px]">
             <colgroup>
-              {visibleColumns.time && <col style={{ width: "128px" }} />}
-              {visibleColumns.symbol && <col style={{ width: "76px" }} />}
-              {visibleColumns.side && <col style={{ width: "58px" }} />}
-              {visibleColumns.status && <col style={{ width: "88px" }} />}
-              {visibleColumns.lots && <col style={{ width: "56px" }} />}
-              {visibleColumns.entry && <col style={{ width: "84px" }} />}
-              {visibleColumns.exit && <col style={{ width: "84px" }} />}
-              {visibleColumns.netPnl && <col style={{ width: "96px" }} />}
-              {visibleColumns.rMultiple && <col style={{ width: "66px" }} />}
-              {visibleColumns.playbook && <col />}
-              {visibleColumns.tags && <col style={{ width: "120px" }} />}
-              {visibleColumns.reviewed && <col style={{ width: "70px" }} />}
+              {/* 1. Checkbox */}
+              <col style={{ width: "42px" }} />
+              {/* 2. OPEN (ET) */}
+              <col style={{ width: "115px" }} />
+              {/* 3. SYMBOL */}
+              <col style={{ width: "80px" }} />
+              {/* 4. SIDE */}
+              <col style={{ width: "74px" }} />
+              {/* 5. STATUS */}
+              <col style={{ width: "76px" }} />
+              {/* 6. LOTS */}
+              <col style={{ width: "56px" }} />
+              {/* 7. ENTRY */}
+              <col style={{ width: "84px" }} />
+              {/* 8. EXIT */}
+              <col style={{ width: "84px" }} />
+              {/* 9. NET P&L */}
+              <col style={{ width: "95px" }} />
+              {/* 10. REALIZED R */}
+              <col style={{ width: "84px" }} />
+              {/* 11. PLAYBOOK */}
+              <col style={{ width: "155px" }} />
+              {/* 12. TAGS */}
+              <col style={{ width: "140px" }} />
+              {/* 13. RULES */}
+              <col style={{ width: "68px" }} />
+              {/* 14. GRADE */}
+              <col style={{ width: "65px" }} />
+              {/* 15. REV */}
+              <col style={{ width: "52px" }} />
             </colgroup>
+
+            {/* Header Row (15 Columns) */}
             <thead>
-              <tr className="h-9 border-b border-white/[0.07] text-left text-[10px] font-semibold tracking-[0.12em] text-[#a2a2a0] uppercase">
-                {visibleColumns.time && (
-                  <th className="px-3 font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => setSortDirection((d) => (d === "desc" ? "asc" : "desc"))}
-                      className="inline-flex items-center gap-1 text-white hover:text-[#e50914]"
-                    >
-                      Open (ET)
-                      {sortDirection === "desc" ? (
-                        <ArrowDown className="size-3 text-[#e50914]" />
-                      ) : (
-                        <ArrowUp className="size-3 text-[#e50914]" />
-                      )}
-                    </button>
-                  </th>
-                )}
-                {visibleColumns.symbol && <th className="px-3 font-semibold">Symbol</th>}
-                {visibleColumns.side && <th className="px-3 font-semibold">Side</th>}
-                {visibleColumns.status && <th className="px-3 font-semibold">Status</th>}
-                {visibleColumns.lots && <th className="px-3 text-right font-semibold">Lots</th>}
-                {visibleColumns.entry && <th className="px-3 text-right font-semibold">Entry</th>}
-                {visibleColumns.exit && <th className="px-3 text-right font-semibold">Exit</th>}
-                {visibleColumns.netPnl && <th className="px-3 text-right font-semibold">Net P&amp;L</th>}
-                {visibleColumns.rMultiple && <th className="px-3 text-right font-semibold">R</th>}
-                {visibleColumns.playbook && <th className="px-3 font-semibold">Playbook</th>}
-                {visibleColumns.tags && <th className="px-3 font-semibold">Tags</th>}
-                {visibleColumns.reviewed && <th className="px-3 text-center font-semibold">Reviewed</th>}
+              <tr className="h-10 border-b border-white/[0.07] bg-[#101012] text-left text-[10px] font-semibold tracking-[0.12em] text-[#71717a] uppercase">
+                {/* 1. Master Checkbox */}
+                <th className="px-3 text-center">
+                  <div
+                    onClick={toggleSelectAll}
+                    role="checkbox"
+                    aria-checked={isAllCurrentSelected}
+                    aria-label="Select all trades"
+                    className={cn(
+                      "mx-auto flex size-4 items-center justify-center rounded border transition-colors cursor-pointer",
+                      isAllCurrentSelected
+                        ? "border-[#e50914] bg-[#e50914] text-white"
+                        : "border-neutral-700 bg-neutral-900/80 hover:border-neutral-500",
+                    )}
+                  >
+                    {isAllCurrentSelected && <Check className="size-3 stroke-[3]" />}
+                  </div>
+                </th>
+                {/* 2. OPEN (ET) */}
+                <th className="px-3 font-semibold">OPEN (ET)</th>
+                {/* 3. SYMBOL */}
+                <th className="px-3 font-semibold">SYMBOL</th>
+                {/* 4. SIDE */}
+                <th className="px-3 font-semibold">SIDE</th>
+                {/* 5. STATUS */}
+                <th className="px-3 font-semibold">STATUS</th>
+                {/* 6. LOTS */}
+                <th className="px-3 text-right font-semibold">LOTS</th>
+                {/* 7. ENTRY */}
+                <th className="px-3 text-right font-semibold">ENTRY</th>
+                {/* 8. EXIT */}
+                <th className="px-3 text-right font-semibold">EXIT</th>
+                {/* 9. NET P&L */}
+                <th className="px-3 text-right font-semibold">NET P&amp;L</th>
+                {/* 10. REALIZED R */}
+                <th className="px-3 text-right font-semibold">REALIZED R</th>
+                {/* 11. PLAYBOOK */}
+                <th className="px-3 font-semibold">PLAYBOOK</th>
+                {/* 12. TAGS */}
+                <th className="px-3 font-semibold">TAGS</th>
+                {/* 13. RULES */}
+                <th className="px-3 text-center font-semibold">RULES</th>
+                {/* 14. GRADE */}
+                <th className="px-3 text-center font-semibold">GRADE</th>
+                {/* 15. REV */}
+                <th className="px-3 text-center font-semibold">REV</th>
               </tr>
             </thead>
-            <tbody className="[&>tr]:h-10 [&>tr]:border-b [&>tr]:border-white/[0.05]">
+
+            {/* Table Body */}
+            <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={totalVisibleCols || 12} className="py-12 text-center text-sm text-[#a2a2a0]">
-                    {trades.length === 0 ? "No trades recorded yet. Click 'Log trade' to add one." : "No trades match these filters."}
+                  <td colSpan={15} className="py-14 text-center text-sm text-[#71717a]">
+                    {trades.length === 0
+                      ? "No trades recorded yet. Click '+ Log trade' to add your first execution."
+                      : "No trades match the current search or date filter."}
                   </td>
                 </tr>
               ) : (
                 rows.map((trade: Trade) => {
-                  const inst = instrumentOf(data, trade.market);
-                  const pnl = tradeDollarPnl(trade, inst);
                   const isSelected = trade.id === selectedTradeId;
-                  const code = getModelCode(trade);
-                  const tagLabel = trade.tags?.[0] || trade.setupTags?.[0] || trade.killZone || "";
-                  const hasWarningTag =
-                    (trade.mistakeTags && trade.mistakeTags.length > 0) ||
-                    (trade.tags || []).some((t: string) => t.toLowerCase().includes("outside") || t.toLowerCase().includes("early") || t.toLowerCase().includes("late"));
+                  const isChecked = isSelected || selectedRowIds.has(trade.id);
+                  const pnl = getTradePnL(trade);
+                  const holdDuration = getTradeHoldDuration(trade, true);
+                  const model = models.find(
+                    (m) =>
+                      m.id === trade.modelId ||
+                      m.name.toLowerCase() === trade.modelName?.toLowerCase(),
+                  );
+                  const letterCode = getPlaybookLetter(trade, models);
+                  const adherence = calculateTradeRuleAdherence(trade, model);
+
+                  // Extract tags: combine setupTags, mistakeTags, tags, session
+                  const setupTags = trade.setupTags || trade.tags || [];
+                  const mistakeTags = trade.mistakeTags || [];
+                  const allTagPills: { label: string; isMistake: boolean }[] = [];
+
+                  for (const st of setupTags) {
+                    if (st) {
+                      allTagPills.push({ label: st, isMistake: isMistakeTag(st) });
+                    }
+                  }
+                  for (const mt of mistakeTags) {
+                    if (mt && !allTagPills.some((p) => p.label === mt)) {
+                      allTagPills.push({ label: mt, isMistake: true });
+                    }
+                  }
+                  if (allTagPills.length === 0 && trade.session) {
+                    allTagPills.push({ label: trade.session, isMistake: false });
+                  }
 
                   return (
                     <tr
                       key={trade.id}
+                      data-testid={`trade-row-${trade.id}`}
                       onClick={() => onSelectTrade(isSelected ? null : trade)}
                       className={cn(
-                        "cursor-pointer transition-colors hover:bg-white/[0.04]",
-                        isSelected && "bg-white/[0.05] shadow-[inset_2px_0_0_#e50914]",
+                        "group h-12 cursor-pointer border-b border-white/[0.05] transition-colors",
+                        isSelected
+                          ? "border-l-4 border-l-[#e50914] bg-[#e50914]/5"
+                          : "border-l-4 border-l-transparent hover:bg-white/[0.03]",
                       )}
                     >
-                      {/* Open (ET) */}
-                      {visibleColumns.time && (
-                        <td className="font-mono px-3 text-[12px] text-[#d6d6d4]">
-                          {formatOpenTime(trade)}
-                        </td>
-                      )}
+                      {/* 1. Checkbox */}
+                      <td
+                        className="px-3 text-center"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleRowSelect(trade.id);
+                        }}
+                      >
+                        <div
+                          role="checkbox"
+                          aria-checked={isChecked}
+                          aria-label={`Select trade ${trade.market} ${trade.date}`}
+                          className={cn(
+                            "mx-auto flex size-4 items-center justify-center rounded border transition-colors cursor-pointer",
+                            isChecked
+                              ? "border-[#e50914] bg-[#e50914] text-white"
+                              : "border-neutral-700 bg-neutral-900/80 hover:border-neutral-500",
+                          )}
+                        >
+                          {isChecked && <Check className="size-3 stroke-[3]" />}
+                        </div>
+                      </td>
 
-                      {/* Symbol */}
-                      {visibleColumns.symbol && (
-                        <td className="px-3 font-semibold text-white">{trade.market}</td>
-                      )}
+                      {/* 2. OPEN (ET): 2 lines (date/time + duration) */}
+                      <td className="px-3 font-mono leading-tight">
+                        <div className="text-[12px] font-medium text-white">
+                          {formatOpenDateTime(trade.date, trade.time)}
+                        </div>
+                        <div className="text-[11px] text-[#71717a]">{holdDuration}</div>
+                      </td>
 
-                      {/* Side */}
-                      {visibleColumns.side && (
-                        <td className="px-3 capitalize text-[#d6d6d4]">{trade.side}</td>
-                      )}
+                      {/* 3. SYMBOL */}
+                      <td className="px-3">
+                        <span className="inline-flex items-center justify-center rounded border border-neutral-800 bg-[#18181b] px-2 py-0.5 font-mono text-[11px] font-semibold text-white">
+                          {trade.market}
+                        </span>
+                      </td>
 
-                      {/* Status */}
-                      {visibleColumns.status && (
-                        <td className="px-3">
+                      {/* 4. SIDE */}
+                      <td className="px-3">
+                        <span
+                          className={cn(
+                            "inline-block rounded-full px-2 py-0.5 text-center text-[10px] font-semibold tracking-wider uppercase",
+                            trade.side === "long"
+                              ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                              : "border border-red-500/30 bg-red-500/10 text-red-400",
+                          )}
+                        >
+                          {trade.side.toUpperCase()}
+                        </span>
+                      </td>
+
+                      {/* 5. STATUS */}
+                      <td className="px-3">
+                        <span
+                          className={cn(
+                            "inline-block rounded-full px-2 py-0.5 text-center text-[10px] font-semibold tracking-wider uppercase",
+                            trade.result === "win"
+                              ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                              : trade.result === "loss"
+                                ? "border border-red-500/30 bg-red-500/10 text-red-400"
+                                : trade.result === "be"
+                                  ? "border border-neutral-700 bg-neutral-800 text-neutral-300"
+                                  : "border border-amber-500/30 bg-amber-500/10 text-amber-400",
+                          )}
+                        >
+                          {trade.result === "win"
+                            ? "WIN"
+                            : trade.result === "loss"
+                              ? "LOSS"
+                              : trade.result === "be"
+                                ? "BE"
+                                : "OPEN"}
+                        </span>
+                      </td>
+
+                      {/* 6. LOTS */}
+                      <td className="px-3 text-right font-mono text-[12px] text-white">
+                        {trade.lots != null ? trade.lots.toFixed(2) : "—"}
+                      </td>
+
+                      {/* 7. ENTRY */}
+                      <td className="px-3 text-right font-mono text-[12px] text-neutral-200">
+                        {trade.entry != null ? formatPrice(trade.entry, trade.market) : "—"}
+                      </td>
+
+                      {/* 8. EXIT */}
+                      <td className="px-3 text-right font-mono text-[12px] text-neutral-200">
+                        {trade.exitPrice != null ? formatPrice(trade.exitPrice, trade.market) : "—"}
+                      </td>
+
+                      {/* 9. NET P&L */}
+                      <td className="px-3 text-right font-mono text-[12px] font-medium">
+                        <span
+                          className={cn(
+                            pnl > 0
+                              ? "text-emerald-400"
+                              : pnl < 0
+                                ? "text-red-400"
+                                : "text-neutral-400",
+                          )}
+                        >
+                          {formatCurrency(pnl)}
+                        </span>
+                      </td>
+
+                      {/* 10. REALIZED R */}
+                      <td className="px-3 text-right font-mono text-[12px]">
+                        <span
+                          className={cn(
+                            trade.rMultiple != null && trade.rMultiple > 0
+                              ? "text-emerald-400"
+                              : trade.rMultiple != null && trade.rMultiple < 0
+                                ? "text-red-400"
+                                : "text-neutral-400",
+                          )}
+                        >
+                          {trade.rMultiple != null ? formatKPIR(trade.rMultiple) : "—"}
+                        </span>
+                      </td>
+
+                      {/* 11. PLAYBOOK */}
+                      <td className="px-3">
+                        <div className="flex items-center gap-1.5 truncate">
                           <span
                             className={cn(
-                              "rounded-sm px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase",
-                              trade.result === "win"
-                                ? "border border-[#3ddc84]/30 bg-[#3ddc84]/10 text-[#3ddc84]"
-                                : trade.result === "loss"
-                                  ? "border border-[#ff6b7d]/30 bg-[#ff6b7d]/10 text-[#ff6b7d]"
-                                  : trade.result === "be"
-                                    ? "whitespace-nowrap border border-white/[0.14] bg-white/[0.05] text-[#d6d6d4]"
-                                    : "border border-[#f5b942]/30 bg-[#f5b942]/10 text-[#f5b942]",
+                              "flex size-5 shrink-0 items-center justify-center rounded font-mono text-[10px] font-bold",
+                              letterCode === "A"
+                                ? "bg-[#e50914] text-white"
+                                : "bg-neutral-800 text-neutral-300",
                             )}
                           >
-                            {trade.result === "win"
-                              ? "Win"
-                              : trade.result === "loss"
-                                ? "Loss"
-                                : trade.result === "be"
-                                  ? "Break-even"
-                                  : "Open"}
+                            {letterCode}
                           </span>
-                        </td>
-                      )}
-
-                      {/* Lots */}
-                      {visibleColumns.lots && (
-                        <td className="font-mono px-3 text-right text-white">
-                          {trade.lots != null ? trade.lots.toFixed(2) : "—"}
-                        </td>
-                      )}
-
-                      {/* Entry */}
-                      {visibleColumns.entry && (
-                        <td className="font-mono px-3 text-right text-white">
-                          {trade.entry != null ? trade.entry.toFixed(inst?.digits ?? 2) : "—"}
-                        </td>
-                      )}
-
-                      {/* Exit */}
-                      {visibleColumns.exit && (
-                        <td className="font-mono px-3 text-right text-white">
-                          {trade.exitPrice != null ? trade.exitPrice.toFixed(inst?.digits ?? 2) : "—"}
-                        </td>
-                      )}
-
-                      {/* Net P&L */}
-                      {visibleColumns.netPnl && (
-                        <td
-                          className={cn(
-                            "font-mono px-3 text-right font-medium",
-                            pnl.net == null
-                              ? "text-[#6f6f6d]"
-                              : pnl.net >= 0
-                                ? "text-[#3ddc84]"
-                                : "text-[#ff6b7d]",
-                          )}
-                        >
-                          {fmtCurrency(pnl.net)}
-                        </td>
-                      )}
-
-                      {/* R */}
-                      {visibleColumns.rMultiple && (
-                        <td
-                          className={cn(
-                            "font-mono px-3 text-right",
-                            trade.rMultiple == null
-                              ? "text-[#6f6f6d]"
-                              : trade.rMultiple >= 0
-                                ? "text-[#3ddc84]"
-                                : "text-[#ff6b7d]",
-                          )}
-                        >
-                          {trade.rMultiple != null ? formatR(trade.rMultiple) : "—"}
-                        </td>
-                      )}
-
-                      {/* Playbook */}
-                      {visibleColumns.playbook && (
-                        <td className="truncate px-3 text-white">
-                          <span className="font-mono mr-1.5 inline-block text-[11px] text-[#a2a2a0]">
-                            {code}
+                          <span className="truncate text-[12px] font-medium text-white">
+                            {trade.modelName || "Standard Setup"}
                           </span>
-                          <span>{trade.modelName || "Continuation"}</span>
-                        </td>
-                      )}
+                        </div>
+                      </td>
 
-                      {/* Tags */}
-                      {visibleColumns.tags && (
-                        <td className="truncate px-3 text-[12px]">
-                          <span className={cn(hasWarningTag ? "text-[#f5b942]" : "text-[#a2a2a0]")}>
-                            {tagLabel || "—"}
-                          </span>
-                        </td>
-                      )}
-
-                      {/* Reviewed */}
-                      {visibleColumns.reviewed && (
-                        <td className="px-3 text-center">
-                          {trade.reviewed ? (
-                            <Check className="mx-auto size-3.5 text-[#3ddc84]" />
+                      {/* 12. TAGS */}
+                      <td className="px-3">
+                        <div className="flex max-w-[140px] flex-wrap items-center gap-1 overflow-hidden">
+                          {allTagPills.length > 0 ? (
+                            allTagPills.slice(0, 2).map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className={cn(
+                                  "rounded px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap",
+                                  tag.isMistake
+                                    ? "border border-amber-500/40 bg-amber-500/10 text-amber-400"
+                                    : "border border-neutral-800 bg-neutral-900 text-neutral-300",
+                                )}
+                              >
+                                {tag.label}
+                              </span>
+                            ))
                           ) : (
-                            <span className="text-[#6f6f6d]">—</span>
+                            <span className="text-[11px] text-[#71717a]">—</span>
                           )}
-                        </td>
-                      )}
+                        </div>
+                      </td>
+
+                      {/* 13. RULES */}
+                      <td className="px-3 text-center font-mono text-[12px] font-medium">
+                        <span
+                          className={cn(
+                            adherence.adherencePct >= 80
+                              ? "text-emerald-400"
+                              : adherence.adherencePct >= 60
+                                ? "text-amber-400"
+                                : "text-red-400",
+                          )}
+                        >
+                          {adherence.ratio}
+                        </span>
+                      </td>
+
+                      {/* 14. GRADE */}
+                      <td className="px-3 text-center">
+                        {trade.grade ? (
+                          <span
+                            className={cn(
+                              "inline-block rounded px-2 py-0.5 text-center text-xs font-bold",
+                              trade.grade === "A"
+                                ? "bg-[#e50914] text-white"
+                                : "border border-neutral-800 bg-[#18181b] text-neutral-200",
+                            )}
+                          >
+                            {trade.grade}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-600">—</span>
+                        )}
+                      </td>
+
+                      {/* 15. REV */}
+                      <td className="px-3 text-center">
+                        {trade.reviewed ? (
+                          <CheckCircle2 className="mx-auto size-4 text-emerald-400" />
+                        ) : (
+                          <span className="text-neutral-600">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })
@@ -656,40 +664,53 @@ export function AllView({
           </table>
         </div>
 
-        {/* Table footer with summary */}
-        <div className="flex h-10 items-center justify-between border-t border-white/[0.07] px-3 text-[12px] text-[#a2a2a0]">
-          <div>
-            <span className="font-mono text-[#d6d6d4]">{trades.length}</span> trades ·{" "}
-            <span className="font-mono text-[#d6d6d4]">{totalClosed.length}</span> closed · Net P&amp;L{" "}
-            <span className={cn("font-mono font-medium", totalNetPnL >= 0 ? "text-[#3ddc84]" : "text-[#ff6b7d]")}>
-              {fmtCurrency(totalNetPnL)}
-            </span>
+        {/* Pagination Footer */}
+        <div className="flex h-11 items-center justify-between border-t border-white/[0.07] bg-[#101012] px-4 text-xs text-[#71717a]">
+          <div className="font-mono">
+            {filteredTrades.length === 0 ? (
+              <span>Showing 0–0 of 0 logged trades</span>
+            ) : (
+              <span>
+                Showing {startIndex + 1}–{Math.min(startIndex + pageSize, filteredTrades.length)} of{" "}
+                {filteredTrades.length} logged trades
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="font-mono">
-              {filtered.length === 0 ? "0–0 of 0" : `${startIndex + 1}–${Math.min(startIndex + pageSize, filtered.length)} of ${filtered.length}`}
-            </span>
-            <div className="flex gap-1 text-[14px]">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="rounded px-2.5 py-1 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+            >
+              Prev
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pNum) => (
               <button
+                key={pNum}
                 type="button"
-                disabled={page <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                aria-label="Previous page"
-                className="rounded p-1 text-[#a2a2a0] transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30"
+                onClick={() => setCurrentPage(pNum)}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded font-mono text-xs font-medium transition-colors cursor-pointer",
+                  pNum === page
+                    ? "bg-neutral-800 text-white font-bold"
+                    : "text-neutral-400 hover:text-white hover:bg-neutral-800/60",
+                )}
               >
-                <ChevronLeft className="size-4" />
+                {pNum}
               </button>
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                aria-label="Next page"
-                className="rounded p-1 text-[#a2a2a0] transition-colors hover:bg-white/[0.08] hover:text-white disabled:opacity-30"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
+            ))}
+
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded px-2.5 py-1 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
           </div>
         </div>
       </section>

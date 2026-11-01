@@ -1,7 +1,7 @@
-import type { DailyPlan, DeskData, ProtocolDay, Trade } from "./ict-types";
-import { closedTrades, pnlPctOf } from "./ict-calc";
-import { defaultPlanFrom } from "./ict-defaults";
-import { inWindow, todayISO, weekdayShort } from "./ict-time";
+import type { DailyPlan, DeskData, ProtocolDay, Trade } from "./ict-types.ts";
+import { closedTrades, pnlPctOf } from "./ict-calc.ts";
+import { defaultPlanFrom } from "./ict-defaults.ts";
+import { inWindow, todayISO, weekdayShort } from "./ict-time.ts";
 
 export function tradesOn(trades: Trade[], date: string) {
   return trades.filter((t) => t.date === date);
@@ -43,9 +43,15 @@ export function sumR(trades: Trade[]) {
   return closedTrades(trades).reduce((acc, t) => acc + (t.rMultiple ?? 0), 0);
 }
 
-export function winRate(trades: Trade[]) {
+export function winRate(trades: Trade[], excludeBE = false) {
   const closed = closedTrades(trades);
   if (!closed.length) return 0;
+  if (excludeBE) {
+    const wins = closed.filter((t) => t.result === "win").length;
+    const losses = closed.filter((t) => t.result === "loss").length;
+    const total = wins + losses;
+    return total > 0 ? (wins / total) * 100 : 0;
+  }
   return (closed.filter((t) => t.result === "win").length / closed.length) * 100;
 }
 
@@ -295,3 +301,160 @@ export function maeMfeStats(trades: Trade[]) {
     : 0;
   return { avgMae, avgMfe, conversion, n: closed.length };
 }
+
+export interface JournalKPIs {
+  netPnL: number;
+  netPnLFormatted: string;
+  cumulativeR: number;
+  cumulativeRFormatted: string;
+  winRatePct: number;
+  winCount: number;
+  lossCount: number;
+  beCount: number;
+  profitFactor: number;
+  grossProfit: number;
+  grossLoss: number;
+  avgRealizedR: number;
+  plannedR: number;
+  expectancy: number;
+}
+
+export function formatKPIPnL(amount: number): string {
+  const abs = Math.abs(amount).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  if (amount > 0) return `+$${abs}`;
+  if (amount < 0) return `-$${abs}`;
+  return `$${abs}`;
+}
+
+export function formatKPIR(r: number): string {
+  const sign = r > 0 ? "+" : "";
+  return `${sign}${r.toFixed(2)}R`;
+}
+
+function resolveTradeNetPnL(t: Trade): number {
+  if (t.netPnL != null && Number.isFinite(t.netPnL)) {
+    return t.netPnL;
+  }
+  if (t.grossPnL != null && Number.isFinite(t.grossPnL)) {
+    return Number((t.grossPnL - (t.fees ?? 0)).toFixed(2));
+  }
+  if (t.rMultiple != null && Number.isFinite(t.rMultiple)) {
+    const risk = 125.0; // standard 0.25% of 50k
+    return Number((t.rMultiple * risk - (t.fees ?? 0)).toFixed(2));
+  }
+  if (t.entry != null && t.exitPrice != null && t.lots != null && t.lots > 0) {
+    const diff = t.side === "long" ? t.exitPrice - t.entry : t.entry - t.exitPrice;
+    return Number((diff * t.lots * 100 - (t.fees ?? 0)).toFixed(2));
+  }
+  return 0;
+}
+
+export function calculateJournalKPIs(trades: Trade[]): JournalKPIs {
+  let winCount = 0;
+  let lossCount = 0;
+  let beCount = 0;
+  let grossProfit = 0;
+  let grossLoss = 0;
+  let netPnL = 0;
+  let cumulativeR = 0;
+  const closedWithR: number[] = [];
+  const plannedRs: number[] = [];
+
+  for (const t of trades) {
+    if (t.result === "win") {
+      winCount += 1;
+    } else if (t.result === "loss") {
+      lossCount += 1;
+    } else if (t.result === "be") {
+      beCount += 1;
+    }
+
+    const pnl = resolveTradeNetPnL(t);
+    netPnL += pnl;
+    if (pnl > 0) {
+      grossProfit += pnl;
+    } else if (pnl < 0) {
+      grossLoss += Math.abs(pnl);
+    }
+
+    if (t.rMultiple != null && Number.isFinite(t.rMultiple)) {
+      cumulativeR += t.rMultiple;
+      if (t.result !== "open") {
+        closedWithR.push(t.rMultiple);
+      }
+    }
+
+    const anyT = t as Record<string, any>;
+    if (typeof anyT.plannedR === "number" && Number.isFinite(anyT.plannedR)) {
+      plannedRs.push(anyT.plannedR);
+    } else if (typeof anyT.plannedRR === "number" && Number.isFinite(anyT.plannedRR)) {
+      plannedRs.push(anyT.plannedRR);
+    } else if (typeof anyT.targetR === "number" && Number.isFinite(anyT.targetR)) {
+      plannedRs.push(anyT.targetR);
+    } else if (t.entry != null && t.sl != null && (t.targetPrice != null || t.tp1 != null)) {
+      const stop = Math.abs(t.entry - t.sl);
+      if (stop > 0) {
+        const target = (t.targetPrice ?? t.tp1)!;
+        const targetDist = Math.abs(target - t.entry);
+        plannedRs.push(Number((targetDist / stop).toFixed(2)));
+      }
+    }
+  }
+
+  netPnL = Number(netPnL.toFixed(2));
+  grossProfit = Number(grossProfit.toFixed(2));
+  grossLoss = Number(grossLoss.toFixed(2));
+  cumulativeR = Number(cumulativeR.toFixed(2));
+
+  // Prop trading formula: winCount / (winCount + lossCount) * 100 (excluding BE trades)
+  const decidedCount = winCount + lossCount;
+  const winRatePct = decidedCount > 0
+    ? Number(((winCount / decidedCount) * 100).toFixed(1))
+    : 0;
+
+  // Profit Factor: grossProfit / grossLoss; 99.99 if grossLoss == 0 and grossProfit > 0; 0 otherwise
+  let profitFactor = 0;
+  if (grossLoss > 0) {
+    profitFactor = Number((grossProfit / grossLoss).toFixed(2));
+  } else if (grossProfit > 0) {
+    profitFactor = 99.99;
+  }
+
+  // Avg Realized R across closed trades
+  const avgRealizedR = closedWithR.length > 0
+    ? Number((closedWithR.reduce((sum, r) => sum + r, 0) / closedWithR.length).toFixed(2))
+    : 0;
+
+  // Planned R: average of planned R / target R
+  const plannedR = plannedRs.length > 0
+    ? Number((plannedRs.reduce((sum, r) => sum + r, 0) / plannedRs.length).toFixed(2))
+    : 0;
+
+  // Expectancy ($ per execution edge): Net P&L divided by closed decided trades
+  const closedCount = trades.filter((t) => t.result !== "open").length;
+  const countForExpectancy = decidedCount > 0 ? decidedCount : closedCount;
+  const expectancy = countForExpectancy > 0
+    ? Number((netPnL / countForExpectancy).toFixed(2))
+    : 0;
+
+  return {
+    netPnL,
+    netPnLFormatted: formatKPIPnL(netPnL),
+    cumulativeR,
+    cumulativeRFormatted: formatKPIR(cumulativeR),
+    winRatePct,
+    winCount,
+    lossCount,
+    beCount,
+    profitFactor,
+    grossProfit,
+    grossLoss,
+    avgRealizedR,
+    plannedR,
+    expectancy,
+  };
+}
+
