@@ -120,7 +120,7 @@ function main(argv) {
     if (code.includes("new RegExp(resolvedGeneratedRouteTreePath)")) {
       const patched = code.replace(
         "new RegExp(resolvedGeneratedRouteTreePath)",
-        () => 'new RegExp(resolvedGeneratedRouteTreePath.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"), "i")'
+        "new RegExp(resolvedGeneratedRouteTreePath.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\"), \"i\")"
       );
       writeFileSync(pluginPath, patched, "utf8");
     }
