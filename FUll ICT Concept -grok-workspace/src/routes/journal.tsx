@@ -137,7 +137,7 @@ function JournalPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto w-full max-w-[1152px] px-4 pt-6 pb-12 sm:px-8">
+      <div className="w-full min-w-0">
         {/* Header Row */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           {/* Title & Subtitle */}

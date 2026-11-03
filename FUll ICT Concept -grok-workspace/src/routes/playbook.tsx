@@ -312,7 +312,7 @@ function PlaybookPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto w-full max-w-[1152px] px-4 pt-6 pb-12 sm:px-8">
+      <div className="w-full min-w-0">
         {/* Page Title Row */}
         <div className="flex h-12 items-center justify-between">
           <div>
