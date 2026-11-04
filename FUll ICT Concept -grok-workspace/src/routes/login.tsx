@@ -251,8 +251,8 @@ function LoginPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(229,9,20,0.18),transparent_58%)]" />
       <section className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/[0.1] bg-card/85 p-6 shadow-[0_40px_120px_-40px_rgba(0,0,0,1)] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/70 before:to-transparent sm:p-8">
         <div className="mb-8 flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-sm bg-accent text-primary-foreground">
-            <ShieldCheck className="size-5" />
+          <span className="grid size-10 place-items-center rounded-2xl bg-white/[0.05] border border-white/[0.1] overflow-hidden p-1 shadow-md">
+            <img src="/brand-logo.png" alt="Brand logo" className="h-auto w-full object-contain select-none pointer-events-none" />
           </span>
           <div>
             <p className="font-display text-2xl leading-none">First Payout</p>
