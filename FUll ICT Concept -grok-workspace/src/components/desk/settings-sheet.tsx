@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, Palette, Type } from "lucide-react";
+import { Check, Palette, Type, Sliders, Sparkles, RotateCcw } from "lucide-react";
 import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { authEnabled } from "@/lib/auth/client";
 import { isDeskData, saveDeskState } from "@/lib/desk-sync";
@@ -60,6 +60,15 @@ function toValidColorInputHex(hex?: string, fallback = "#38bdf8"): string {
   }
   return fallback;
 }
+
+const QUICK_CUSTOM_PRESETS = [
+  { name: "Cyber Neon", background: "#080b10", surface: "#111827", foreground: "#f3f4f6", accent: "#06b6d4" },
+  { name: "Sunset Amber", background: "#120a0a", surface: "#1f1214", foreground: "#fff1f2", accent: "#f97316" },
+  { name: "Royal Violet", background: "#0b0814", surface: "#151024", foreground: "#f5f3ff", accent: "#a855f7" },
+  { name: "Rose Luxury", background: "#140a10", surface: "#21101a", foreground: "#fff1f2", accent: "#f43f5e" },
+  { name: "Matrix Sage", background: "#06120b", surface: "#0d2015", foreground: "#f0fdf4", accent: "#10b981" },
+  { name: "Electric Blue", background: "#060d19", surface: "#0c192c", foreground: "#f0f9ff", accent: "#38bdf8" },
+] as const;
 
 export function SettingsSheet({
   open,
@@ -180,6 +189,36 @@ export function SettingsSheet({
         const effectiveAccent = accentColor === "custom-accent" ? null : accentColor;
         applyColorTheme(CUSTOM_THEME_ID, effectiveAccent, nextColors);
       }
+    }
+  };
+
+  const handleApplyCustomPalettePreset = (preset: {
+    background: string;
+    surface: string;
+    foreground: string;
+    accent: string;
+  }) => {
+    const nextColors: CustomThemeColors = {
+      ...DEFAULT_CUSTOM_THEME_COLORS,
+      background: preset.background,
+      surface: preset.surface,
+      foreground: preset.foreground,
+      accent: preset.accent,
+    };
+    setCustomColors(nextColors);
+    saveCustomThemeColors(nextColors);
+    if (setStoreCustomThemeColors) {
+      setStoreCustomThemeColors(nextColors);
+    }
+    if (colorTheme === CUSTOM_THEME_ID) {
+      setAccentColor("custom-accent");
+      try {
+        window.localStorage.setItem(ACCENT_STORAGE_KEY, "custom-accent");
+        setStoreAccentColor("custom-accent");
+      } catch (e) {
+        console.error("[settings] failed to save accent color:", e);
+      }
+      applyColorTheme(CUSTOM_THEME_ID, null, nextColors);
     }
   };
 
@@ -304,21 +343,122 @@ export function SettingsSheet({
         <div className="flex flex-col gap-4 p-5">
           {/* Color Themes & Luxury Palettes */}
           <section className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
-            <div className="mb-3">
-              <div className="flex items-center gap-1.5 text-accent">
-                <Palette className="size-3.5" />
-                <h3 className="text-[10px] font-semibold tracking-[0.16em] uppercase">Theme Palettes</h3>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Select a cohesive color atmosphere inspired by soulful elegance, royal jewels, minimalist luxury, and technical gradients.
-              </p>
-            </div>
             {(() => {
               const isCustomSelected = colorTheme === CUSTOM_THEME_ID;
               const customTheme = createCustomTheme(customColors);
               return (
                 <>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-accent">
+                        <Palette className="size-3.5" />
+                        <h3 className="text-[10px] font-semibold tracking-[0.16em] uppercase">Theme Palettes</h3>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Select a cohesive color atmosphere inspired by soulful elegance, royal jewels, minimalist luxury, and technical gradients.
+                      </p>
+                    </div>
+
+                    {/* Custom Button in Theme Palettes panel */}
+                    <button
+                      type="button"
+                      onClick={() => handleColorThemeChange(CUSTOM_THEME_ID)}
+                      className={cn(
+                        "flex items-center gap-1.5 shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-all border shadow-xs cursor-pointer",
+                        isCustomSelected
+                          ? "border-accent bg-accent text-accent-foreground shadow-accent/20 ring-1 ring-accent"
+                          : "border-white/10 bg-white/5 text-foreground hover:border-accent/60 hover:bg-accent/10 hover:text-accent"
+                      )}
+                      title="Create and customize your own colors"
+                    >
+                      <Sliders className="size-3.5" />
+                      <span>Custom Theme</span>
+                    </button>
+                  </div>
+
+                  {/* Quick Segmented Switcher */}
+                  <div className="mb-3 flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/30 p-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isCustomSelected) {
+                          handleColorThemeChange(DEFAULT_COLOR_THEME);
+                        }
+                      }}
+                      className={cn(
+                        "flex-1 rounded-md py-1.5 text-center text-xs font-medium transition-all cursor-pointer",
+                        !isCustomSelected
+                          ? "bg-white/10 text-foreground font-semibold shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Curated Presets ({COLOR_THEMES.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleColorThemeChange(CUSTOM_THEME_ID)}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-center text-xs font-medium transition-all cursor-pointer",
+                        isCustomSelected
+                          ? "bg-accent text-accent-foreground font-semibold shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Sparkles className="size-3.5" />
+                      <span>Custom Palette</span>
+                    </button>
+                  </div>
+
                   <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Theme Palettes">
+                    {/* Custom Palette Option Card (Pinned at top so it is immediately visible without scrolling) */}
+                    <div
+                      role="radio"
+                      aria-checked={isCustomSelected}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === " " || e.key === "Enter") {
+                          handleColorThemeChange(CUSTOM_THEME_ID);
+                        }
+                      }}
+                      onClick={() => handleColorThemeChange(CUSTOM_THEME_ID)}
+                      className={cn(
+                        "flex flex-col gap-2.5 rounded-lg border p-3 text-left transition-all cursor-pointer",
+                        isCustomSelected
+                          ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
+                          : "border-border bg-surface-2 hover:border-accent/40"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[13px] font-semibold text-foreground">
+                            Custom Palette
+                          </span>
+                          <span className="rounded border border-white/[0.1] bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                            Customizable
+                          </span>
+                        </div>
+                        {isCustomSelected && (
+                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                            <Check className="size-3" />
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Configure custom colors for canvas, surfaces, text, and accent.
+                      </p>
+                      <div className="flex items-center gap-1.5 pt-1">
+                        {customTheme.previewColors.map((hex, idx) => (
+                          <span
+                            key={idx}
+                            className="h-3 flex-1 rounded-sm border border-white/10 shadow-inner"
+                            style={{ backgroundColor: hex }}
+                            title={hex}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Presets */}
                     {COLOR_THEMES.map((theme) => {
                       const isSelected = colorTheme === theme.id;
                       return (
@@ -366,62 +506,53 @@ export function SettingsSheet({
                         </button>
                       );
                     })}
-
-                    {/* Custom Palette Option Card */}
-                    <div
-                      role="radio"
-                      aria-checked={isCustomSelected}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === " " || e.key === "Enter") {
-                          handleColorThemeChange(CUSTOM_THEME_ID);
-                        }
-                      }}
-                      onClick={() => handleColorThemeChange(CUSTOM_THEME_ID)}
-                      className={cn(
-                        "flex flex-col gap-2.5 rounded-lg border p-3 text-left transition-all cursor-pointer",
-                        isCustomSelected
-                          ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
-                          : "border-border bg-surface-2 hover:border-accent/40"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-semibold text-foreground">
-                            Custom Palette
-                          </span>
-                          <span className="rounded border border-white/[0.1] bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                            Customizable
-                          </span>
-                        </div>
-                        {isCustomSelected && (
-                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                            <Check className="size-3" />
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        Configure custom colors for canvas, surfaces, text, and accent.
-                      </p>
-                      <div className="flex items-center gap-1.5 pt-1">
-                        {customTheme.previewColors.map((hex, idx) => (
-                          <span
-                            key={idx}
-                            className="h-3 flex-1 rounded-sm border border-white/10 shadow-inner"
-                            style={{ backgroundColor: hex }}
-                            title={hex}
-                          />
-                        ))}
-                      </div>
-                    </div>
                   </div>
 
                   {/* Custom Color Input Controls */}
                   {isCustomSelected && (
-                    <div className="mt-3 rounded-lg border border-accent/20 bg-black/20 p-3 space-y-3">
-                      <div className="text-[11px] font-medium text-foreground tracking-wide">
-                        Custom Color Inputs
+                    <div className="mt-3 rounded-lg border border-accent/20 bg-black/20 p-3 space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[11px] font-semibold text-foreground tracking-wide uppercase flex items-center gap-1.5">
+                          <Sliders className="size-3 text-accent" />
+                          <span>Custom Color Inputs</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyCustomPalettePreset(DEFAULT_CUSTOM_THEME_COLORS)}
+                          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          title="Reset to default custom colors"
+                        >
+                          <RotateCcw className="size-3" />
+                          <span>Reset</span>
+                        </button>
                       </div>
+
+                      {/* Quick Starter Inspirations */}
+                      <div>
+                        <p className="mb-1.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
+                          Quick Starter Inspirations
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                          {QUICK_CUSTOM_PRESETS.map((preset) => (
+                            <button
+                              key={preset.name}
+                              type="button"
+                              onClick={() => handleApplyCustomPalettePreset(preset)}
+                              className="flex items-center justify-between rounded border border-white/10 bg-white/[0.03] px-2 py-1.5 text-left hover:border-accent/40 transition-all cursor-pointer group"
+                            >
+                              <span className="text-[10px] font-medium text-foreground group-hover:text-accent">
+                                {preset.name}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="size-2 rounded-full border border-white/20" style={{ backgroundColor: preset.background }} />
+                                <span className="size-2 rounded-full border border-white/20" style={{ backgroundColor: preset.surface }} />
+                                <span className="size-2 rounded-full border border-white/20" style={{ backgroundColor: preset.accent }} />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {/* Canvas Background */}
                         <div className="space-y-1">
