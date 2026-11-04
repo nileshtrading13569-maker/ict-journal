@@ -4,12 +4,21 @@ import { cn } from "@/lib/utils";
  * A thin high-contrast bar, never wider than it needs to be. Over 80% it turns
  * amber-to-red because that is the account-rule danger zone.
  */
-function Progress({ value = 0, className }: { value?: number; className?: string }) {
+function Progress({
+  value = 0,
+  className,
+  "aria-label": ariaLabel = "Progress",
+}: {
+  value?: number;
+  className?: string;
+  "aria-label"?: string;
+}) {
   const v = Math.min(100, Math.max(0, value));
   const danger = v > 80;
   return (
     <div
       role="progressbar"
+      aria-label={ariaLabel}
       aria-valuenow={Math.round(v)}
       aria-valuemin={0}
       aria-valuemax={100}

@@ -543,4 +543,42 @@ describe("Zero Filesystem Storage Invariant", () => {
       "all-view.tsx pagination footer must include logged trades label",
     );
   });
+
+  it("wires inspector attachment tiles to image file inputs", () => {
+    const inspector = readFileSync(
+      join(__dirname, "../src/components/journal/trade-inspector.tsx"),
+      "utf8",
+    );
+    assert.ok(inspector.includes('aria-label="Attach HTF screenshot"'));
+    assert.ok(inspector.includes('aria-label="Attach execution screenshot"'));
+    assert.ok(inspector.includes("updateTradeScreenshots"));
+    assert.ok(inspector.includes('accept="image/*"'));
+  });
+
+  it("offers a working screenshot option in the trade inspector panel", () => {
+    const inspector = readFileSync(
+      join(__dirname, "../src/components/journal/trade-inspector.tsx"),
+      "utf8",
+    );
+    const dialog = readFileSync(
+      join(__dirname, "../src/components/journal/screenshot-attach-dialog.tsx"),
+      "utf8",
+    );
+    const helpers = readFileSync(join(__dirname, "../src/lib/screenshot.ts"), "utf8");
+
+    // Entry point in the panel + per-tile camera actions.
+    assert.ok(inspector.includes("ScreenshotAttachDialog"));
+    assert.ok(inspector.includes("Screenshot"));
+    assert.ok(inspector.includes('aria-label={`Take screenshot for ${label}`}'));
+    // Clipboard paste, drag & drop and screen capture all route through the helper.
+    assert.ok(inspector.includes("imageFileFromDataTransfer"));
+    assert.ok(inspector.includes("prepareScreenshotFile"));
+    assert.ok(dialog.includes("captureScreenFrame"));
+    assert.ok(dialog.includes("imageFileFromDataTransfer"));
+    assert.ok(dialog.includes("onDrop={handleDrop}"));
+    // The helper actually captures and optimises, rather than stubbing.
+    assert.ok(helpers.includes("getDisplayMedia"));
+    assert.ok(helpers.includes("toDataURL"));
+    assert.ok(helpers.includes("optimiseScreenshot"));
+  });
 });

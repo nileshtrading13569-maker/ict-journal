@@ -103,7 +103,7 @@ export function ProgressTracker({
             {WEEKDAYS.map((weekday) => (
               <span
                 key={weekday}
-                className="flex h-3 w-7 items-center text-[9px] leading-none text-muted-foreground"
+                className="flex h-3 w-7 items-center text-[10px] leading-none text-muted-foreground"
               >
                 {weekday}
               </span>
@@ -114,7 +114,7 @@ export function ProgressTracker({
               {monthLabels.map(({ weekIndex, date }) => (
                 <span
                   key={date}
-                  className="absolute whitespace-nowrap text-[9px] leading-none tracking-wider text-muted-foreground uppercase"
+                  className="absolute whitespace-nowrap text-[10px] leading-none tracking-wider text-muted-foreground uppercase"
                   style={{ left: `${weekIndex * 20}px` }}
                 >
                   {formatCalendarDate(date, { month: "short" })}
@@ -135,9 +135,8 @@ export function ProgressTracker({
                         aria-label={dayDescription(day)}
                         aria-pressed={selectedDate === day.date}
                         onClick={() => onSelectDate(day.date)}
-                        className={`size-3 rounded-xs ${LEVEL_STYLES[day.level]} transition-colors hover:ring-1 hover:ring-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                          selectedDate === day.date ? "ring-1 ring-accent" : ""
-                        }`}
+                        className={`size-3 rounded-xs ${LEVEL_STYLES[day.level]} transition-colors hover:ring-1 hover:ring-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${selectedDate === day.date ? "ring-1 ring-accent" : ""
+                          }`}
                       />
                     ),
                   )}
@@ -157,10 +156,10 @@ export function ProgressTracker({
             {checked}/{total}
           </p>
         </div>
-        <Progress value={total ? (checked / total) * 100 : 0} className="min-w-40 flex-1" />
+        <Progress aria-label="Protocol checklist completion progress" value={total ? (checked / total) * 100 : 0} className="min-w-40 flex-1" />
       </div>
 
-      <div className="mt-3 flex items-center justify-end gap-1.5 text-[9px] tracking-wider text-muted-foreground uppercase">
+      <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] tracking-wider text-muted-foreground uppercase">
         <span>Less</span>
         {LEVEL_STYLES.map((style) => (
           <span key={style} className={`size-2 rounded-xs ${style}`} aria-hidden="true" />

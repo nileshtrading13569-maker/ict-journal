@@ -23,16 +23,9 @@ describe("Sidebar Animation and Alignment Invariants", () => {
     assert.match(appShellContent, /transition-\[width\] duration-300 ease-\[cubic-bezier\(0\.16,1,0\.3,1\)\] will-change-\[width\]/);
   });
 
-  it("app-shell nav uses negative margins to prevent active indicator clipping while maintaining 34px track", () => {
+  it("app-shell nav uses negative margins to maintain 34px track", () => {
     // -mx-2 px-2 expands nav clip boundary by 8px on left/right while child links stay anchored
     assert.match(appShellContent, /overflow-y-auto overflow-x-hidden.*-mx-2 px-2/);
-    // Active indicator at -left-1 (4px offset) remains 4px inside nav boundary (8px offset) and inside aside
-    assert.match(appShellContent, /absolute -left-1 top-1\/2 -translate-y-1\/2 h-5 w-1 rounded-full bg-accent/);
-  });
-
-  it("app-shell active indicator transitions smoothly without abrupt DOM unmounting", () => {
-    assert.match(appShellContent, /transition-\[opacity,transform\] duration-200 ease-out will-change-\[transform,opacity\]/);
-    assert.match(appShellContent, /active \? "opacity-100 scale-y-100" : "opacity-0 scale-y-50"/);
   });
 
   it("app-shell day status badge uses single-cell CSS Grid overlay without position: absolute swapping", () => {

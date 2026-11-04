@@ -37,11 +37,29 @@ import {
   DEFAULT_ACCENT_COLOR,
   THEME_STORAGE_KEY,
   ACCENT_STORAGE_KEY,
+  CUSTOM_THEME_ID,
+  CUSTOM_THEME_STORAGE_KEY,
+  DEFAULT_CUSTOM_THEME_COLORS,
+  getCustomThemeColors,
+  saveCustomThemeColors,
+  createCustomTheme,
   applyColorTheme,
   applyAccentColor,
   getThemeById,
   getAccentById,
+  type CustomThemeColors,
 } from "@/lib/color-themes";
+
+function toValidColorInputHex(hex?: string, fallback = "#38bdf8"): string {
+  if (!hex) return fallback;
+  if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+    return hex;
+  }
+  if (/^#[0-9A-Fa-f]{3}$/.test(hex)) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+  return fallback;
+}
 
 export function SettingsSheet({
   open,
@@ -54,6 +72,7 @@ export function SettingsSheet({
   const patchAccount = useDeskStore((s) => s.patchAccount);
   const setThemeId = useDeskStore((s) => s.setThemeId);
   const setStoreAccentColor = useDeskStore((s) => s.setAccentColor);
+  const setStoreCustomThemeColors = useDeskStore((s) => s.setCustomThemeColors);
   const rebuildProtocolDates = useDeskStore((s) => s.rebuildProtocolDates);
   const resetAll = useDeskStore((s) => s.resetAll);
   const replaceAll = useDeskStore((s) => s.replaceAll);
@@ -62,14 +81,19 @@ export function SettingsSheet({
   const [colorTheme, setColorTheme] = useState<string>(data.themeId ?? DEFAULT_COLOR_THEME);
   const [accentColor, setAccentColor] = useState<string>(data.accentColor ?? DEFAULT_ACCENT_COLOR);
   const [fontTheme, setFontTheme] = useState<string>("default");
+  const [customColors, setCustomColors] = useState<CustomThemeColors>(() => {
+    return data.customThemeColors ?? getCustomThemeColors();
+  });
 
   useEffect(() => {
     try {
       const savedTheme = data.themeId ?? window.localStorage.getItem(THEME_STORAGE_KEY) ?? DEFAULT_COLOR_THEME;
       const savedAccent = data.accentColor ?? window.localStorage.getItem(ACCENT_STORAGE_KEY) ?? DEFAULT_ACCENT_COLOR;
+      const initialCustom = data.customThemeColors ?? getCustomThemeColors();
+      setCustomColors(initialCustom);
       setColorTheme(savedTheme);
       setAccentColor(savedAccent);
-      applyColorTheme(savedTheme, savedAccent);
+      applyColorTheme(savedTheme, savedAccent, initialCustom);
     } catch (error) {
       console.error("[settings] failed to load theme & accent color:", error);
       applyColorTheme(DEFAULT_COLOR_THEME, DEFAULT_ACCENT_COLOR);
@@ -105,10 +129,10 @@ export function SettingsSheet({
 
   const handleColorThemeChange = (newThemeId: string) => {
     setColorTheme(newThemeId);
-    const targetTheme = getThemeById(newThemeId);
+    const targetTheme = getThemeById(newThemeId, customColors);
     const newAccent = targetTheme.defaultAccent;
     setAccentColor(newAccent);
-    applyColorTheme(newThemeId, newAccent);
+    applyColorTheme(newThemeId, newAccent, customColors);
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, newThemeId);
       window.localStorage.setItem(ACCENT_STORAGE_KEY, newAccent);
@@ -118,6 +142,44 @@ export function SettingsSheet({
     } catch (error) {
       console.error("[settings] failed to save theme:", error);
       toast.error("Theme changed for this session but could not be saved.");
+    }
+  };
+
+  const handleCustomColorChange = (key: keyof CustomThemeColors, value: string) => {
+    const nextColors: CustomThemeColors = {
+      ...customColors,
+      [key]: value,
+    };
+    if (key === "surface") {
+      delete nextColors.surface2;
+      delete nextColors.surface3;
+      delete nextColors.muted;
+    } else if (key === "accent") {
+      delete nextColors.accentForeground;
+      delete nextColors.accentDeep;
+    } else if (key === "foreground") {
+      delete nextColors.border;
+      delete nextColors.mutedForeground;
+    }
+    setCustomColors(nextColors);
+    saveCustomThemeColors(nextColors);
+    if (setStoreCustomThemeColors) {
+      setStoreCustomThemeColors(nextColors);
+    }
+    if (colorTheme === CUSTOM_THEME_ID) {
+      if (key === "accent") {
+        setAccentColor("custom-accent");
+        try {
+          window.localStorage.setItem(ACCENT_STORAGE_KEY, "custom-accent");
+          setStoreAccentColor("custom-accent");
+        } catch (e) {
+          console.error("[settings] failed to save accent color:", e);
+        }
+        applyColorTheme(CUSTOM_THEME_ID, null, nextColors);
+      } else {
+        const effectiveAccent = accentColor === "custom-accent" ? null : accentColor;
+        applyColorTheme(CUSTOM_THEME_ID, effectiveAccent, nextColors);
+      }
     }
   };
 
@@ -176,10 +238,12 @@ export function SettingsSheet({
       resetAll(resetState);
       setColorTheme(DEFAULT_COLOR_THEME);
       setAccentColor(DEFAULT_ACCENT_COLOR);
+      setCustomColors({ ...DEFAULT_CUSTOM_THEME_COLORS });
       setFontTheme("default");
       try {
         window.localStorage.removeItem(THEME_STORAGE_KEY);
         window.localStorage.removeItem(ACCENT_STORAGE_KEY);
+        window.localStorage.removeItem(CUSTOM_THEME_STORAGE_KEY);
         window.localStorage.removeItem(FONT_STORAGE_KEY);
       } catch {}
       applyColorTheme(DEFAULT_COLOR_THEME, DEFAULT_ACCENT_COLOR);
@@ -249,61 +313,228 @@ export function SettingsSheet({
                 Select a cohesive color atmosphere inspired by soulful elegance, royal jewels, minimalist luxury, and technical gradients.
               </p>
             </div>
-            <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Theme Palettes">
-              {COLOR_THEMES.map((theme) => {
-                const isSelected = colorTheme === theme.id;
-                return (
-                  <button
-                    key={theme.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    onClick={() => handleColorThemeChange(theme.id)}
-                    className={cn(
-                      "flex flex-col gap-2 rounded-lg border p-3 text-left transition-all",
-                      isSelected
-                        ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
-                        : "border-border bg-surface-2 hover:border-accent/40"
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold text-foreground">
-                          {theme.name}
-                        </span>
-                        <span className="rounded border border-white/[0.1] bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                          {theme.badge}
-                        </span>
-                      </div>
-                      {isSelected && (
-                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                          <Check className="size-3" />
-                        </span>
+            {(() => {
+              const isCustomSelected = colorTheme === CUSTOM_THEME_ID;
+              const customTheme = createCustomTheme(customColors);
+              return (
+                <>
+                  <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Theme Palettes">
+                    {COLOR_THEMES.map((theme) => {
+                      const isSelected = colorTheme === theme.id;
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          onClick={() => handleColorThemeChange(theme.id)}
+                          className={cn(
+                            "flex flex-col gap-2 rounded-lg border p-3 text-left transition-all",
+                            isSelected
+                              ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
+                              : "border-border bg-surface-2 hover:border-accent/40"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[13px] font-semibold text-foreground">
+                                {theme.name}
+                              </span>
+                              <span className="rounded border border-white/[0.1] bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                                {theme.badge}
+                              </span>
+                            </div>
+                            {isSelected && (
+                              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                                <Check className="size-3" />
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {theme.description}
+                          </p>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            {theme.previewColors.map((hex, idx) => (
+                              <span
+                                key={idx}
+                                className="h-3 flex-1 rounded-sm border border-white/10 shadow-inner"
+                                style={{ backgroundColor: hex }}
+                                title={hex}
+                              />
+                            ))}
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                    {/* Custom Palette Option Card */}
+                    <div
+                      role="radio"
+                      aria-checked={isCustomSelected}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === " " || e.key === "Enter") {
+                          handleColorThemeChange(CUSTOM_THEME_ID);
+                        }
+                      }}
+                      onClick={() => handleColorThemeChange(CUSTOM_THEME_ID)}
+                      className={cn(
+                        "flex flex-col gap-2.5 rounded-lg border p-3 text-left transition-all cursor-pointer",
+                        isCustomSelected
+                          ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
+                          : "border-border bg-surface-2 hover:border-accent/40"
                       )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[13px] font-semibold text-foreground">
+                            Custom Palette
+                          </span>
+                          <span className="rounded border border-white/[0.1] bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                            Customizable
+                          </span>
+                        </div>
+                        {isCustomSelected && (
+                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                            <Check className="size-3" />
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Configure custom colors for canvas, surfaces, text, and accent.
+                      </p>
+                      <div className="flex items-center gap-1.5 pt-1">
+                        {customTheme.previewColors.map((hex, idx) => (
+                          <span
+                            key={idx}
+                            className="h-3 flex-1 rounded-sm border border-white/10 shadow-inner"
+                            style={{ backgroundColor: hex }}
+                            title={hex}
+                          />
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      {theme.description}
-                    </p>
-                    <div className="flex items-center gap-1.5 pt-1">
-                      {theme.previewColors.map((hex, idx) => (
-                        <span
-                          key={idx}
-                          className="h-3 flex-1 rounded-sm border border-white/10 shadow-inner"
-                          style={{ backgroundColor: hex }}
-                          title={hex}
-                        />
-                      ))}
+                  </div>
+
+                  {/* Custom Color Input Controls */}
+                  {isCustomSelected && (
+                    <div className="mt-3 rounded-lg border border-accent/20 bg-black/20 p-3 space-y-3">
+                      <div className="text-[11px] font-medium text-foreground tracking-wide">
+                        Custom Color Inputs
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Canvas Background */}
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Canvas Background
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              aria-label="Canvas Background color picker"
+                              value={toValidColorInputHex(customColors.background, "#0c0e14")}
+                              onChange={(e) => handleCustomColorChange("background", e.target.value)}
+                              className="size-8 rounded cursor-pointer border border-white/10 bg-transparent p-0.5"
+                            />
+                            <input
+                              type="text"
+                              aria-label="Canvas Background hex code"
+                              value={customColors.background}
+                              maxLength={7}
+                              onChange={(e) => handleCustomColorChange("background", e.target.value)}
+                              className="h-8 flex-1 rounded border border-white/10 bg-surface-2 px-2 text-xs font-mono text-foreground focus:outline-none focus:border-accent"
+                              placeholder="#0c0e14"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Surface / Card */}
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Surface / Card
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              aria-label="Surface / Card color picker"
+                              value={toValidColorInputHex(customColors.surface, "#141824")}
+                              onChange={(e) => handleCustomColorChange("surface", e.target.value)}
+                              className="size-8 rounded cursor-pointer border border-white/10 bg-transparent p-0.5"
+                            />
+                            <input
+                              type="text"
+                              aria-label="Surface / Card hex code"
+                              value={customColors.surface}
+                              maxLength={7}
+                              onChange={(e) => handleCustomColorChange("surface", e.target.value)}
+                              className="h-8 flex-1 rounded border border-white/10 bg-surface-2 px-2 text-xs font-mono text-foreground focus:outline-none focus:border-accent"
+                              placeholder="#141824"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Text Foreground */}
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Text Foreground
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              aria-label="Text Foreground color picker"
+                              value={toValidColorInputHex(customColors.foreground, "#f8fafc")}
+                              onChange={(e) => handleCustomColorChange("foreground", e.target.value)}
+                              className="size-8 rounded cursor-pointer border border-white/10 bg-transparent p-0.5"
+                            />
+                            <input
+                              type="text"
+                              aria-label="Text Foreground hex code"
+                              value={customColors.foreground}
+                              maxLength={7}
+                              onChange={(e) => handleCustomColorChange("foreground", e.target.value)}
+                              className="h-8 flex-1 rounded border border-white/10 bg-surface-2 px-2 text-xs font-mono text-foreground focus:outline-none focus:border-accent"
+                              placeholder="#f8fafc"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Accent Color */}
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-medium text-muted-foreground">
+                            Accent Color
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              aria-label="Accent Color color picker"
+                              value={toValidColorInputHex(customColors.accent, "#38bdf8")}
+                              onChange={(e) => handleCustomColorChange("accent", e.target.value)}
+                              className="size-8 rounded cursor-pointer border border-white/10 bg-transparent p-0.5"
+                            />
+                            <input
+                              type="text"
+                              aria-label="Accent Color hex code"
+                              value={customColors.accent}
+                              maxLength={7}
+                              onChange={(e) => handleCustomColorChange("accent", e.target.value)}
+                              className="h-8 flex-1 rounded border border-white/10 bg-surface-2 px-2 text-xs font-mono text-foreground focus:outline-none focus:border-accent"
+                              placeholder="#38bdf8"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Active theme:{" "}
-              <span className="font-semibold text-foreground">
-                {getThemeById(colorTheme).name}
-              </span>
-            </p>
+                  )}
+
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Active theme:{" "}
+                    <span className="font-semibold text-foreground">
+                      {getThemeById(colorTheme, customColors).name}
+                    </span>
+                  </p>
+                </>
+              );
+            })()}
           </section>
 
           {/* Accent Color Section */}
@@ -386,7 +617,9 @@ export function SettingsSheet({
             <p className="mt-2.5 text-xs text-muted-foreground">
               Selected accent:{" "}
               <span className="font-semibold text-foreground">
-                {getAccentById(accentColor).name} ({getAccentById(accentColor).value})
+                {accentColor === "custom-accent"
+                  ? `Custom Accent (${customColors.accent})`
+                  : `${getAccentById(accentColor).name} (${getAccentById(accentColor).value})`}
               </span>
             </p>
           </section>
@@ -694,6 +927,12 @@ export function SettingsSheet({
                   setStoreAccentColor(accentColor);
                   window.localStorage.setItem(THEME_STORAGE_KEY, colorTheme);
                   window.localStorage.setItem(ACCENT_STORAGE_KEY, accentColor);
+                  if (colorTheme === CUSTOM_THEME_ID) {
+                    saveCustomThemeColors(customColors);
+                    if (setStoreCustomThemeColors) {
+                      setStoreCustomThemeColors(customColors);
+                    }
+                  }
                   if (fontTheme === "default") {
                     window.localStorage.removeItem(FONT_STORAGE_KEY);
                   } else {

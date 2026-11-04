@@ -262,8 +262,215 @@ export const ACCENT_COLORS: readonly AccentColor[] = [
   { id: "sage", name: "Sage", paletteGroup: "Cinematic Classics", value: "#d4ded0", foreground: "#111111", deep: "#94a390" },
 ] as const;
 
-export type ColorThemeId = (typeof COLOR_THEMES)[number]["id"];
+export type ColorThemeId = (typeof COLOR_THEMES)[number]["id"] | typeof CUSTOM_THEME_ID;
 export type AccentColorId = (typeof ACCENT_COLORS)[number]["id"];
+
+export const CUSTOM_THEME_ID = "custom" as const;
+export const CUSTOM_THEME_STORAGE_KEY = "first-payout-custom-theme-palette-v1";
+
+export type CustomThemeColors = {
+  background: string;     // Canvas background, e.g. "#0c0e14"
+  surface: string;        // Card & modal surface, e.g. "#141824"
+  surface2?: string;      // Elevated surface 2
+  surface3?: string;      // Elevated surface 3
+  foreground: string;     // Primary text color, e.g. "#f8fafc"
+  accent: string;         // Signature accent / primary color, e.g. "#38bdf8"
+  accentForeground?: string; // Text on accent
+  accentDeep?: string;    // Deep accent shade
+  border?: string;        // Border color
+  muted?: string;         // Muted surface
+  mutedForeground?: string; // Secondary text
+};
+
+export const DEFAULT_CUSTOM_THEME_COLORS: CustomThemeColors = {
+  background: "#0c0e14",
+  surface: "#141824",
+  surface2: "#1c2233",
+  surface3: "#262e45",
+  foreground: "#f8fafc",
+  accent: "#38bdf8",
+  accentForeground: "#0c0e14",
+  accentDeep: "#0284c7",
+  border: "rgba(56, 189, 248, 0.20)",
+  muted: "#1c2233",
+  mutedForeground: "#94a3b8",
+};
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const clean = hex.replace("#", "").trim();
+  if (clean.length === 3) {
+    const r = parseInt(clean[0] + clean[0], 16);
+    const g = parseInt(clean[1] + clean[1], 16);
+    const b = parseInt(clean[2] + clean[2], 16);
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+    return { r, g, b };
+  }
+  if (clean.length === 6) {
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+    return { r, g, b };
+  }
+  return null;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
+
+function adjustBrightness(hex: string, percent: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const adjust = (val: number) => Math.max(0, Math.min(255, Math.round(val + (255 * percent) / 100)));
+  const r = adjust(rgb.r).toString(16).padStart(2, "0");
+  const g = adjust(rgb.g).toString(16).padStart(2, "0");
+  const b = adjust(rgb.b).toString(16).padStart(2, "0");
+  return `#${r}${g}${b}`;
+}
+
+function getContrastColor(hex: string): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return "#ffffff";
+  const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+  return yiq >= 128 ? "#000000" : "#ffffff";
+}
+
+export function getCustomThemeColors(): CustomThemeColors {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return { ...DEFAULT_CUSTOM_THEME_COLORS };
+  }
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_THEME_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_CUSTOM_THEME_COLORS };
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return { ...DEFAULT_CUSTOM_THEME_COLORS };
+    }
+    const background =
+      typeof parsed.background === "string" && parsed.background
+        ? parsed.background
+        : DEFAULT_CUSTOM_THEME_COLORS.background;
+    const surface =
+      typeof parsed.surface === "string" && parsed.surface
+        ? parsed.surface
+        : DEFAULT_CUSTOM_THEME_COLORS.surface;
+    const foreground =
+      typeof parsed.foreground === "string" && parsed.foreground
+        ? parsed.foreground
+        : DEFAULT_CUSTOM_THEME_COLORS.foreground;
+    const accent =
+      typeof parsed.accent === "string" && parsed.accent
+        ? parsed.accent
+        : DEFAULT_CUSTOM_THEME_COLORS.accent;
+
+    return {
+      background,
+      surface,
+      foreground,
+      accent,
+      surface2:
+        parsed.surface2 ||
+        (parsed.surface ? adjustBrightness(surface, 6) : DEFAULT_CUSTOM_THEME_COLORS.surface2),
+      surface3:
+        parsed.surface3 ||
+        (parsed.surface ? adjustBrightness(surface, 12) : DEFAULT_CUSTOM_THEME_COLORS.surface3),
+      accentForeground:
+        parsed.accentForeground ||
+        (parsed.accent ? getContrastColor(accent) : DEFAULT_CUSTOM_THEME_COLORS.accentForeground),
+      accentDeep:
+        parsed.accentDeep ||
+        (parsed.accent ? adjustBrightness(accent, -20) : DEFAULT_CUSTOM_THEME_COLORS.accentDeep),
+      border:
+        parsed.border ||
+        (parsed.foreground ? hexToRgba(foreground, 0.12) : DEFAULT_CUSTOM_THEME_COLORS.border),
+      muted:
+        parsed.muted ||
+        (parsed.surface ? adjustBrightness(surface, 6) : DEFAULT_CUSTOM_THEME_COLORS.muted),
+      mutedForeground:
+        parsed.mutedForeground ||
+        (parsed.foreground ? adjustBrightness(foreground, -35) : DEFAULT_CUSTOM_THEME_COLORS.mutedForeground),
+    };
+  } catch {
+    return { ...DEFAULT_CUSTOM_THEME_COLORS };
+  }
+}
+
+export function saveCustomThemeColors(colors: Partial<CustomThemeColors>): void {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return;
+  }
+  try {
+    const current = getCustomThemeColors();
+    const merged: CustomThemeColors = { ...current, ...colors };
+    if (colors.accent && !colors.accentForeground) {
+      merged.accentForeground = getContrastColor(colors.accent);
+      merged.accentDeep = adjustBrightness(colors.accent, -20);
+    }
+    if (colors.surface && !colors.surface2) {
+      merged.surface2 = adjustBrightness(colors.surface, 6);
+      merged.surface3 = adjustBrightness(colors.surface, 12);
+      merged.muted = merged.surface2;
+    }
+    if (colors.foreground && !colors.border) {
+      merged.border = hexToRgba(colors.foreground, 0.12);
+      merged.mutedForeground = adjustBrightness(colors.foreground, -35);
+    }
+    window.localStorage.setItem(CUSTOM_THEME_STORAGE_KEY, JSON.stringify(merged));
+  } catch (e) {
+    console.error("[color-themes] failed to save custom theme colors:", e);
+  }
+}
+
+export function createCustomTheme(colors?: Partial<CustomThemeColors> | null): ColorTheme {
+  const user = colors ?? {};
+
+  const background = user.background || DEFAULT_CUSTOM_THEME_COLORS.background;
+  const surface = user.surface || DEFAULT_CUSTOM_THEME_COLORS.surface;
+  const foreground = user.foreground || DEFAULT_CUSTOM_THEME_COLORS.foreground;
+  const accent = user.accent || DEFAULT_CUSTOM_THEME_COLORS.accent;
+
+  const surface2 = user.surface2 || adjustBrightness(surface, 6);
+  const surface3 = user.surface3 || adjustBrightness(surface, 12);
+  const accentForeground = user.accentForeground || getContrastColor(accent);
+  const accentDeep = user.accentDeep || adjustBrightness(accent, -20);
+  const border = user.border || hexToRgba(foreground, 0.12);
+  const muted = user.muted || surface2;
+  const mutedForeground = user.mutedForeground || adjustBrightness(foreground, -35);
+
+  return {
+    id: CUSTOM_THEME_ID,
+    name: "Custom Palette",
+    badge: "Customizable",
+    description: "Configure custom colors for canvas, surfaces, text, and accent.",
+    previewColors: [background, surface, surface2, surface3, accent, foreground],
+    defaultAccent: "custom-accent",
+    colors: {
+      background,
+      card: surface,
+      cardForeground: foreground,
+      surface,
+      surface2,
+      surface3,
+      popover: surface,
+      popoverForeground: foreground,
+      border,
+      input: hexToRgba(foreground, 0.10),
+      foreground,
+      muted,
+      mutedForeground,
+      subtle: adjustBrightness(accent, -20),
+      accent,
+      accentForeground,
+      accentDeep,
+      primary: accent,
+      primaryForeground: accentForeground,
+      ring: accent,
+    },
+  };
+}
 
 export const DEFAULT_COLOR_THEME: ColorThemeId = "cinema";
 export const DEFAULT_ACCENT_COLOR: AccentColorId = "cinema";
@@ -271,7 +478,15 @@ export const DEFAULT_ACCENT_COLOR: AccentColorId = "cinema";
 export const THEME_STORAGE_KEY = "first-payout-theme-palette-v1";
 export const ACCENT_STORAGE_KEY = "first-payout-accent-color-v2";
 
-export function getThemeById(id?: string | null): ColorTheme {
+export function getThemeById(
+  id?: string | null,
+  customColors?: Partial<CustomThemeColors> | null,
+): ColorTheme {
+  if (id === CUSTOM_THEME_ID) {
+    return createCustomTheme(
+      customColors ?? (typeof window !== "undefined" ? getCustomThemeColors() : null),
+    );
+  }
   return (
     COLOR_THEMES.find((theme) => theme.id === id) ??
     COLOR_THEMES.find((theme) => theme.id === DEFAULT_COLOR_THEME) ??
@@ -287,10 +502,14 @@ export function getAccentById(id?: string | null): AccentColor {
   );
 }
 
-export function applyColorTheme(themeId: string, accentOverride?: string | null) {
+export function applyColorTheme(
+  themeId: string,
+  accentOverride?: string | null,
+  customColors?: Partial<CustomThemeColors> | null,
+) {
   if (typeof document === "undefined") return;
 
-  const theme = getThemeById(themeId);
+  const theme = getThemeById(themeId, customColors);
   const root = document.documentElement.style;
 
   root.setProperty("--color-background", theme.colors.background);
@@ -310,19 +529,37 @@ export function applyColorTheme(themeId: string, accentOverride?: string | null)
   root.setProperty("--color-muted-foreground", theme.colors.mutedForeground);
   root.setProperty("--color-subtle", theme.colors.subtle);
 
-  const effectiveAccentId = accentOverride ?? theme.defaultAccent;
-  const accent = getAccentById(effectiveAccentId);
+  let effectiveAccentValue = theme.colors.accent;
+  let effectiveAccentFg = theme.colors.accentForeground;
+  let effectiveAccentDeep = theme.colors.accentDeep;
+  let effectiveAccentId = theme.defaultAccent;
 
-  root.setProperty("--color-accent", accent.value);
-  root.setProperty("--color-accent-foreground", accent.foreground);
-  root.setProperty("--color-accent-deep", accent.deep ?? theme.colors.accentDeep);
-  root.setProperty("--color-primary", accent.value);
-  root.setProperty("--color-primary-foreground", accent.foreground);
-  root.setProperty("--color-ring", accent.value);
+  if (accentOverride && accentOverride !== theme.defaultAccent) {
+    const overrideAccent = ACCENT_COLORS.find((a) => a.id === accentOverride);
+    if (overrideAccent) {
+      effectiveAccentValue = overrideAccent.value;
+      effectiveAccentFg = overrideAccent.foreground;
+      effectiveAccentDeep = overrideAccent.deep ?? theme.colors.accentDeep;
+      effectiveAccentId = overrideAccent.id;
+    }
+  } else if (theme.id !== CUSTOM_THEME_ID) {
+    const defaultAccent = getAccentById(theme.defaultAccent);
+    effectiveAccentValue = defaultAccent.value;
+    effectiveAccentFg = defaultAccent.foreground;
+    effectiveAccentDeep = defaultAccent.deep ?? theme.colors.accentDeep;
+    effectiveAccentId = defaultAccent.id;
+  }
+
+  root.setProperty("--color-accent", effectiveAccentValue);
+  root.setProperty("--color-accent-foreground", effectiveAccentFg);
+  root.setProperty("--color-accent-deep", effectiveAccentDeep);
+  root.setProperty("--color-primary", effectiveAccentValue);
+  root.setProperty("--color-primary-foreground", effectiveAccentFg);
+  root.setProperty("--color-ring", effectiveAccentValue);
 
   if (document.documentElement && typeof document.documentElement.setAttribute === "function") {
     document.documentElement.setAttribute("data-theme", theme.id);
-    document.documentElement.setAttribute("data-accent", accent.id);
+    document.documentElement.setAttribute("data-accent", effectiveAccentId);
   }
 
   let metaThemeColor = document.querySelector('meta[name="theme-color"]');
@@ -353,3 +590,4 @@ export function applyAccentColor(accentId: string) {
     document.documentElement.setAttribute("data-accent", accent.id);
   }
 }
+

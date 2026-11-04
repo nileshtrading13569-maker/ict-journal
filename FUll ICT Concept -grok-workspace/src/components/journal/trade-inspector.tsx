@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  Camera,
   Check,
   ChevronDown,
   ChevronRight,
@@ -17,6 +18,13 @@ import { ConfirmDelete } from "@/components/desk/confirm-delete";
 import { useDeskStore } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
+import {
+  imageFileFromDataTransfer,
+  prepareScreenshotFile,
+  SCREENSHOT_LABELS,
+  type ScreenshotSlot,
+} from "@/lib/screenshot";
+import { ScreenshotAttachDialog } from "@/components/journal/screenshot-attach-dialog";
 import { cn, formatR } from "@/lib/utils";
 import type { Grade, Trade } from "@/lib/ict-types";
 
@@ -49,13 +57,54 @@ export function TradeInspector({
   const updateTradeGrade = useDeskStore((s) => s.updateTradeGrade);
   const updateTradePlaybook = useDeskStore((s) => s.updateTradePlaybook);
   const updateTradeTags = useDeskStore((s) => s.updateTradeTags);
+  const updateTradeScreenshots = useDeskStore((s) => s.updateTradeScreenshots);
+
+  const htfFileRef = useRef<HTMLInputElement>(null);
+  const execFileRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<"review" | "execution" | "ict">("review");
+  const [previewSrc, setPreviewSrc] = useState<{ src: string; label: string } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [newSetup, setNewSetup] = useState("");
   const [addingSetup, setAddingSetup] = useState(false);
   const [newMistake, setNewMistake] = useState("");
   const [addingMistake, setAddingMistake] = useState(false);
+  const [screenshotOpen, setScreenshotOpen] = useState(false);
+  const [screenshotSlot, setScreenshotSlot] = useState<ScreenshotSlot>("screenshotHtf");
+
+  // Ctrl+V straight into the open panel: no dialog, no file picker.
+  useEffect(() => {
+    if (!trade || screenshotOpen) return;
+
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      const file = imageFileFromDataTransfer(event.clipboardData);
+      if (!file) return;
+
+      event.preventDefault();
+      const key: ScreenshotSlot = !trade.screenshotHtf
+        ? "screenshotHtf"
+        : !trade.screenshotExec
+          ? "screenshotExec"
+          : "screenshotExec";
+
+      void prepareScreenshotFile(file)
+        .then((dataUrl) => {
+          updateTradeScreenshots(trade.id, { [key]: dataUrl });
+          void syncDeskToServer();
+          toast.success(`${SCREENSHOT_LABELS[key]} attached from clipboard`);
+        })
+        .catch((error: unknown) =>
+          toast.error(error instanceof Error ? error.message : "Could not read that screenshot."),
+        );
+    };
+
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [trade, screenshotOpen, updateTradeScreenshots]);
 
   if (!trade) return null;
 
@@ -135,6 +184,59 @@ export function TradeInspector({
     toast.success("Trade deleted from journal");
     setDeleteOpen(false);
     onClose();
+  };
+
+  const saveScreenshot = (key: ScreenshotSlot, dataUrl: string) => {
+    updateTradeScreenshots(trade.id, { [key]: dataUrl });
+    void syncDeskToServer();
+    toast.success(`${SCREENSHOT_LABELS[key]} attached`);
+  };
+
+  const readScreenshotFile = async (file: File | undefined, key: ScreenshotSlot) => {
+    try {
+      const dataUrl = await prepareScreenshotFile(file);
+      saveScreenshot(key, dataUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not read that screenshot.");
+    }
+  };
+
+  const onHtfFile = (e: ChangeEvent<HTMLInputElement>) => {
+    void readScreenshotFile(e.target.files?.[0], "screenshotHtf");
+    e.target.value = "";
+  };
+
+  const onExecFile = (e: ChangeEvent<HTMLInputElement>) => {
+    void readScreenshotFile(e.target.files?.[0], "screenshotExec");
+    e.target.value = "";
+  };
+
+  const clearScreenshot = (key: ScreenshotSlot) => {
+    updateTradeScreenshots(trade.id, { [key]: "" });
+    void syncDeskToServer();
+  };
+
+  const emptySlot = (): ScreenshotSlot =>
+    !trade.screenshotHtf ? "screenshotHtf" : !trade.screenshotExec ? "screenshotExec" : "screenshotExec";
+
+  const openAddAttachment = () => {
+    (trade.screenshotHtf ? execFileRef : htfFileRef).current?.click();
+  };
+
+  const openScreenshotDialog = (key?: ScreenshotSlot) => {
+    setScreenshotSlot(key ?? emptySlot());
+    setScreenshotOpen(true);
+  };
+
+  const handleTileDrop = (key: ScreenshotSlot, event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const file = imageFileFromDataTransfer(event.dataTransfer);
+    if (!file) {
+      toast.error("Drop an image file (PNG, JPG, WebP or GIF).");
+      return;
+    }
+    void readScreenshotFile(file, key);
   };
 
   const openTimeFormatted = trade.date
@@ -524,25 +626,69 @@ export function TradeInspector({
 
               {/* Attachments */}
               <div className="border-t border-white/[0.07] pt-4 pb-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <h3 className="text-[13px] font-semibold text-white">Attachments</h3>
-                  <button
-                    type="button"
-                    onClick={() => onEdit(trade)}
-                    className="flex items-center gap-1 text-[12px] text-[#a2a2a0] hover:text-white"
-                  >
-                    <Paperclip className="size-3.5" /> Add
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openScreenshotDialog()}
+                      title="Paste, drop, or capture a chart screenshot"
+                      className="flex items-center gap-1 rounded-md border border-[#e50914]/40 bg-[#e50914]/10 px-2 py-1 text-[12px] font-medium text-white transition-colors hover:bg-[#e50914]/20"
+                    >
+                      <Camera className="size-3.5" /> Screenshot
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openAddAttachment}
+                      title="Choose an image file"
+                      className="flex items-center gap-1 text-[12px] text-[#a2a2a0] hover:text-white"
+                    >
+                      <Paperclip className="size-3.5" /> Add
+                    </button>
+                  </div>
                 </div>
+                <p className="mt-1 text-[11px] text-[#6f6f6d]">
+                  Paste (Ctrl+V) anywhere in this panel, or drop an image on a tile.
+                </p>
+                <input
+                  ref={htfFileRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  aria-label="Attach HTF screenshot"
+                  onChange={onHtfFile}
+                />
+                <input
+                  ref={execFileRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  aria-label="Attach execution screenshot"
+                  onChange={onExecFile}
+                />
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div className="flex h-24 flex-col justify-end rounded-md border border-white/[0.08] bg-[#151515] p-2 text-[11px] text-[#a2a2a0]">
-                    <ImageIcon className="mb-auto size-4 text-[#6f6f6d]" />
-                    HTF chart · 1H
-                  </div>
-                  <div className="flex h-24 flex-col justify-end rounded-md border border-white/[0.08] bg-[#151515] p-2 text-[11px] text-[#a2a2a0]">
-                    <ImageIcon className="mb-auto size-4 text-[#6f6f6d]" />
-                    Execution · 5m
-                  </div>
+                  <AttachmentTile
+                    label="HTF chart · 1H"
+                    value={trade.screenshotHtf}
+                    onPick={() => htfFileRef.current?.click()}
+                    onCapture={() => openScreenshotDialog("screenshotHtf")}
+                    onClear={() => clearScreenshot("screenshotHtf")}
+                    onDrop={(event) => handleTileDrop("screenshotHtf", event)}
+                    onPreview={() =>
+                      setPreviewSrc({ src: trade.screenshotHtf, label: "HTF chart · 1H" })
+                    }
+                  />
+                  <AttachmentTile
+                    label="Execution · 5m"
+                    value={trade.screenshotExec}
+                    onPick={() => execFileRef.current?.click()}
+                    onCapture={() => openScreenshotDialog("screenshotExec")}
+                    onClear={() => clearScreenshot("screenshotExec")}
+                    onDrop={(event) => handleTileDrop("screenshotExec", event)}
+                    onPreview={() =>
+                      setPreviewSrc({ src: trade.screenshotExec, label: "Execution · 5m" })
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -671,6 +817,21 @@ export function TradeInspector({
         </div>
       </aside>
 
+      {previewSrc ? (
+        <button
+          type="button"
+          aria-label="Close chart preview"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+          onClick={() => setPreviewSrc(null)}
+        >
+          <img
+            src={previewSrc.src}
+            alt={previewSrc.label}
+            className="max-h-[88vh] max-w-[92vw] rounded-md border border-white/15 object-contain"
+          />
+        </button>
+      ) : null}
+
       <ConfirmDelete
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
@@ -678,6 +839,122 @@ export function TradeInspector({
         description="This removes the research row from your journal ledger."
         onConfirm={handleDelete}
       />
+
+      <ScreenshotAttachDialog
+        open={screenshotOpen}
+        onOpenChange={setScreenshotOpen}
+        defaultSlot={screenshotSlot}
+        attachedSlots={{
+          screenshotHtf: Boolean(trade.screenshotHtf),
+          screenshotExec: Boolean(trade.screenshotExec),
+        }}
+        onAttach={saveScreenshot}
+      />
     </>
+  );
+}
+
+function AttachmentTile({
+  label,
+  value,
+  onPick,
+  onCapture,
+  onClear,
+  onDrop,
+  onPreview,
+}: {
+  label: string;
+  value: string;
+  onPick: () => void;
+  onCapture: () => void;
+  onClear: () => void;
+  onDrop: (event: DragEvent<HTMLDivElement>) => void;
+  onPreview: () => void;
+}) {
+  const isImage = value.startsWith("data:image/");
+  const hasNote = Boolean(value) && !isImage;
+  const [dragging, setDragging] = useState(false);
+
+  return (
+    <div
+      onDragOver={(event) => {
+        event.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(event) => {
+        setDragging(false);
+        onDrop(event);
+      }}
+      className={cn(
+        "relative h-24 overflow-hidden rounded-md border bg-[#151515] transition-colors",
+        dragging ? "border-accent ring-2 ring-accent/40" : "border-white/[0.08]",
+      )}
+    >
+      {isImage ? (
+        <button
+          type="button"
+          onClick={onPreview}
+          aria-label={`Preview ${label}`}
+          className="absolute inset-0"
+        >
+          <img src={value} alt={label} className="h-full w-full object-cover" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onPick}
+          className="flex h-full w-full flex-col justify-end p-2 text-left text-[11px] text-[#a2a2a0] hover:bg-white/[0.04]"
+        >
+          <ImageIcon className="mb-auto size-4 text-[#6f6f6d]" />
+          <span className="line-clamp-2">{hasNote ? value : label}</span>
+          <span className="text-[10px] text-[#6f6f6d]">
+            {dragging ? "Drop to attach" : "Click to attach"}
+          </span>
+        </button>
+      )}
+      <div className="absolute right-1 top-1 z-10 flex gap-1">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onCapture();
+          }}
+          aria-label={`Take screenshot for ${label}`}
+          title={`Take screenshot for ${label}`}
+          className="flex size-6 items-center justify-center rounded bg-black/70 text-white hover:bg-black"
+        >
+          <Camera className="size-3" />
+        </button>
+        {value ? (
+          <>
+            {isImage ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPick();
+                }}
+                aria-label={`Replace ${label}`}
+                className="flex size-6 items-center justify-center rounded bg-black/70 text-white hover:bg-black"
+              >
+                <Paperclip className="size-3" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onClear();
+              }}
+              aria-label={`Remove ${label}`}
+              className="flex size-6 items-center justify-center rounded bg-black/70 text-white hover:bg-black"
+            >
+              <X className="size-3" />
+            </button>
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }

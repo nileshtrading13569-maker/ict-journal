@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playbook - V3.8 Edge Engine</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #080808;
+      --card-bg: #0d0d0d;
+      --border-subtle: rgba(255, 255, 255, 0.07);
+      --border-hover: rgba(255, 255, 255, 0.14);
+      --accent-red: #ef4444;
+      --accent-red-glow: rgba(239, 68, 68, 0.35);
+      --accent-green: #3ddc84;
+      --accent-amber: #f5b942;
+    }
+    body {
+      background-color: var(--bg-dark);
+      color: #e5e5e5;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .font-serif-title {
+      font-family: 'Playfair Display', Georgia, serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d0d0d;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #262626;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #333333;
+    }
+    .btn-glow-red {
+      box-shadow: 0 0 18px var(--accent-red-glow);
+    }
+    .btn-glow-red:hover {
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.55);
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 sm:p-6 lg:p-8 antialiased selection:bg-red-500/20 selection:text-white">
+
+  <div class="max-w-[1360px] mx-auto space-y-5">
+    
+    <!-- 1. TOP HEADER -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+      <div class="flex items-center gap-3">
+        <h1 class="font-serif-title text-3xl sm:text-4xl text-white tracking-tight">Playbook</h1>
+        <span class="font-mono text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 bg-white/[0.03] text-[#8e8e8e]">
+          V3.8 EDGE ENGINE
+        </span>
+      </div>
+      
+      <div class="flex items-center gap-2.5">
+        <button id="exportBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-[#121212] hover:bg-white/[0.06] hover:border-white/20 text-xs font-medium text-[#cccccc] transition-colors">
+          <svg class="w-3.5 h-3.5 text-[#999999]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Export Stats
+        </button>
+        
+        <button id="createPlaybookBtn" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold btn-glow-red transition-all active:scale-[0.98]">
+          <span class="text-sm font-bold leading-none">+ +</span>
+          Create playbook
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. FILTER & SEARCH TOOLBAR -->
+    <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+      <!-- Left: Search and Segmented Tabs -->
+      <div class="flex flex-wrap items-center gap-2.5 flex-1 min-w-[300px]">
+        <!-- Search bar -->
+        <div class="relative w-full max-w-sm">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input 
+            type="text" 
+            id="searchInput"
+            placeholder="Search name, setup code, instrument..." 
+            class="w-full bg-[#111111] border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white placeholder-[#666666] focus:outline-none focus:border-white/25 transition-colors"
+          >
+        </div>
+
+        <!-- Filter Pills -->
+        <div class="flex items-center rounded-lg border border-white/10 bg-[#111111] p-0.5 text-xs">
+          <button data-tab="active" class="tab-btn px-3 py-1 rounded-md font-mono text-[11px] font-semibold bg-white/10 text-white transition-all">
+            ACTIVE <span id="activeCountBadge">5</span>
+          </button>
+          <button data-tab="inactive" class="tab-btn px-3 py-1 rounded-md font-mono text-[11px] font-semibold text-[#777777] hover:text-white transition-all">
+            INACTIVE <span id="inactiveCountBadge">0</span>
+          </button>
+          <button data-tab="all" class="tab-btn px-3 py-1 rounded-md font-mono text-[11px] font-semibold text-[#777777] hover:text-white transition-all">
+            ALL <span id="allCountBadge">5</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Date Filter & Config Icon -->
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-[#111111] text-xs text-[#a0a0a0]">
+          <svg class="w-3.5 h-3.5 text-[#777777]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span>closed trades · Oct 1 - Oct 29, 2026</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-[#3ddc84] ml-0.5"></span>
+        </div>
+
+        <button class="p-1.5 rounded-lg border border-white/10 bg-[#111111] hover:bg-white/[0.06] text-[#888888] hover:text-white transition-colors" title="Filter Settings">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. FOUR TOP KPI STAT CARDS -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      
+      <!-- Card 1: TOTAL PLAYBOOKS -->
+      <div class="rounded-xl border border-white/[0.08] bg-[#0c0c0c] p-3.5 relative overflow-hidden transition-all hover:border-white/15">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-semibold tracking-wider uppercase text-[#777777]">TOTAL PLAYBOOKS</span>
+          <svg class="w-4 h-4 text-[#555555]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div class="mt-2 flex items-center gap-2">
+          <span class="font-mono text-2xl font-bold text-white tracking-tight">5</span>
+          <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#3ddc84]/10 border border-[#3ddc84]/30 text-[#3ddc84]">
+            5 ACTIVE
+          </span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[11px] text-[#777777] border-t border-white/[0.05] pt-2">
+          <span>Assigned execution rate</span>
+          <span class="font-mono text-white font-medium">100% (11/11)</span>
+        </div>
+      </div>
+
+      <!-- Card 2: BEST PERFORMER -->
+      <div class="rounded-xl border border-white/[0.08] bg-[#0c0c0c] p-3.5 relative overflow-hidden transition-all hover:border-white/15">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-semibold tracking-wider uppercase text-[#777777]">BEST PERFORMER</span>
+          <span class="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#3ddc84]/15 border border-[#3ddc84]/40 text-[#3ddc84]">
+            C
+          </span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="font-mono text-2xl font-bold text-[#3ddc84] tracking-tight">+$434.00</span>
+          <span class="text-xs text-[#888888] font-medium truncate">Continuation</span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[11px] text-[#777777] border-t border-white/[0.05] pt-2">
+          <span>Win Rate / Expectancy</span>
+          <span class="font-mono text-[#3ddc84] font-medium">100% · +2.89R</span>
+        </div>
+      </div>
+
+      <!-- Card 3: MOST TRADED -->
+      <div class="rounded-xl border border-white/[0.08] bg-[#0c0c0c] p-3.5 relative overflow-hidden transition-all hover:border-white/15">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-semibold tracking-wider uppercase text-[#777777]">MOST TRADED</span>
+          <span class="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-500/15 border border-red-500/40 text-red-400">
+            A
+          </span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="font-mono text-2xl font-bold text-white tracking-tight">4</span>
+          <span class="text-xs text-[#888888]">Trades</span>
+          <span class="text-xs text-[#bbbbbb] font-medium truncate">Sell-side raid</span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[11px] text-[#777777] border-t border-white/[0.05] pt-2">
+          <span>Volume share</span>
+          <span class="font-mono text-white font-medium">36.4% of total</span>
+        </div>
+      </div>
+
+      <!-- Card 4: HIGHEST DISCIPLINE -->
+      <div class="rounded-xl border border-white/[0.08] bg-[#0c0c0c] p-3.5 relative overflow-hidden transition-all hover:border-white/15">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-semibold tracking-wider uppercase text-[#777777]">HIGHEST DISCIPLINE</span>
+          <div class="w-4 h-4 rounded-full bg-[#3ddc84]/15 border border-[#3ddc84]/40 flex items-center justify-center text-[#3ddc84]">
+            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="font-mono text-2xl font-bold text-[#3ddc84] tracking-tight">94%</span>
+          <span class="text-xs text-[#888888] font-medium">15 / 16 Checklist</span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[11px] text-[#777777] border-t border-white/[0.05] pt-2">
+          <span>Playbook model</span>
+          <span class="font-mono text-white font-medium">C · Continuation</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 4. DATA TABLE SECTION -->
+    <div class="rounded-xl border border-white/[0.08] bg-[#0a0a0a] overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse" id="playbookTable">
+          <thead>
+            <tr class="border-b border-white/[0.07] bg-white/[0.015] text-[10px] font-semibold uppercase tracking-wider text-[#777777]">
+              <th class="py-3 px-4 font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('name')">PLAYBOOK MODEL</th>
+              <th class="py-3 px-3 text-right font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('trades')">TRADES</th>
+              <th class="py-3 px-3 text-right font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('winRate')">WIN RATE</th>
+              <th class="py-3 px-3 text-right font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('pnl')">NET P&amp;L</th>
+              <th class="py-3 px-3 text-right font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('profitFactor')">PROFIT FAC</th>
+              <th class="py-3 px-3 text-right font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('expectancy')">EXPECTANCY</th>
+              <th class="py-3 px-3 text-right font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('avgR')">AVG R</th>
+              <th class="py-3 px-3 text-right font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('avgWinLoss')">AVG WIN / LOSS</th>
+              <th class="py-3 px-4 text-left font-semibold cursor-pointer hover:text-white transition-colors" onclick="sortTable('ruleFollowed')">RULE FOLLOWED</th>
+              <th class="py-3 px-3 text-center w-10">···</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-white/[0.04] text-xs">
+            <!-- Dynamic rows populated via JS below -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Table Bottom Summary Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-t border-white/[0.06] bg-black/40 text-[11px] text-[#777777]">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-4">
+          <span><strong id="summaryTotalPlaybooks" class="text-white font-mono">5</strong> playbooks</span>
+          <span class="text-white/20">·</span>
+          <span><strong id="summaryTotalTrades" class="text-white font-mono">11</strong> closed trades</span>
+          <span class="text-white/20">·</span>
+          <span>Overall Net P&amp;L: <strong id="summaryNetPnl" class="text-[#3ddc84] font-mono">+$1,198.25</strong></span>
+          <span class="text-white/20">·</span>
+          <span>Avg Win Rate: <strong id="summaryWinRate" class="text-white font-mono">72.7%</strong></span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 bg-[#444444]"></span>
+            <span>Unassigned trades: <strong class="text-white font-mono">0</strong></span>
+          </div>
+          <span class="text-white/20">·</span>
+          <div>
+            <span>System Expectancy: <strong class="text-[#3ddc84] font-mono">+1.84R</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. RECENTLY DELETED SECTION -->
+    <div class="rounded-xl border border-white/[0.08] bg-[#0c0c0c] overflow-hidden">
+      <div id="deletedHeader" class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-white/[0.02] transition-colors border-b border-white/[0.05]">
+        <div class="flex items-center gap-2 text-xs text-[#888888]">
+          <svg class="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          <span>Recently deleted (<span id="deletedCount">1</span>)</span>
+          <span class="text-white/20">·</span>
+          <span class="text-[#666666]">Linked execution trades are permanently kept in journal</span>
+        </div>
+        <div class="flex items-center gap-1 text-[11px] font-semibold text-[#888888] tracking-wider uppercase">
+          <span id="collapseLabel">COLLAPSE</span>
+          <svg id="collapseIcon" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Deleted Item Row -->
+      <div id="deletedContent" class="p-4 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border border-white/[0.05] bg-[#0e0e0e]">
+          <div class="flex items-center gap-3">
+            <div class="w-7 h-7 rounded border border-white/10 bg-white/[0.03] flex items-center justify-center font-mono font-bold text-xs text-[#888888]">
+              F
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-white">London breakout fade</span>
+                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-red-950/60 border border-red-800/40 text-red-400 uppercase tracking-wider">
+                  ARCHIVED
+                </span>
+              </div>
+              <p class="text-[11px] text-[#666666] font-mono mt-0.5">
+                Deleted Oct 18, 2026 · 5 historical trades associated · Net: <span class="text-white">+$84.50</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 self-end sm:self-auto">
+            <button onclick="restoreDeleted()" class="flex items-center gap-1.5 px-2.5 py-1 rounded border border-white/10 hover:border-white/25 bg-white/[0.02] text-xs font-medium text-[#cccccc] transition-colors">
+              <svg class="w-3.5 h-3.5 text-[#888888]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Restore
+            </button>
+            <button onclick="permanentDelete()" class="flex items-center gap-1.5 px-2.5 py-1 rounded border border-red-900/40 hover:border-red-600/60 bg-red-950/20 text-xs font-medium text-red-400 transition-colors">
+              <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              Delete permanently
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- INTERACTIVE PLAYBOOK JAVASCRIPT LOGIC -->
+  <script>
+    // Playbook Dataset matching the reference screenshot exactly
+    const initialPlaybooks = [
+      {
+        id: "pb-1",
+        code: "A",
+        codeColor: "red",
+        name: "Sell-side raid reversal",
+        tag: "CORE",
+        tagColor: "red",
+        market: "XAUUSD",
+        timeframe: "1H → 5m",
+        setupDetail: "Turtle Soup / FVG",
+        active: true,
+        trades: 4,
+        winCount: 3,
+        lossCount: 1,
+        winRate: 75.0,
+        netPnl: 382.50,
+        profitFactor: 3.42,
+        expectancy: 95.63,
+        expectancyR: 1.45,
+        avgR: 1.92,
+        avgWin: 180.17,
+        avgLoss: -158.00,
+        rulesPct: 88,
+        rulesFraction: "14/16 rules",
+        ruleStatus: "good"
+      },
+      {
+        id: "pb-2",
+        code: "C",
+        codeColor: "green",
+        name: "Continuation",
+        tag: "HIGH CONVICTION",
+        tagColor: "green",
+        market: "XAUUSD",
+        timeframe: "4H → 15m",
+        setupDetail: "BPR / OTE Re-entry",
+        active: true,
+        trades: 2,
+        winCount: 2,
+        lossCount: 0,
+        winRate: 100.0,
+        netPnl: 434.00,
+        profitFactor: "∞",
+        expectancy: 217.00,
+        expectancyR: 2.89,
+        avgR: 2.89,
+        avgWin: 217.00,
+        avgLoss: null,
+        rulesPct: 94,
+        rulesFraction: "15/16 rules",
+        ruleStatus: "good"
+      },
+      {
+        id: "pb-3",
+        code: "D",
+        codeColor: "amber",
+        name: "AMD / Judas",
+        tag: "NY AM KILLZONE",
+        tagColor: "blue",
+        market: "XAUUSD",
+        timeframe: "1H → 1m",
+        setupDetail: "Accumulation-Manipulation",
+        active: true,
+        trades: 2,
+        winCount: 1,
+        lossCount: 1,
+        winRate: 50.0,
+        netPnl: 124.00,
+        profitFactor: 2.07,
+        expectancy: 62.00,
+        expectancyR: 0.85,
+        avgR: 1.12,
+        avgWin: 240.00,
+        avgLoss: -116.00,
+        rulesPct: 75,
+        rulesFraction: "12/16 rules",
+        ruleStatus: "warning"
+      },
+      {
+        id: "pb-4",
+        code: "B",
+        codeColor: "red",
+        name: "Buy-side raid reversal",
+        tag: "PREMIUM FADE",
+        tagColor: "red",
+        market: "XAUUSD",
+        timeframe: "1H → 5m",
+        setupDetail: "BSL Purge / MSS",
+        active: true,
+        trades: 2,
+        winCount: 2,
+        lossCount: 0,
+        winRate: 100.0,
+        netPnl: 292.75,
+        profitFactor: "∞",
+        expectancy: 146.38,
+        expectancyR: 2.05,
+        avgR: 2.05,
+        avgWin: 146.38,
+        avgLoss: null,
+        rulesPct: 81,
+        rulesFraction: "13/16 rules",
+        ruleStatus: "good"
+      },
+      {
+        id: "pb-5",
+        code: "E",
+        codeColor: "gray",
+        name: "CRT purge-reclaim",
+        tag: "CANDLE RANGE",
+        tagColor: "gray",
+        market: "XAUUSD",
+        timeframe: "4H → 15m",
+        setupDetail: "High-wick acceptance",
+        active: true,
+        trades: 1,
+        winCount: 0,
+        lossCount: 1,
+        winRate: 0.0,
+        netPnl: -35.00,
+        profitFactor: 0.00,
+        expectancy: -35.00,
+        expectancyR: -0.35,
+        avgR: -0.35,
+        avgWin: null,
+        avgLoss: -35.00,
+        rulesPct: 69,
+        rulesFraction: "11/16 rules",
+        ruleStatus: "warning"
+      }
+    ];
+
+    let playbooks = [...initialPlaybooks];
+    let currentTab = "active";
+    let searchQuery = "";
+    let sortKey = "pnl";
+    let sortAsc = false;
+
+    function renderTable() {
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+
+      const filtered = playbooks.filter(p => {
+        if (currentTab === "active" && !p.active) return false;
+        if (currentTab === "inactive" && p.active) return false;
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return p.name.toLowerCase().includes(q) || 
+               p.code.toLowerCase().includes(q) || 
+               p.market.toLowerCase().includes(q) || 
+               p.setupDetail.toLowerCase().includes(q);
+      });
+
+      // Sort
+      filtered.sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+        if (valA === "∞") valA = 999999;
+        if (valB === "∞") valB = 999999;
+        if (typeof valA === "string") {
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return sortAsc ? (valA - valB) : (valB - valA);
+      });
+
+      filtered.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-white/[0.03] transition-colors cursor-pointer group";
+
+        // Badges styles
+        let codeBadgeClasses = "bg-red-500/10 border-red-500/30 text-red-400";
+        if (p.codeColor === "green") codeBadgeClasses = "bg-[#3ddc84]/10 border-[#3ddc84]/30 text-[#3ddc84]";
+        else if (p.codeColor === "amber") codeBadgeClasses = "bg-amber-500/10 border-amber-500/30 text-amber-400";
+        else if (p.codeColor === "gray") codeBadgeClasses = "bg-white/[0.05] border-white/10 text-[#888888]";
+
+        let tagClasses = "bg-red-950/60 border-red-800/40 text-red-400";
+        if (p.tagColor === "green") tagClasses = "bg-emerald-950/60 border-emerald-800/40 text-emerald-400";
+        else if (p.tagColor === "blue") tagClasses = "bg-cyan-950/60 border-cyan-800/40 text-cyan-400";
+        else if (p.tagColor === "gray") tagClasses = "bg-white/[0.04] border-white/10 text-[#888888]";
+
+        const pnlClass = p.netPnl >= 0 ? "text-[#3ddc84]" : "text-[#ff6b7d]";
+        const pnlFormatted = (p.netPnl >= 0 ? "+$" : "-$") + Math.abs(p.netPnl).toFixed(2);
+        const expectancyFormatted = (p.expectancy >= 0 ? "+$" : "-$") + Math.abs(p.expectancy).toFixed(2);
+        const expectancyRFormatted = (p.expectancyR >= 0 ? "+" : "") + p.expectancyR.toFixed(2) + "R / trd";
+        const avgRFormatted = (p.avgR >= 0 ? "+" : "") + p.avgR.toFixed(2) + "R";
+
+        // Avg Win / Loss string
+        let avgWinLossStr = "";
+        if (p.avgWin !== null && p.avgLoss !== null) {
+          avgWinLossStr = `<span class="text-[#3ddc84]">+$${p.avgWin.toFixed(2)}</span> <span class="text-white/20">/</span> <span class="text-[#ff6b7d]">-$${Math.abs(p.avgLoss).toFixed(2)}</span>`;
+        } else if (p.avgWin !== null) {
+          avgWinLossStr = `<span class="text-[#3ddc84]">+$${p.avgWin.toFixed(2)}</span> <span class="text-white/20">/ -</span>`;
+        } else {
+          avgWinLossStr = `<span class="text-white/20">- / </span><span class="text-[#ff6b7d]">-$${Math.abs(p.avgLoss).toFixed(2)}</span>`;
+        }
+
+        // Progress bar color
+        const progressBg = p.rulesPct >= 80 ? "bg-[#3ddc84]" : (p.rulesPct >= 70 ? "bg-amber-400" : "bg-[#ff6b7d]");
+        const rulesTextCol = p.rulesPct >= 80 ? "text-[#3ddc84]" : (p.rulesPct >= 70 ? "text-amber-400" : "text-[#ff6b7d]");
+
+        tr.innerHTML = `
+          <!-- Playbook Model -->
+          <td class="py-3 px-4">
+            <div class="flex items-center gap-3">
+              <span class="w-6 h-6 rounded flex items-center justify-center font-mono font-bold text-xs border ${codeBadgeClasses}">
+                ${p.code}
+              </span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-white group-hover:text-red-400 transition-colors">${p.name}</span>
+                  <span class="text-[9px] font-bold px-1.5 py-0.2 rounded border ${tagClasses} uppercase tracking-wider">
+                    ${p.tag}
+                  </span>
+                </div>
+                <div class="text-[11px] font-mono text-[#777777] mt-0.5">
+                  ${p.market} · ${p.timeframe} · ${p.setupDetail}
+                </div>
+              </div>
+            </div>
+          </td>
+
+          <!-- Trades -->
+          <td class="py-3 px-3 text-right font-mono font-bold text-white text-xs">
+            ${p.trades}
+          </td>
+
+          <!-- Win Rate -->
+          <td class="py-3 px-3 text-right font-mono">
+            <div class="font-bold ${p.winRate >= 50 ? 'text-[#3ddc84]' : 'text-[#ff6b7d]'}">${p.winRate.toFixed(1)}%</div>
+            <div class="text-[10px] text-[#777777]">${p.winCount}W - ${p.lossCount}L</div>
+          </td>
+
+          <!-- Net P&L -->
+          <td class="py-3 px-3 text-right font-mono font-bold ${pnlClass}">
+            ${pnlFormatted}
+          </td>
+
+          <!-- Profit Fac -->
+          <td class="py-3 px-3 text-right font-mono text-[#cccccc]">
+            ${p.profitFactor === '∞' ? '<span class="text-[#3ddc84] text-sm">∞</span>' : Number(p.profitFactor).toFixed(2)}
+          </td>
+
+          <!-- Expectancy -->
+          <td class="py-3 px-3 text-right font-mono">
+            <div class="font-bold ${p.expectancy >= 0 ? 'text-[#3ddc84]' : 'text-[#ff6b7d]'}">${expectancyFormatted}</div>
+            <div class="text-[10px] ${p.expectancyR >= 0 ? 'text-[#3ddc84]' : 'text-[#ff6b7d]'}">${expectancyRFormatted}</div>
+          </td>
+
+          <!-- Avg R -->
+          <td class="py-3 px-3 text-right font-mono font-bold ${p.avgR >= 0 ? 'text-[#3ddc84]' : 'text-[#ff6b7d]'}">
+            ${avgRFormatted}
+          </td>
+
+          <!-- Avg Win / Loss -->
+          <td class="py-3 px-3 text-right font-mono text-[11px]">
+            ${avgWinLossStr}
+          </td>
+
+          <!-- Rule Followed -->
+          <td class="py-3 px-4 min-w-[140px]">
+            <div class="flex items-center justify-between text-[11px] font-mono mb-1">
+              <span class="font-bold ${rulesTextCol}">${p.rulesPct}%</span>
+              <span class="text-[#777777] text-[10px]">${p.rulesFraction}</span>
+            </div>
+            <div class="w-full h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
+              <div class="h-full rounded-full ${progressBg}" style="width: ${p.rulesPct}%"></div>
+            </div>
+          </td>
+
+          <!-- Actions -->
+          <td class="py-3 px-3 text-center">
+            <button class="p-1 rounded text-[#666666] hover:text-white hover:bg-white/10 transition-colors" title="Actions">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"/>
+              </svg>
+            </button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      updateCounts();
+    }
+
+    function updateCounts() {
+      const active = playbooks.filter(p => p.active).length;
+      const inactive = playbooks.filter(p => !p.active).length;
+      document.getElementById("activeCountBadge").innerText = active;
+      document.getElementById("inactiveCountBadge").innerText = inactive;
+      document.getElementById("allCountBadge").innerText = playbooks.length;
+    }
+
+    function sortTable(key) {
+      if (sortKey === key) {
+        sortAsc = !sortAsc;
+      } else {
+        sortKey = key;
+        sortAsc = false;
+      }
+      renderTable();
+    }
+
+    // Tab buttons
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => {
+          b.className = "tab-btn px-3 py-1 rounded-md font-mono text-[11px] font-semibold text-[#777777] hover:text-white transition-all";
+        });
+        btn.className = "tab-btn px-3 py-1 rounded-md font-mono text-[11px] font-semibold bg-white/10 text-white transition-all";
+        currentTab = btn.getAttribute("data-tab");
+        renderTable();
+      });
+    });
+
+    // Search input
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+      searchQuery = e.target.value.trim();
+      renderTable();
+    });
+
+    // Accordion collapse
+    const deletedHeader = document.getElementById("deletedHeader");
+    const deletedContent = document.getElementById("deletedContent");
+    const collapseLabel = document.getElementById("collapseLabel");
+    const collapseIcon = document.getElementById("collapseIcon");
+    let isCollapsed = false;
+
+    deletedHeader.addEventListener("click", () => {
+      isCollapsed = !isCollapsed;
+      if (isCollapsed) {
+        deletedContent.style.display = "none";
+        collapseLabel.innerText = "EXPAND";
+        collapseIcon.style.transform = "rotate(-90deg)";
+      } else {
+        deletedContent.style.display = "block";
+        collapseLabel.innerText = "COLLAPSE";
+        collapseIcon.style.transform = "rotate(0deg)";
+      }
+    });
+
+    // Export button
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const jsonStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(playbooks, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", jsonStr);
+      downloadAnchor.setAttribute("download", "playbook_stats_export.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    });
+
+    // Create Playbook Simulator
+    document.getElementById("createPlaybookBtn").addEventListener("click", () => {
+      const name = prompt("Enter new playbook name:", "Turtle Soup NY AM");
+      if (name) {
+        const newCode = String.fromCharCode(65 + playbooks.length);
+        playbooks.unshift({
+          id: "pb-" + (playbooks.length + 1),
+          code: newCode,
+          codeColor: "green",
+          name: name,
+          tag: "SETUP",
+          tagColor: "green",
+          market: "XAUUSD",
+          timeframe: "15m → 1m",
+          setupDetail: "Liquidity Sweep / FVG",
+          active: true,
+          trades: 1,
+          winCount: 1,
+          lossCount: 0,
+          winRate: 100.0,
+          netPnl: 150.00,
+          profitFactor: "∞",
+          expectancy: 150.00,
+          expectancyR: 1.5,
+          avgR: 1.5,
+          avgWin: 150.00,
+          avgLoss: null,
+          rulesPct: 100,
+          rulesFraction: "16/16 rules",
+          ruleStatus: "good"
+        });
+        renderTable();
+      }
+    });
+
+    function restoreDeleted() {
+      alert("London breakout fade model restored to active playbooks!");
+    }
+
+    function permanentDelete() {
+      if (confirm("Are you sure you want to permanently delete London breakout fade?")) {
+        deletedContent.innerHTML = "<p class='text-xs text-[#777777] italic'>No recently deleted playbooks.</p>";
+        document.getElementById("deletedCount").innerText = "0";
+      }
+    }
+
+    // Initial render
+    renderTable();
+  </script>
+</body>
+</html>

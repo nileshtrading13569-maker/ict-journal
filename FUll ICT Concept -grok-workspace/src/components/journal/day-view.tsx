@@ -332,7 +332,7 @@ export function DayView({
 
         {/* Day trade log table */}
         <div className="mt-5 border-t border-white/[0.06]">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent" tabIndex={0} role="region" aria-label="Day trade log table">
             <table className="w-full min-w-[760px] text-[13px]">
               <thead>
                 <tr className="h-9 border-b border-white/[0.06] text-left text-[10px] font-semibold tracking-[0.12em] text-[#a2a2a0] uppercase">

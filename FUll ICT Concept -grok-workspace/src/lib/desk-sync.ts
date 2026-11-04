@@ -15,6 +15,8 @@ export function isDeskData(value: unknown): value is DeskData {
     data.rules !== null &&
     (data.themeId === undefined || typeof data.themeId === "string") &&
     (data.accentColor === undefined || typeof data.accentColor === "string") &&
+    (data.customThemeColors === undefined ||
+      (typeof data.customThemeColors === "object" && data.customThemeColors !== null)) &&
     Array.isArray(data.phases) &&
     Array.isArray(data.instruments) &&
     Array.isArray(data.models) &&

@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { addDaysISO } from "./ict-time";
+import {
+  type CustomThemeColors,
+  getCustomThemeColors,
+  saveCustomThemeColors,
+} from "./color-themes";
 import type {
   AccountRules,
   ChecklistItem,
@@ -35,6 +40,10 @@ type DeskActions = {
   updateTradeGrade: (id: string, grade: Trade["grade"]) => void;
   updateTradeTags: (id: string, setupTags: string[], mistakeTags: string[]) => void;
   updateTradePlaybook: (id: string, modelId: string, modelName: string) => void;
+  updateTradeScreenshots: (
+    id: string,
+    patch: Partial<Pick<Trade, "screenshotHtf" | "screenshotExec">>,
+  ) => void;
   upsertMissed: (row: MissedTrade) => void;
   removeMissed: (id: string) => void;
   upsertWeekly: (row: WeeklyNarrative) => void;
@@ -59,6 +68,7 @@ type DeskActions = {
   rebuildProtocolDates: (startDate: string) => void;
   setThemeId: (id: string) => void;
   setAccentColor: (color: string) => void;
+  setCustomThemeColors: (colors: Partial<CustomThemeColors>) => void;
 };
 
 export type DeskStore = DeskData & DeskActions;
@@ -124,6 +134,10 @@ export const useDeskStore = create<DeskStore>()(
       updateTradePlaybook: (id, modelId, modelName) =>
         set((s) => ({
           trades: s.trades.map((t) => (t.id === id ? { ...t, modelId, modelName } : t)),
+        })),
+      updateTradeScreenshots: (id, patch) =>
+        set((s) => ({
+          trades: s.trades.map((t) => (t.id === id ? { ...t, ...patch } : t)),
         })),
       upsertMissed: (row) => set((s) => ({ missed: upsert(s.missed, row) })),
       removeMissed: (id) => set((s) => ({ missed: s.missed.filter((x) => x.id !== id) })),
@@ -259,6 +273,15 @@ export const useDeskStore = create<DeskStore>()(
         })),
       setThemeId: (id) => set({ themeId: id }),
       setAccentColor: (color) => set({ accentColor: color }),
+      setCustomThemeColors: (colors) =>
+        set((s) => {
+          const merged = {
+            ...(s.customThemeColors ?? getCustomThemeColors()),
+            ...colors,
+          };
+          saveCustomThemeColors(merged);
+          return { customThemeColors: merged };
+        }),
     }),
     {
       name: "ict-narrative-desk",
@@ -291,6 +314,7 @@ export const useDeskStore = create<DeskStore>()(
         mantra: state.mantra,
         themeId: state.themeId,
         accentColor: state.accentColor,
+        customThemeColors: state.customThemeColors,
         instruments: state.instruments,
         models: state.models,
         recentlyDeletedModels: state.recentlyDeletedModels ?? [],
@@ -321,6 +345,7 @@ export function deskSnapshot(): DeskData {
     mantra: state.mantra,
     themeId: state.themeId,
     accentColor: state.accentColor,
+    customThemeColors: state.customThemeColors,
     instruments: state.instruments,
     models: state.models,
     recentlyDeletedModels: state.recentlyDeletedModels ?? [],

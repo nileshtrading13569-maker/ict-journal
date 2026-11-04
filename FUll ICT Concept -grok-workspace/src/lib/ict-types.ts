@@ -1,3 +1,5 @@
+import type { CustomThemeColors } from "@/lib/color-themes";
+
 export type Side = "long" | "short";
 export type TradeResult = "open" | "win" | "loss" | "be";
 export type Bias = "bullish" | "bearish" | "neutral";
@@ -572,6 +574,7 @@ export type DeskData = {
   mantra: string;
   themeId?: string;
   accentColor?: string;
+  customThemeColors?: CustomThemeColors;
   instruments: Instrument[];
   models: SetupModel[];
   recentlyDeletedModels: RecentlyDeletedModel[];

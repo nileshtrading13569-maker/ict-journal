@@ -895,7 +895,7 @@ function NotebookPage() {
               <span className="w-2.5 h-2.5 rounded-full bg-[#e50914] shadow-[0_0_8px_#e50914]" />
               <h1 className="font-display font-bold text-base sm:text-lg tracking-tight text-white whitespace-nowrap">Notebook</h1>
             </div>
-            <span className="text-xs text-[#6f6f6d] hidden 2xl:inline shrink-0">|</span>
+            <span className="text-xs text-[#a1a1aa] hidden 2xl:inline shrink-0">|</span>
             <span className="text-xs text-[#a2a2a0] hidden 2xl:inline truncate">
               Daily Trade Journaling, Session Pre-Market &amp; Tape Logs
             </span>
@@ -979,7 +979,7 @@ function NotebookPage() {
                 <ChevronLeft className="size-4 text-[#e50914]" />
                 <span className="font-medium">Back to notes list</span>
               </button>
-              <span className="text-[10px] uppercase font-mono tracking-wider text-[#6f6f6d]">Folders &amp; Tags</span>
+              <span className="text-[10px] uppercase font-mono tracking-wider text-[#a1a1aa]">Folders &amp; Tags</span>
             </div>
 
             {/* Search Input & Add Folder */}
@@ -987,15 +987,16 @@ function NotebookPage() {
               {!sidebarCollapsed ? (
                 <>
                   <div className="relative flex items-center">
-                    <Search className="size-3.5 text-[#6f6f6d] absolute left-2.5" />
+                    <Search className="size-3.5 text-[#a1a1aa] absolute left-2.5" />
                     <input
                       type="text"
                       placeholder="Search notes..."
+                      aria-label="Search notes"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full bg-[#121215] border border-white/[0.08] rounded-lg pl-7 pr-7 py-1 text-xs text-white placeholder-[#6f6f6d] focus:outline-none focus:border-[#e50914]/60"
                     />
-                    <SlidersHorizontal className="size-3.5 text-[#6f6f6d] absolute right-2.5" />
+                    <SlidersHorizontal className="size-3.5 text-[#a1a1aa] absolute right-2.5" />
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -1010,8 +1011,9 @@ function NotebookPage() {
                     <button
                       type="button"
                       onClick={() => setSidebarCollapsed(true)}
-                      className="text-[#6f6f6d] hover:text-white p-1 rounded hidden md:block"
+                      className="text-[#a1a1aa] hover:text-white p-1 rounded hidden md:block"
                       title="Collapse sidebar"
+                      aria-label="Collapse sidebar"
                     >
                       <ChevronLeft className="size-3.5" />
                     </button>
@@ -1023,6 +1025,7 @@ function NotebookPage() {
                   onClick={() => setSidebarCollapsed(false)}
                   className="text-[#a2a2a0] hover:text-white p-1 rounded bg-white/[0.04]"
                   title="Expand sidebar"
+                  aria-label="Expand sidebar"
                 >
                   <ChevronRight className="size-4" />
                 </button>
@@ -1033,9 +1036,9 @@ function NotebookPage() {
             <div className="flex-1 overflow-y-auto p-1.5 sm:p-2 space-y-3 w-full">
               <div>
                 {!sidebarCollapsed && (
-                  <div className="flex items-center justify-between px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#6f6f6d]">
+                  <div className="flex items-center justify-between px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#a1a1aa]">
                     <span>Folders</span>
-                    <ChevronDown className="size-3 text-[#6f6f6d]" />
+                    <ChevronDown className="size-3 text-[#a1a1aa]" />
                   </div>
                 )}
 
@@ -1074,7 +1077,7 @@ function NotebookPage() {
                         </div>
                         {!sidebarCollapsed && (
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="font-mono text-[10px] text-[#6f6f6d] group-hover:text-white">
+                            <span className="font-mono text-[10px] text-[#a1a1aa] group-hover:text-white">
                               {count}
                             </span>
                             {!isDefault && (
@@ -1084,8 +1087,9 @@ function NotebookPage() {
                                   e.stopPropagation();
                                   handleDeleteFolder(f);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 p-0.5 text-[#6f6f6d] hover:text-[#ff6b7d] rounded transition-opacity"
+                                className="opacity-0 group-hover:opacity-100 p-0.5 text-[#a1a1aa] hover:text-[#ff6b7d] rounded transition-opacity"
                                 title={`Delete folder "${f}"`}
+                                aria-label={`Delete folder "${f}"`}
                               >
                                 <Trash2 className="size-3" />
                               </button>
@@ -1101,9 +1105,9 @@ function NotebookPage() {
               {/* Tags Section */}
               {!sidebarCollapsed && (
                 <div>
-                  <div className="flex items-center justify-between px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#6f6f6d]">
+                  <div className="flex items-center justify-between px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#a1a1aa]">
                     <span>Tags</span>
-                    <ChevronDown className="size-3 text-[#6f6f6d]" />
+                    <ChevronDown className="size-3 text-[#a1a1aa]" />
                   </div>
                   <div className="mt-0.5 space-y-0.5">
                     {allTagsWithCount.map(([tag, count]) => (
@@ -1117,13 +1121,13 @@ function NotebookPage() {
                             setMobileView("list");
                           }
                         }}
-                        className="w-full flex items-center justify-between px-2 py-0.5 text-xs text-[#a2a2a0] hover:text-white hover:bg-white/[0.03] rounded-md transition-colors"
+                        className="w-full flex items-center justify-between px-2 py-1.5 min-h-[28px] text-xs text-[#a2a2a0] hover:text-white hover:bg-white/[0.03] rounded-md transition-colors"
                       >
                         <div className="flex items-center gap-1.5 truncate">
                           <span className="text-[#e50914] text-[10px]">#</span>
                           <span className="truncate">{tag}</span>
                         </div>
-                        <span className="font-mono text-[10px] text-[#6f6f6d] shrink-0">{count}</span>
+                        <span className="font-mono text-[10px] text-[#a1a1aa] shrink-0">{count}</span>
                       </button>
                     ))}
                   </div>
@@ -1158,6 +1162,7 @@ function NotebookPage() {
                 onClick={() => setMobileView("folders")}
                 className="md:hidden p-1.5 rounded-lg border border-white/[0.08] bg-[#17171b] text-[#a2a2a0] hover:text-white"
                 title="View folders and tags"
+                aria-label="View folders and tags"
               >
                 <Folder className="size-3.5 text-[#e50914]" />
               </button>
@@ -1186,6 +1191,7 @@ function NotebookPage() {
                 }}
                 className="p-1.5 rounded-lg border border-white/[0.08] bg-[#17171b] hover:bg-[#202026] text-[#a2a2a0] hover:text-white"
                 title={`Sort: ${sortOrder}`}
+                aria-label={`Sort notes: currently ${sortOrder}`}
               >
                 <SlidersHorizontal className="size-3.5" />
               </button>
@@ -1196,6 +1202,7 @@ function NotebookPage() {
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
+                  aria-label="Select all notes"
                   checked={
                     filteredNotes.length > 0 &&
                     filteredNotes.every((n) => selectedNoteIds.has(n.id))
@@ -1221,7 +1228,7 @@ function NotebookPage() {
             {/* Note Cards List */}
             <div className="flex-1 overflow-y-auto p-1.5 sm:p-2 space-y-1.5">
               {filteredNotes.length === 0 ? (
-                <div className="py-12 text-center text-[#6f6f6d] text-xs">
+                <div className="py-12 text-center text-[#a1a1aa] text-xs">
                   <p>No notes found in {activeFolder}</p>
                 </div>
               ) : (
@@ -1252,6 +1259,7 @@ function NotebookPage() {
                         <div className="flex items-center gap-1.5 min-w-0">
                           <input
                             type="checkbox"
+                            aria-label={`Select note ${n.title}`}
                             checked={isChecked}
                             onChange={(e) => {
                               e.stopPropagation();
@@ -1276,7 +1284,7 @@ function NotebookPage() {
                         )}
                       </div>
 
-                      <div className="mt-1 flex items-center justify-between text-[10px] text-[#6f6f6d]">
+                      <div className="mt-1 flex items-center justify-between text-[10px] text-[#a1a1aa]">
                         <span className="font-mono">{n.subDate || n.date}</span>
                         {tradesCount ? (
                           <span className="bg-white/[0.06] px-1.5 py-0.5 rounded text-[10px] text-[#a2a2a0]">
@@ -1313,8 +1321,9 @@ function NotebookPage() {
                             setSidebarCollapsed((v) => !v);
                           }
                         }}
-                        className="p-1.5 rounded-md hover:bg-white/[0.06] text-[#6f6f6d] hover:text-white shrink-0 transition-colors"
+                        className="p-1.5 rounded-md hover:bg-white/[0.06] text-[#a1a1aa] hover:text-white shrink-0 transition-colors"
                         title={sidebarCollapsed ? "Expand sidebar" : "Back to list / collapse"}
+                        aria-label={sidebarCollapsed ? "Expand sidebar" : "Back to list / collapse"}
                       >
                         <ChevronLeft className={cn("size-4 transition-transform", sidebarCollapsed && "md:rotate-180")} />
                       </button>
@@ -1327,6 +1336,7 @@ function NotebookPage() {
                         onChange={(e) => handleUpdateNote({ title: e.target.value })}
                         className="flex-1 min-w-[140px] bg-transparent font-display font-bold text-base sm:text-xl lg:text-2xl text-white focus:outline-none placeholder-[#6f6f6d]"
                         placeholder="Note Title..."
+                        aria-label="Note title"
                       />
                     </div>
 
@@ -1345,6 +1355,7 @@ function NotebookPage() {
                         <button
                           type="button"
                           onClick={() => setMoreMenuOpen((v) => !v)}
+                          aria-label="More note options"
                           className="p-1.5 rounded-lg border border-white/[0.08] bg-[#121215] text-[#a2a2a0] hover:text-white"
                         >
                           <MoreHorizontal className="size-4" />
@@ -1415,11 +1426,12 @@ function NotebookPage() {
                               {fmtCurrency(liveDayMetrics?.netPnl ?? 0)}
                             </span>
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[#6f6f6d]">
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[#a1a1aa]">
                             <div className="flex items-center gap-1.5">
                               <span className="text-[#888886]">Session Date:</span>
                               <input
                                 type="date"
+                                aria-label="Session Date"
                                 value={selectedNote.date}
                                 onChange={(e) => {
                                   const newDate = e.target.value;
@@ -1465,6 +1477,7 @@ function NotebookPage() {
                           onClick={() => setPerfCollapsed((v) => !v)}
                           className="p-1.5 rounded-lg border border-white/[0.08] bg-[#17171b] text-[#a2a2a0] hover:text-white transition-transform shrink-0"
                           title="Toggle stats collapse"
+                          aria-label="Toggle stats collapse"
                         >
                           <ChevronDown
                             className={cn(
@@ -1481,7 +1494,7 @@ function NotebookPage() {
                           {/* Intraday Cumulative P&L Area Chart */}
                           <div className="2xl:col-span-5 bg-[#070709] border border-white/[0.06] rounded-lg p-2.5 min-w-0">
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[10px] uppercase font-semibold tracking-wider text-[#6f6f6d]">
+                              <span className="text-[10px] uppercase font-semibold tracking-wider text-[#a1a1aa]">
                                 Intraday Equity Curve
                               </span>
                               <span
@@ -1596,7 +1609,7 @@ function NotebookPage() {
                   {/* Recently Used Templates & Tags */}
                   <div className="space-y-2.5">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="text-[#6f6f6d] font-medium text-[11px]">Recently used templates:</span>
+                      <span className="text-[#a1a1aa] font-medium text-[11px]">Recently used templates:</span>
                       <button
                         type="button"
                         onClick={() => insertTemplateSnippet("prep")}
@@ -1638,7 +1651,8 @@ function NotebookPage() {
                           <button
                             type="button"
                             onClick={() => handleRemoveTag(t)}
-                            className="text-[#6f6f6d] hover:text-[#ff6b7d]"
+                            className="text-[#a1a1aa] hover:text-[#ff6b7d]"
+                            aria-label={`Remove tag #${t}`}
                           >
                             ×
                           </button>
@@ -1649,6 +1663,7 @@ function NotebookPage() {
                         <input
                           type="text"
                           placeholder="+ Add tag..."
+                          aria-label="Add new tag"
                           value={newTagInput}
                           onChange={(e) => setNewTagInput(e.target.value)}
                           onKeyDown={(e) => {
@@ -1672,6 +1687,7 @@ function NotebookPage() {
                     onClick={() => insertTextAtCursor("\n")}
                     className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white"
                     title="New line"
+                    aria-label="New line"
                   >
                     <RotateCcw className="size-3.5" />
                   </button>
@@ -1682,6 +1698,7 @@ function NotebookPage() {
                     onClick={() => toast.info("Voice note dictation active")}
                     className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#e50914]"
                     title="Voice notes"
+                    aria-label="Voice notes"
                   >
                     <Mic className="size-3.5" />
                   </button>
@@ -1692,6 +1709,7 @@ function NotebookPage() {
                   <select
                     value={currentFontFamily}
                     onChange={(e) => setCurrentFontFamily(e.target.value)}
+                    aria-label="Font family"
                     className="bg-[#121215] border border-white/[0.08] text-white text-[11px] rounded px-2 py-1 focus:outline-none"
                   >
                     <option value="font-sans">IBM Plex Sans</option>
@@ -1704,6 +1722,7 @@ function NotebookPage() {
                     <button
                       type="button"
                       onClick={() => setCurrentFontSize((s) => Math.max(12, s - 1))}
+                      aria-label="Decrease font size"
                       className="px-1.5 py-0.5 hover:text-white"
                     >
                       -
@@ -1712,6 +1731,7 @@ function NotebookPage() {
                     <button
                       type="button"
                       onClick={() => setCurrentFontSize((s) => Math.min(24, s + 1))}
+                      aria-label="Increase font size"
                       className="px-1.5 py-0.5 hover:text-white"
                     >
                       +
@@ -1726,6 +1746,7 @@ function NotebookPage() {
                     onClick={() => wrapTextSelection("**")}
                     className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white font-bold text-xs"
                     title="Bold"
+                    aria-label="Bold text"
                   >
                     B
                   </button>
@@ -1734,6 +1755,7 @@ function NotebookPage() {
                     onClick={() => wrapTextSelection("*")}
                     className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white italic text-xs"
                     title="Italic"
+                    aria-label="Italic text"
                   >
                     I
                   </button>
@@ -1742,6 +1764,7 @@ function NotebookPage() {
                     onClick={() => wrapTextSelection("<u>", "</u>")}
                     className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white underline text-xs"
                     title="Underline"
+                    aria-label="Underline text"
                   >
                     U
                   </button>
@@ -1750,6 +1773,7 @@ function NotebookPage() {
                     onClick={() => wrapTextSelection("`")}
                     className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white font-mono text-xs"
                     title="Code"
+                    aria-label="Code block"
                   >
                     &lt;&gt;
                   </button>
@@ -1761,6 +1785,7 @@ function NotebookPage() {
                     onClick={() => wrapTextSelection('<span style="color:#e50914">', "</span>")}
                     className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#e50914] font-bold text-xs"
                     title="Crimson Highlight"
+                    aria-label="Crimson highlight"
                   >
                     A
                   </button>
@@ -1769,13 +1794,14 @@ function NotebookPage() {
                     onClick={() => wrapTextSelection('<span style="color:#3ddc84">', "</span>")}
                     className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#3ddc84] font-bold text-xs"
                     title="Profit Green Highlight"
+                    aria-label="Green highlight"
                   >
                     A
                   </button>
 
                   <span className="flex-1" />
 
-                  <div className="text-[11px] text-[#6f6f6d] hidden md:flex items-center gap-1 font-mono">
+                  <div className="text-[11px] text-[#a1a1aa] hidden md:flex items-center gap-1 font-mono">
                     <span>press</span>
                     <kbd className="px-1.5 py-0.5 rounded bg-[#17171b] border border-white/[0.1] text-white text-[10px]">
                       /
@@ -1792,6 +1818,7 @@ function NotebookPage() {
                     }}
                     className="p-1.5 rounded hover:bg-[#ff6b7d]/20 hover:text-[#ff6b7d] ml-1"
                     title="Clear content"
+                    aria-label="Clear content"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
@@ -1802,12 +1829,13 @@ function NotebookPage() {
                   {/* Floating Slash Commands Menu */}
                   {slashMenuOpen && (
                     <div className="absolute top-4 left-8 z-50 w-72 bg-[#121215] border border-white/[0.14] rounded-xl shadow-2xl overflow-hidden text-xs">
-                      <div className="p-2 border-b border-white/[0.08] bg-[#0c0c0e] text-[10px] uppercase font-semibold text-[#6f6f6d] tracking-wider flex items-center justify-between">
+                      <div className="p-2 border-b border-white/[0.08] bg-[#0c0c0e] text-[10px] uppercase font-semibold text-[#a1a1aa] tracking-wider flex items-center justify-between">
                         <span>Insert ICT Block / Format</span>
                         <button
                           type="button"
                           onClick={() => setSlashMenuOpen(false)}
-                          className="text-[#6f6f6d] hover:text-white"
+                          aria-label="Close slash commands menu"
+                          className="text-[#a1a1aa] hover:text-white"
                         >
                           <X className="size-3" />
                         </button>
@@ -1826,7 +1854,7 @@ function NotebookPage() {
                           </span>
                           <div>
                             <p className="font-medium text-white leading-tight">Heading 1</p>
-                            <p className="text-[10px] text-[#6f6f6d]">Big section headline</p>
+                            <p className="text-[10px] text-[#a1a1aa]">Big section headline</p>
                           </div>
                         </button>
                         <button
@@ -1842,7 +1870,7 @@ function NotebookPage() {
                           </span>
                           <div>
                             <p className="font-medium text-white leading-tight">ICT Rule Confluence Check</p>
-                            <p className="text-[10px] text-[#6f6f6d]">Checklist for HTF bias &amp; kill zone</p>
+                            <p className="text-[10px] text-[#a1a1aa]">Checklist for HTF bias &amp; kill zone</p>
                           </div>
                         </button>
                         <button
@@ -1858,7 +1886,7 @@ function NotebookPage() {
                           </span>
                           <div>
                             <p className="font-medium text-white leading-tight">Psychology / Warning Callout</p>
-                            <p className="text-[10px] text-[#6f6f6d]">Highlighted execution warning</p>
+                            <p className="text-[10px] text-[#a1a1aa]">Highlighted execution warning</p>
                           </div>
                         </button>
                         <button
@@ -1874,7 +1902,7 @@ function NotebookPage() {
                           </span>
                           <div>
                             <p className="font-medium text-white leading-tight">Session Tape Timeline</p>
-                            <p className="text-[10px] text-[#6f6f6d]">Timestamped candle breakdown</p>
+                            <p className="text-[10px] text-[#a1a1aa]">Timestamped candle breakdown</p>
                           </div>
                         </button>
                       </div>
@@ -1897,7 +1925,7 @@ function NotebookPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full py-24 text-center text-[#a2a2a0]">
-                <Calendar className="size-10 text-[#6f6f6d]" />
+                <Calendar className="size-10 text-[#a1a1aa]" />
                 <h3 className="mt-3 text-lg font-semibold text-white">No note selected</h3>
                 <p className="mt-1 text-xs text-[#a2a2a0]">
                   Select an entry from the list or create a new trading log.

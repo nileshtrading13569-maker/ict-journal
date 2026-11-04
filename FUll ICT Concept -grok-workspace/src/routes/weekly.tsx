@@ -130,6 +130,7 @@ function Editor({ week, onSave }: { week: WeeklyNarrative; onSave: (w: WeeklyNar
                 <span className="text-xs font-medium">{type}</span>
                 <Input
                   inputMode="decimal"
+                  aria-label={`${type} price level`}
                   value={row?.price ?? ""}
                   onChange={(e) =>
                     patchLiq(type, { price: e.target.value === "" ? null : Number(e.target.value) })
@@ -137,6 +138,7 @@ function Editor({ week, onSave }: { week: WeeklyNarrative; onSave: (w: WeeklyNar
                 />
                 <button
                   type="button"
+                  aria-label={`Toggle ${type} status: currently ${row?.status === "taken" ? "taken" : "untouched"}`}
                   className="h-9 rounded-full px-3 text-xs shadow-border"
                   onClick={() =>
                     patchLiq(type, { status: row?.status === "taken" ? "untouched" : "taken" })
@@ -185,7 +187,7 @@ function Editor({ week, onSave }: { week: WeeklyNarrative; onSave: (w: WeeklyNar
           </Field>
         </div>
       </Panel>
-      <p className="text-xs text-subtle">Autosaved. Extra types: {LIQUIDITY_TYPES.length} liquidity objects in the journal.</p>
+      <p className="text-xs text-[#a1a1aa]">Autosaved. Extra types: {LIQUIDITY_TYPES.length} liquidity objects in the journal.</p>
     </div>
   );
 }

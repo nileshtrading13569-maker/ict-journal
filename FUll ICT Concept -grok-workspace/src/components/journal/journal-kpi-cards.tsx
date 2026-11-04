@@ -68,7 +68,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
       >
         <div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold tracking-wider text-[#71717a] uppercase">
+            <span className="text-[10px] font-semibold tracking-wider text-[#a1a1aa] uppercase">
               NET P&amp;L
             </span>
             {kpis.netPnL >= 0 ? (
@@ -98,7 +98,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
             >
               {kpis.cumulativeRFormatted}
             </span>
-            <span className="text-[#71717a]">Cumulative</span>
+            <span className="text-[#a1a1aa]">Cumulative</span>
           </div>
         </div>
         <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-neutral-800/80">
@@ -119,7 +119,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
       >
         <div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold tracking-wider text-[#71717a] uppercase">
+            <span className="text-[10px] font-semibold tracking-wider text-[#a1a1aa] uppercase">
               WIN RATE
             </span>
             <PieChart className="size-3.5 text-neutral-500" />
@@ -164,7 +164,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
       >
         <div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold tracking-wider text-[#71717a] uppercase">
+            <span className="text-[10px] font-semibold tracking-wider text-[#a1a1aa] uppercase">
               PROFIT FACTOR
             </span>
             <Scale className="size-3.5 text-neutral-500" />
@@ -174,7 +174,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
           </div>
           <div className="mt-1 flex items-center gap-1 text-[11px] font-mono">
             <span className="text-emerald-400 font-medium">{formatKPIPnL(kpis.grossProfit)}</span>
-            <span className="text-[#71717a]">vs</span>
+            <span className="text-[#a1a1aa]">vs</span>
             <span className="text-red-400 font-medium">{grossLossFormatted}</span>
           </div>
         </div>
@@ -193,7 +193,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
       >
         <div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold tracking-wider text-[#71717a] uppercase">
+            <span className="text-[10px] font-semibold tracking-wider text-[#a1a1aa] uppercase">
               AVG REALIZED R
             </span>
             <Layers className="size-3.5 text-neutral-500" />
@@ -211,7 +211,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
             {formatKPIR(kpis.avgRealizedR)}
           </div>
           <div className="mt-1 flex items-center gap-1 text-[11px]">
-            <span className="text-[#71717a]">Planned R:</span>
+            <span className="text-[#a1a1aa]">Planned R:</span>
             <span className="font-mono text-[#d6d6d4]">
               {kpis.plannedR > 0 ? `${kpis.plannedR.toFixed(2)}R` : "2.35R"}
             </span>
@@ -232,7 +232,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
       >
         <div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold tracking-wider text-[#71717a] uppercase">
+            <span className="text-[10px] font-semibold tracking-wider text-[#a1a1aa] uppercase">
               EXPECTANCY
             </span>
             <Coins className="size-3.5 text-neutral-500" />
@@ -249,7 +249,7 @@ export function JournalKpiCards({ trades, className }: JournalKpiCardsProps) {
           >
             {formatKPIPnL(kpis.expectancy)}
           </div>
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-[#71717a]">
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-[#a1a1aa]">
             <span>Per execution edge</span>
           </div>
         </div>

@@ -68,7 +68,13 @@ function JournalPage() {
     });
   }, [trades]);
 
-  const selectedIndex = selectedTrade ? sortedTrades.findIndex((t) => t.id === selectedTrade.id) : -1;
+  const selectedTradeId = selectedTrade?.id ?? null;
+  const liveSelectedTrade = useDeskStore((s) =>
+    selectedTradeId ? (s.trades.find((t) => t.id === selectedTradeId) ?? null) : null,
+  );
+  const selectedIndex = liveSelectedTrade
+    ? sortedTrades.findIndex((t) => t.id === liveSelectedTrade.id)
+    : -1;
   const hasPrev = selectedIndex > 0;
   const hasNext = selectedIndex !== -1 && selectedIndex < sortedTrades.length - 1;
 
@@ -145,7 +151,7 @@ function JournalPage() {
             <h1 className="font-serif text-3xl font-semibold tracking-tight text-white sm:text-[34px]">
               Journal
             </h1>
-            <span className="text-[11px] font-medium tracking-widest text-[#71717a] uppercase">
+            <span className="text-[11px] font-medium tracking-widest text-[#a1a1aa] uppercase">
               PROP DESK · {activePeriodLabel}
             </span>
           </div>
@@ -157,6 +163,7 @@ function JournalPage() {
               <input
                 ref={fileInputRef}
                 type="file"
+                aria-label="Upload CSV trade log"
                 accept=".csv,text/csv"
                 onChange={handleCsvFileChange}
                 className="hidden"
@@ -183,7 +190,7 @@ function JournalPage() {
             </div>
 
             {/* Auto-Sync Status Indicator */}
-            <div className="flex items-center gap-1.5 text-[11px] text-[#71717a]">
+            <div className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -203,31 +210,31 @@ function JournalPage() {
           <TabsList className="flex h-10 items-end gap-6 border-b border-white/[0.07] bg-transparent p-0 text-[11px] font-semibold tracking-[0.14em] uppercase">
             <TabsTrigger
               value="all"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#71717a] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
             >
               ALL <span className="font-mono ml-1 text-[#a2a2a0]">{trades.length}</span>
             </TabsTrigger>
             <TabsTrigger
               value="day"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#71717a] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
             >
               DAY
             </TabsTrigger>
             <TabsTrigger
               value="calendar"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#71717a] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
             >
               CALENDAR
             </TabsTrigger>
             <TabsTrigger
               value="quarter"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#71717a] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
             >
               QUARTER
             </TabsTrigger>
             <TabsTrigger
               value="missed"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#71717a] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
+              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
             >
               MISSED <span className="font-mono ml-1 text-[#a2a2a0]">{missed.length}</span>
             </TabsTrigger>
@@ -294,9 +301,9 @@ function JournalPage() {
       </div>
 
       {/* Trade Inspector Side Panel */}
-      {selectedTrade && (
+      {liveSelectedTrade && (
         <TradeInspector
-          trade={selectedTrade}
+          trade={liveSelectedTrade}
           onClose={() => setSelectedTrade(null)}
           onEdit={openEditTrade}
           onPrev={handlePrevTrade}
@@ -312,7 +319,7 @@ function JournalPage() {
         onOpenChange={setTradeFormOpen}
         trade={editingTrade}
         onSaved={(saved) => {
-          if (selectedTrade?.id === saved.id) {
+          if (selectedTradeId === saved.id) {
             setSelectedTrade(saved);
           }
         }}

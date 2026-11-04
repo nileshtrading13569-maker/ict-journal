@@ -26,7 +26,7 @@ export function PageHeader({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-[10px] font-semibold tracking-[0.18em] text-accent uppercase">{eyebrow}</span>
+            <span className="text-[10px] font-semibold tracking-[0.18em] text-[#ff6b7d] uppercase">{eyebrow}</span>
             {aside}
           </div>
           <h1 className="mt-2 font-display text-4xl leading-[1.05] tracking-tight text-foreground sm:text-5xl">

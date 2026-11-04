@@ -41,7 +41,7 @@ export function Field({
         {label}
       </Label>
       {child}
-      {hint ? <span className="text-xs text-subtle">{hint}</span> : null}
+      {hint ? <span className="text-xs text-[#a1a1aa]">{hint}</span> : null}
     </div>
   );
 }
@@ -123,7 +123,7 @@ export function Panel({
         <header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4 sm:px-6">
           <div className="min-w-0">
             {kicker ? (
-              <p className="text-[10px] font-semibold tracking-[0.16em] text-accent uppercase">{kicker}</p>
+              <p className="text-[10px] font-semibold tracking-[0.16em] text-[#ff6b7d] uppercase">{kicker}</p>
             ) : null}
             {title ? (
               <h2 className="mt-1 font-display text-2xl font-normal leading-tight tracking-wide text-foreground">

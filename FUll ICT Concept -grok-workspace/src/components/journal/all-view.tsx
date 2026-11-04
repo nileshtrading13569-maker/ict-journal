@@ -230,7 +230,7 @@ export function AllView({
         <div className="flex flex-wrap items-center gap-3">
           {/* Instant Search Bar */}
           <div className="flex h-10 w-80 items-center gap-2 rounded-lg border border-neutral-800/80 bg-[#141416] px-3 text-sm text-white">
-            <Search className="size-4 text-[#71717a] shrink-0" />
+            <Search className="size-4 text-[#a1a1aa] shrink-0" />
             <input
               type="text"
               placeholder="Search symbol, playbook, tag, notes..."
@@ -239,7 +239,7 @@ export function AllView({
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full bg-transparent text-sm placeholder-[#71717a] outline-none"
+              className="w-full bg-transparent text-sm placeholder-[#a1a1aa] outline-none"
             />
           </div>
 
@@ -311,7 +311,7 @@ export function AllView({
 
       {/* 15-Column Table Section */}
       <section className="relative overflow-hidden rounded-xl border border-neutral-800/80 bg-[#0c0c0e]">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent" tabIndex={0} role="region" aria-label="Trade journal table">
           <table className="w-full min-w-[1024px] table-fixed text-[13px]">
             <colgroup>
               {/* 1. Checkbox */}
@@ -348,7 +348,7 @@ export function AllView({
 
             {/* Header Row (15 Columns) */}
             <thead>
-              <tr className="h-10 border-b border-white/[0.07] bg-[#101012] text-left text-[10px] font-semibold tracking-[0.12em] text-[#71717a] uppercase">
+              <tr className="h-10 border-b border-white/[0.07] bg-[#101012] text-left text-[10px] font-semibold tracking-[0.12em] text-[#a1a1aa] uppercase">
                 {/* 1. Master Checkbox */}
                 <th className="px-3 text-center">
                   <div
@@ -401,7 +401,7 @@ export function AllView({
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-14 text-center text-sm text-[#71717a]">
+                  <td colSpan={15} className="py-14 text-center text-sm text-[#a1a1aa]">
                     {trades.length === 0
                       ? "No trades recorded yet. Click '+ Log trade' to add your first execution."
                       : "No trades match the current search or date filter."}
@@ -480,7 +480,7 @@ export function AllView({
                         <div className="text-[12px] font-medium text-white">
                           {formatOpenDateTime(trade.date, trade.time)}
                         </div>
-                        <div className="text-[11px] text-[#71717a]">{holdDuration}</div>
+                        <div className="text-[11px] text-[#a1a1aa]">{holdDuration}</div>
                       </td>
 
                       {/* 3. SYMBOL */}
@@ -610,7 +610,7 @@ export function AllView({
                               </span>
                             ))
                           ) : (
-                            <span className="text-[11px] text-[#71717a]">—</span>
+                            <span className="text-[11px] text-[#a1a1aa]">—</span>
                           )}
                         </div>
                       </td>
@@ -665,7 +665,7 @@ export function AllView({
         </div>
 
         {/* Pagination Footer */}
-        <div className="flex h-11 items-center justify-between border-t border-white/[0.07] bg-[#101012] px-4 text-xs text-[#71717a]">
+        <div className="flex h-11 items-center justify-between border-t border-white/[0.07] bg-[#101012] px-4 text-xs text-[#a1a1aa]">
           <div className="font-mono">
             {filteredTrades.length === 0 ? (
               <span>Showing 0–0 of 0 logged trades</span>

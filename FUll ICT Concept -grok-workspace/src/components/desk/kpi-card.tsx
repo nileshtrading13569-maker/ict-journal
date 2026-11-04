@@ -49,7 +49,7 @@ export function KpiCard({ label, value, hint, icon: Icon, variant = "default", c
             variant === "up" ? "bg-up" : variant === "down" ? "bg-down" : "bg-accent",
           )}
         />
-        <p className="truncate text-[11px] font-medium text-subtle">{hint}</p>
+        <p className="truncate text-[11px] font-medium text-[#a1a1aa]">{hint}</p>
       </div>
     </div>
   );

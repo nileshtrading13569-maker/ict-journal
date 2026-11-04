@@ -1,0 +1,950 @@
+{
+  "timestamp": "2026-11-03T16:57:44.825Z",
+  "routesAudited": [
+    {
+      "path": "/login",
+      "name": "login",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/login_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/login_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/login_desktop.png"
+        }
+      },
+      "axeViolations": []
+    },
+    {
+      "path": "/",
+      "name": "today_overview",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 2,
+            "critical": 0,
+            "serious": 2,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 2,
+                "targets": [
+                  ".text-accent\\/80",
+                  ".fixed > .active[aria-current=\"page\"][href=\"/\"]"
+                ]
+              },
+              {
+                "id": "target-size",
+                "impact": "serious",
+                "description": "Ensure touch targets have sufficient size and space",
+                "help": "All touch targets must be 24px large, or leave sufficient space",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/target-size?application=axeAPI",
+                "nodesCount": 105,
+                "targets": [
+                  ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(1)",
+                  ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(2)",
+                  ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(3)"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/today_overview_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/today_overview_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 2,
+            "critical": 0,
+            "serious": 2,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 1,
+                "targets": [
+                  ".text-accent\\/80"
+                ]
+              },
+              {
+                "id": "target-size",
+                "impact": "serious",
+                "description": "Ensure touch targets have sufficient size and space",
+                "help": "All touch targets must be 24px large, or leave sufficient space",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/target-size?application=axeAPI",
+                "nodesCount": 178,
+                "targets": [
+                  ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(1)",
+                  ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(2)",
+                  ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(3)"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/today_overview_desktop.png"
+        }
+      },
+      "axeViolations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+          "nodesCount": 1,
+          "targets": [
+            ".text-accent\\/80"
+          ]
+        },
+        {
+          "id": "target-size",
+          "impact": "serious",
+          "description": "Ensure touch targets have sufficient size and space",
+          "help": "All touch targets must be 24px large, or leave sufficient space",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/target-size?application=axeAPI",
+          "nodesCount": 178,
+          "targets": [
+            ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(1)",
+            ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(2)",
+            ".w-3.gap-1.flex-col:nth-child(1) > .bg-white\\/\\[0\\.04\\].before\\:-inset-1\\.5.before\\:content-\\[\\'\\'\\]:nth-child(3)"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/journal",
+      "name": "journal",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 1,
+            "critical": 0,
+            "serious": 1,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 1,
+                "targets": [
+                  ".text-accent.active[aria-current=\"page\"]"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/journal_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/journal_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/journal_desktop.png"
+        }
+      },
+      "axeViolations": []
+    },
+    {
+      "path": "/playbook",
+      "name": "playbook",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 1,
+            "critical": 0,
+            "serious": 1,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 3,
+                "targets": [
+                  ".text-\\[\\#666666\\]:nth-child(4)",
+                  ".gap-3.items-center.flex > div:nth-child(2) > p",
+                  "#radix-_r_j_"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/playbook_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/playbook_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 1,
+            "critical": 0,
+            "serious": 1,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 6,
+                "targets": [
+                  ".hover\\:bg-white\\/\\[0\\.03\\]:nth-child(1) > .text-\\[11px\\].text-right > .text-white\\/20",
+                  ".hover\\:bg-white\\/\\[0\\.03\\]:nth-child(2) > .text-\\[11px\\].text-right > .text-white\\/20",
+                  ".hover\\:bg-white\\/\\[0\\.03\\]:nth-child(3) > .text-\\[11px\\].text-right > .text-white\\/20"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/playbook_desktop.png"
+        }
+      },
+      "axeViolations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+          "nodesCount": 6,
+          "targets": [
+            ".hover\\:bg-white\\/\\[0\\.03\\]:nth-child(1) > .text-\\[11px\\].text-right > .text-white\\/20",
+            ".hover\\:bg-white\\/\\[0\\.03\\]:nth-child(2) > .text-\\[11px\\].text-right > .text-white\\/20",
+            ".hover\\:bg-white\\/\\[0\\.03\\]:nth-child(3) > .text-\\[11px\\].text-right > .text-white\\/20"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/weekly-profile",
+      "name": "weekly_profile",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/weekly_profile_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/weekly_profile_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/weekly_profile_desktop.png"
+        }
+      },
+      "axeViolations": []
+    },
+    {
+      "path": "/weekly",
+      "name": "weekly",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 1,
+            "critical": 0,
+            "serious": 1,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 1,
+                "targets": [
+                  ".text-accent.active[aria-current=\"page\"]"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/weekly_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/weekly_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/weekly_desktop.png"
+        }
+      },
+      "axeViolations": []
+    },
+    {
+      "path": "/daily",
+      "name": "daily",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/daily_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/daily_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/daily_desktop.png"
+        }
+      },
+      "axeViolations": []
+    },
+    {
+      "path": "/analytics",
+      "name": "analytics",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 2,
+            "critical": 0,
+            "serious": 2,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 1,
+                "targets": [
+                  ".fixed > .active[aria-current=\"page\"][href$=\"analytics\"]"
+                ]
+              },
+              {
+                "id": "scrollable-region-focusable",
+                "impact": "serious",
+                "description": "Ensure elements that have scrollable content are accessible by keyboard in Safari",
+                "help": "Scrollable region must have keyboard access",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/scrollable-region-focusable?application=axeAPI",
+                "nodesCount": 1,
+                "targets": [
+                  ".mb-6.before\\:via-accent\\/60:nth-child(7) > .p-5.sm\\:p-6 > .overflow-x-auto"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/analytics_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/analytics_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/analytics_desktop.png"
+        }
+      },
+      "axeViolations": []
+    },
+    {
+      "path": "/notebook",
+      "name": "notebook",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/notebook_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/notebook_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/notebook_desktop.png"
+        }
+      },
+      "axeViolations": []
+    },
+    {
+      "path": "/protocol",
+      "name": "protocol",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 1,
+            "critical": 0,
+            "serious": 1,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 1,
+                "targets": [
+                  "#radix-_r_0_"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/protocol_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/protocol_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/protocol_desktop.png"
+        }
+      },
+      "axeViolations": []
+    },
+    {
+      "path": "/replay",
+      "name": "replay",
+      "consoleErrors": [],
+      "networkFailures": [],
+      "viewports": {
+        "mobile": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 375,
+            "viewportWidth": 375,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 1,
+            "critical": 0,
+            "serious": 1,
+            "moderate": 0,
+            "minor": 0,
+            "violations": [
+              {
+                "id": "color-contrast",
+                "impact": "serious",
+                "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+                "help": "Elements must meet minimum color contrast ratio thresholds",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+                "nodesCount": 1,
+                "targets": [
+                  "#radix-_r_0_"
+                ]
+              }
+            ]
+          },
+          "screenshot": "screenshots/qa/replay_mobile.png"
+        },
+        "tablet": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 768,
+            "viewportWidth": 768,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": null,
+          "screenshot": "screenshots/qa/replay_tablet.png"
+        },
+        "desktop": {
+          "overflow": {
+            "hasOverflow": false,
+            "scrollW": 1440,
+            "viewportWidth": 1440,
+            "offenders": []
+          },
+          "vitals": {
+            "cls": 0
+          },
+          "a11ySummary": {
+            "total": 0,
+            "critical": 0,
+            "serious": 0,
+            "moderate": 0,
+            "minor": 0,
+            "violations": []
+          },
+          "screenshot": "screenshots/qa/replay_desktop.png"
+        }
+      },
+      "axeViolations": []
+    }
+  ],
+  "interactions": [
+    {
+      "name": "Sidebar Navigation",
+      "status": "PASS",
+      "foundCount": 15,
+      "sample": [
+        {
+          "href": "/",
+          "text": "Today"
+        },
+        {
+          "href": "/weekly",
+          "text": "Weekly"
+        },
+        {
+          "href": "/weekly",
+          "text": "Dealing Range Map"
+        },
+        {
+          "href": "/weekly-profile",
+          "text": "Weekly Profile"
+        },
+        {
+          "href": "/daily",
+          "text": "Daily"
+        },
+        {
+          "href": "/playbook",
+          "text": "Playbook"
+        },
+        {
+          "href": "/notebook",
+          "text": "Notebook"
+        },
+        {
+          "href": "/journal",
+          "text": "Journal"
+        },
+        {
+          "href": "/replay",
+          "text": "Replay"
+        }
+      ]
+    },
+    {
+      "name": "Log Trade Modal",
+      "status": "PASS",
+      "opened": true,
+      "dismissedViaEsc": true,
+      "hasScrollableContent": false
+    },
+    {
+      "name": "Mobile Navigation Bar",
+      "status": "PASS",
+      "bottomNavRendered": true,
+      "moreMenuToggleable": true
+    }
+  ],
+  "summary": {
+    "totalRoutes": 11,
+    "viewports": [
+      "mobile (375x667)",
+      "tablet (768x1024)",
+      "desktop (1440x900)"
+    ],
+    "totalViolations": 3,
+    "criticalA11y": 0,
+    "seriousA11y": 3,
+    "moderateA11y": 0,
+    "minorA11y": 0,
+    "overflowIssues": 0,
+    "consoleErrorsTotal": 0
+  },
+  "verdict": "SHIP WITH FIXES"
+}

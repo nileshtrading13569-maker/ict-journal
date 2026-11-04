@@ -147,7 +147,7 @@ function Home() {
                     {Math.round(progress)}%
                   </span>
                 </div>
-                <Progress value={progress} />
+                <Progress aria-label={`${milestone}% payout milestone target`} value={progress} />
               </div>
             );
           })}
@@ -223,7 +223,7 @@ function Home() {
             <span className="text-muted-foreground">Daily loss used</span>
             <span className="font-mono text-foreground">{lossUsedPct}%</span>
           </div>
-          <Progress value={lossUsedPct} />
+          <Progress aria-label="Daily loss limit used percentage" value={lossUsedPct} />
         </div>
       </Panel>
 
@@ -391,7 +391,7 @@ function Home() {
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div className="rounded-md border border-white/[0.05] bg-white/[0.02] px-2.5 py-2">
-      <dt className="text-[9px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">{k}</dt>
+      <dt className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">{k}</dt>
       <dd className="mt-0.5 truncate text-[13px] font-medium text-foreground capitalize">{v}</dd>
     </div>
   );
