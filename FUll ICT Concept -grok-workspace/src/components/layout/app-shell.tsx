@@ -61,7 +61,6 @@ const MOBILE = [
 ] as const;
 
 const MOBILE_MORE = [
-  { to: "/weekly-profile", label: "Weekly Profile" },
   { to: "/daily", label: "Daily map" },
   { to: "/playbook", label: "Playbook" },
   { to: "/notebook", label: "Notebook" },
@@ -79,8 +78,6 @@ export function AppShell({
   contentClassName?: string;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isWeekly = pathname === "/weekly" || pathname === "/weekly-profile";
-  const isWeeklyProfile = pathname === "/weekly-profile";
   const navigate = useNavigate();
   const phaseId = useDeskStore((s) => s.phaseId);
   const phases = useDeskStore((s) => s.phases);
@@ -152,88 +149,44 @@ export function AppShell({
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-1 -mx-2 px-2">
+                <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-1 -mx-2 px-2">
           {NAV.map((item) => {
-            const active = pathname === item.to || (item.to === "/weekly" && pathname === "/weekly-profile");
+            const active = pathname === item.to;
             return (
-              <div key={item.to} className="relative flex w-full flex-col">
-                <div className="relative flex w-full items-center">
-                  <Link
-                    to={item.to}
-                    title={!sidebarExpanded ? item.label : undefined}
-                    aria-label={item.label}
-                    aria-current={active ? "page" : undefined}
+              <div key={item.to} className="relative flex w-full items-center">
+                <Link
+                  to={item.to}
+                  title={!sidebarExpanded ? item.label : undefined}
+                  aria-label={item.label}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "group relative flex h-10 w-full items-center rounded-full border transition-[border-color,background-color,color,box-shadow] duration-200",
+                    active
+                      ? "border-accent/40 bg-accent/15 text-white font-semibold shadow-[0_0_24px_color-mix(in_srgb,var(--color-accent,#d946ef)_25%,transparent),inset_0_1px_1px_rgba(255,255,255,0.2)]"
+                      : "border-transparent text-zinc-400 hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-white",
+                  )}
+                >
+                  <div className="flex size-10 shrink-0 items-center justify-center">
+                    <item.icon
+                      className={cn(
+                        "size-[18px] shrink-0 transition-colors duration-200",
+                        active ? "text-white" : "text-zinc-400 group-hover:text-white",
+                      )}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <span
                     className={cn(
-                      "group relative flex h-10 w-full items-center rounded-full border transition-[border-color,background-color,color,box-shadow] duration-200",
-                      active
-                        ? "border-accent/40 bg-accent/15 text-white font-semibold shadow-[0_0_24px_color-mix(in_srgb,var(--color-accent,#d946ef)_25%,transparent),inset_0_1px_1px_rgba(255,255,255,0.2)]"
-                        : "border-transparent text-zinc-400 hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-white",
+                      "min-w-0 overflow-hidden whitespace-nowrap text-[13px] leading-none transition-[max-width,opacity,transform,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,opacity]",
+                      sidebarExpanded
+                        ? "max-w-[160px] opacity-100 translate-x-0 pr-2"
+                        : "max-w-0 opacity-0 -translate-x-3 pointer-events-none pr-0",
+                      active ? "font-semibold text-white" : "font-medium text-zinc-400 group-hover:text-white",
                     )}
                   >
-                    <div className="flex size-10 shrink-0 items-center justify-center">
-                      <item.icon
-                        className={cn(
-                          "size-[18px] shrink-0 transition-colors duration-200",
-                          active ? "text-white" : "text-zinc-400 group-hover:text-white",
-                        )}
-                        aria-hidden="true"
-                      />
-                    </div>
-                    <span
-                      className={cn(
-                        "min-w-0 overflow-hidden whitespace-nowrap text-[13px] leading-none transition-[max-width,opacity,transform,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,opacity]",
-                        sidebarExpanded
-                          ? "max-w-[160px] opacity-100 translate-x-0 pr-2"
-                          : "max-w-0 opacity-0 -translate-x-3 pointer-events-none pr-0",
-                        active ? "font-semibold text-white" : "font-medium text-zinc-400 group-hover:text-white",
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                  </Link>
-                </div>
-                {item.to === "/weekly" && sidebarExpanded ? (
-                  <div className="mt-1 flex flex-col pl-7 pr-1">
-                    <div className="flex flex-col border-l border-white/[0.1] pl-2.5 gap-1">
-                      <Link
-                        to="/weekly"
-                        className={cn(
-                          "group relative flex h-7 items-center justify-between rounded-md px-2 text-[11px] transition-colors",
-                          pathname === "/weekly"
-                            ? "bg-accent/15 text-white font-medium border border-accent/30"
-                            : "text-zinc-400 hover:text-white hover:bg-white/[0.04]",
-                        )}
-                      >
-                        <span>Dealing Range Map</span>
-                        {pathname === "/weekly" ? (
-                          <span className="size-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--color-accent,#d946ef)]" />
-                        ) : null}
-                      </Link>
-                      <Link
-                        to="/weekly-profile"
-                        className={cn(
-                          "group relative flex h-7 items-center justify-between rounded-md px-2 text-[11px] transition-colors",
-                          pathname === "/weekly-profile"
-                            ? "bg-[#e50914]/15 text-white font-medium border border-[#e50914]/30"
-                            : "text-zinc-400 hover:text-white hover:bg-white/[0.04]",
-                        )}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={cn(
-                              "size-1.5 rounded-full",
-                              pathname === "/weekly-profile" ? "bg-[#e50914] shadow-[0_0_8px_#e50914]" : "bg-zinc-600",
-                            )}
-                          />
-                          <span>Weekly Profile</span>
-                        </div>
-                        {pathname === "/weekly-profile" ? (
-                          <span className="font-mono text-[9px] uppercase tracking-wider text-[#ff6b7d] font-bold">Active</span>
-                        ) : null}
-                      </Link>
-                    </div>
-                  </div>
-                ) : null}
+                    {item.label}
+                  </span>
+                </Link>
               </div>
             );
           })}
@@ -359,19 +312,7 @@ export function AppShell({
               </Badge>
             </div>
           </div>
-          {isWeeklyProfile ? (
-            <>
-              <div className="hidden md:flex items-center gap-2 rounded-md border border-[#f5b942]/30 bg-[#f5b942]/10 px-2.5 py-1">
-                <span className="font-mono text-[11px] font-semibold text-[#f5b942]">Au · XAUUSD</span>
-                <span className="text-[10px] text-zinc-400">Spot Gold · Dealing Range</span>
-              </div>
-              <div className="hidden lg:flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#11161d] px-2.5 py-1.5 text-[12px] text-zinc-300">
-                <Layers className="size-3.5 text-[#2979ff]" />
-                <span className="font-mono text-[11px]">ICT Confluences:</span>
-                <span className="font-mono font-semibold text-[#00c853]">4/4 Match</span>
-              </div>
-            </>
-          ) : null}
+          
           <Button
             variant="ghost"
             size="icon-sm"
@@ -405,7 +346,7 @@ export function AppShell({
               aria-hidden="true"
             />
             <span className="hidden sm:inline">
-              {isWeeklyProfile && syncStatus === "saved" ? "Cloud sync active" : syncLabel}
+              {syncLabel}
             </span>
           </span>
           <Button
