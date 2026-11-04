@@ -1,82 +1,56 @@
-# Project: Journal Page Production Redesign & Neon Postgres Persistence
+# Project: Curated Font Pairings & Settings Persistence
 
 ## Architecture
-- **Application Framework**: TanStack Start / React 19 / Vite / Nitro SSR
-- **State Management**: Zustand (`useDeskStore`) with debounced server synchronization (`syncDeskToServer()`)
-- **Database & Persistence**: Neon Postgres (`@neondatabase/serverless` / `pg.Pool`) with PGLite fallback for local/CI tests
-- **Storage Policy**: 100% Zero-Filesystem Storage (all data persists to `google_user_databases` and `user_desk_state` tables via JSONB)
-- **UI Architecture**: Tailwind CSS, Radix UI primitives, Lucide icons, custom responsive cards and tables matching reference screenshots
+- **Application Framework**: TanStack Start / React 19 / Vite 8 / Tailwind CSS v4 / Nitro SSR
+- **Application Root**: `FUll ICT Concept -grok-workspace/`
+- **Global Typography System**: `src/styles.css` defines base `--font-sans` (`IBM Plex Sans`) and `--font-display` (`Plus Jakarta Sans`)
+- **Dynamic Typography Engine**: `src/lib/font-themes.ts` manages font theme definitions, Google Fonts dynamic stylesheet link injection, CSS variable overrides (`--font-display` and `--font-sans` on `document.documentElement`), and font preview preloading
+- **UI Settings Sheet**: `src/components/desk/settings-sheet.tsx` renders settings drawer with typography selection
+- **Hydration & Persistence**: Client `localStorage` via key `first-payout-font-theme-v1` (`FONT_STORAGE_KEY`) rehydrated on mount by `src/components/desk/desk-provider.tsx`
 
 ## Feature Inventory
+Every feature from the Survey phase appears here with its assigned milestone:
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Neon SQL Migration | Migration `0005_journal_indexes.sql` for GIN indexing on `trade_history` and `desk_state` | M1 | explorer_survey_2 |
-| 2 | Zero-FS Persistence Invariant | Strict persistence to Neon Postgres surviving reloads and restarts without filesystem writes | M1 | explorer_survey_2 |
-| 3 | Prop Win Rate Formula | Win Rate calculated as W / (W + L), excluding BE from denominator ($7 / 11 = 63.6\%$) | M1 | explorer_survey_3 |
-| 4 | Profit Factor Calculation | Gross Profit divided by Gross Loss ($3,285.00 / $1,124.97 = 3.42) | M1 | explorer_survey_3 |
-| 5 | Expectancy Calculation | Net P&L divided by closed trades ($1,198.25 / 11 = +$108.93) | M1 | explorer_survey_3 |
-| 6 | Avg Realized R & Cumulative R | Calculation of realized R (+1.48R), planned R (2.35R), and cumulative R (+9.58R) | M1 | explorer_survey_3 |
-| 7 | Hold Duration Formatter | Formats trade entry to exit duration as `48m`, `1h 14m` | M1 | explorer_survey_1 |
-| 8 | Rule Adherence Fraction | Formats compliance ratio as `9/10`, `8/8`, `6/10` | M1 | explorer_survey_1 |
-| 9 | Journal Header & Subtitle | Serif `Journal` title with `PROP DESK · OCT 2026` subtitle | M2 | explorer_survey_1 |
-| 10 | Auto-sync Status Indicator | Green dot `● Auto-sync enabled · MT5 Raw Spread` linked to sync state | M2 | explorer_survey_1 |
-| 11 | Header Action Buttons | `Import CSV` pill button and `+ Log trade` red CTA button | M2 | explorer_survey_1 |
-| 12 | Uppercase Navigation Tabs | `ALL [count]`, `DAY`, `CALENDAR`, `QUARTER`, `MISSED [count]` with red underline | M2 | explorer_survey_1 |
-| 13 | 5 KPI Summary Metric Cards | Net P&L, Win Rate, Profit Factor, Avg Realized R, Expectancy with colored progress bars | M2 | explorer_survey_1 |
-| 14 | Toolbar Search Input | Live filtering by symbol, playbook, tag, and notes | M2 | explorer_survey_1 |
-| 15 | Date Range Filter Dropdown | Dropdown date selector matching `Oct 1 – Oct 29, 2026` | M2 | explorer_survey_1 |
-| 16 | 15-Column Trades Table | Custom table columns matching screenshot 2 | M2 | explorer_survey_1 |
-| 17 | Duration Subtitle in Open ET | Open time cell displays date/time on line 1 and duration on line 2 | M2 | explorer_survey_1 |
-| 18 | Status & Side Pill Badges | Styled pills for SHORT/LONG, WIN/LOSS/BE | M2 | explorer_survey_1 |
-| 19 | Playbook Tier Badges | Letter square badges `[A]`, `[B]`, `[C]` with setup name | M2 | explorer_survey_1 |
-| 20 | Mistake Warning Tag Badges | Setup tags with amber warning styling for mistake tags | M2 | explorer_survey_1 |
-| 21 | Rules Ratio & Grade Badges | Compliance fraction (`9/10`) and Grade pills (`A`, `A+`, etc.) | M2 | explorer_survey_1 |
-| 22 | Reviewed Checkmark Icon | Green checkmark circle for reviewed trades | M2 | explorer_survey_1 |
-| 23 | Selected Row Left Red Accent | Solid 4px red accent border and checked red checkbox for active trade | M2 | explorer_survey_1 |
-| 24 | Pagination Controls & Footer | `Showing 1–6 of 12 logged trades` and Prev/1/2/Next controls | M2 | explorer_survey_1 |
-| 25 | In-Memory CSV Import/Export | Browser-native CSV import and export without filesystem storage | M2 | explorer_survey_2 |
-| 26 | E2E Test Suite (Tiers 1-4) | Opaque-box test suite across Tiers 1-4 published in TEST_READY.md | M3 | orchestrator |
-| 27 | 100% E2E Test Pass | Implementation passes 100% of Tiers 1-4 tests | M3 | orchestrator |
-| 28 | Adversarial Hardening (Tier 5) | White-box adversarial testing and gap elimination | M3 | orchestrator |
-| 29 | Build & Typecheck Invariants | `npm run build` and `npm run typecheck` pass with exit code 0 | M3 | explorer_survey_3 |
-| 30 | Forensic Integrity Audit | Mandatory independent audit proving authentic, uncheated implementation | M3 | orchestrator |
+| 1 | 8 Curated Font Pairings Catalog | Full declaration of 01 Gibson/GOTHAM through 08 Quicksand/CRIMSON with display & body font stacks and Google Fonts URLs | M1 | ORIGINAL_REQUEST R1 |
+| 2 | Settings Sheet Typography UI | Interactive selection cards in settings sheet with pairing numbers (01-08), dual previews (heading + body), and visual tags | M1 | ORIGINAL_REQUEST R1 |
+| 3 | Default Font Preservation | Preserves default IBM Plex Sans body & Plus Jakarta Sans headings when no font is selected | M1 | ORIGINAL_REQUEST R2 |
+| 4 | User Preference Application | Dynamically applies selected header and body fonts across all application elements | M1 | ORIGINAL_REQUEST R2 |
+| 5 | Reload & Storage Persistence | Saves font selection in localStorage and rehydrates on app load / refresh | M1 | ORIGINAL_REQUEST R2 |
+| 6 | Font Preview Preloading | Loads curated font preview stylesheet when settings sheet opens so previews render in accurate typefaces | M1 | Survey |
+| 7 | Settings Reset Integration | Clears font preference and reverts to default typography on desk reset | M1 | Survey |
+| 8 | Test Suite & Build Verification | Unit tests for font themes, E2E verification of settings behavior, and clean typecheck & build | M1 | Acceptance Criteria |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Persistence & Business Logic Engine | Migration `0005_journal_indexes.sql`, zero-FS validation, KPI stats formulas in `ict-stats.ts`, duration/rule adherence helpers | none | DONE |
-| M2 | Journal Page UI Redesign | Redesign `journal.tsx` (header, subtitle, auto-sync, tabs, 5 KPI cards) and `all-view.tsx` (15-column table, toolbar, badges, selection, pagination) | M1 | DONE |
-| M3 | E2E Testing, Adversarial Hardening & Final Audit | Tiers 1-4 E2E test suite in `tests/e2e/`, 100% pass, Tier 5 adversarial hardening, and final forensic audit | M1, M2 | DONE |
+| 1 | Curated Font Pairings & Persistence | font-themes.ts, settings-sheet.tsx, desk-provider.tsx, unit & E2E tests | none | DONE |
 
 ## Interface Contracts
-### `src/lib/ict-stats.ts` ↔ `src/components/journal/journal-kpi-cards.tsx`
+### `src/lib/font-themes.ts`
 ```ts
-export interface JournalKPIs {
-  netPnL: number;
-  netPnLFormatted: string;
-  cumulativeR: number;
-  cumulativeRFormatted: string;
-  winRatePct: number;
-  winCount: number;
-  lossCount: number;
-  beCount: number;
-  profitFactor: number;
-  grossProfit: number;
-  grossLoss: number;
-  avgRealizedR: number;
-  plannedR: number;
-  expectancy: number;
+export const FONT_STORAGE_KEY = "first-payout-font-theme-v1";
+export interface FontThemeOption {
+  id: FontTheme;
+  name: string;
+  number?: string;
+  display: string;
+  sans: string;
+  googleFontsUrl?: string;
+  badge: string;
+  description: string;
+  isCurated?: boolean;
 }
-export function calculateJournalKPIs(trades: Trade[]): JournalKPIs;
+export const CURATED_FONT_PAIRINGS: FontThemeOption[];
+export const FONT_THEMES: FontThemeOption[];
+export function applyFontTheme(themeId: FontTheme | "default" | null): void;
+export function resetFontTheme(): void;
+export function loadFontPreviewStylesheet(): void;
 ```
 
 ## Code Layout
-- `FUll ICT Concept -grok-workspace/migrations/`: Database SQL migration files (`0001_auth.sql` ... `0005_journal_indexes.sql`)
-- `FUll ICT Concept -grok-workspace/src/lib/ict-stats.ts`: Trade statistics and KPI calculation functions
-- `FUll ICT Concept -grok-workspace/src/lib/tradezella-helpers.ts`: Trade rule adherence, durations, and formatting helpers
-- `FUll ICT Concept -grok-workspace/src/lib/journal-csv.ts`: In-memory CSV parsing and generation
-- `FUll ICT Concept -grok-workspace/src/routes/journal.tsx`: Main journal page route, header, auto-sync indicator, tabs, KPI cards container
-- `FUll ICT Concept -grok-workspace/src/components/journal/journal-kpi-cards.tsx`: 5 KPI metric cards with progress bars
-- `FUll ICT Concept -grok-workspace/src/components/journal/all-view.tsx`: 15-column table, search & date range toolbar, badges, selection, pagination
-- `FUll ICT Concept -grok-workspace/src/components/journal/trade-form-modal.tsx`: Trade creation and editing modal
-- `FUll ICT Concept -grok-workspace/tests/e2e/`: Opaque-box E2E test suite
+- `FUll ICT Concept -grok-workspace/src/lib/font-themes.ts`: Curated font pairings catalog, font application, preview loader, and reset logic.
+- `FUll ICT Concept -grok-workspace/src/components/desk/settings-sheet.tsx`: Settings sheet UI with 8 curated font pairing cards, default option card, preview preloader, and safe mount/reset logic.
+- `FUll ICT Concept -grok-workspace/src/components/desk/desk-provider.tsx`: App-level rehydration of stored font theme on initial load.
+- `FUll ICT Concept -grok-workspace/src/lib/font-themes.test.ts`: Unit test suite testing all 8 font pairings, storage keys, SSR safety, and default preservation.
+- `FUll ICT Concept -grok-workspace/tests/e2e/font-pairings-e2e.test.ts`: Verification test verifying settings behavior, typography application, reload persistence, and default preservation.

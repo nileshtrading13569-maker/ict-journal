@@ -21,10 +21,13 @@ import { Field } from "./fields";
 import { TRADING_TZ } from "@/lib/ict-time";
 import { cn } from "@/lib/utils";
 import {
+  CURATED_FONT_PAIRINGS,
   FONT_THEMES,
   FONT_STORAGE_KEY,
   DEFAULT_FONT_THEME,
   applyFontTheme,
+  resetFontTheme,
+  loadFontPreviewStylesheet,
   type FontTheme,
 } from "@/lib/font-themes";
 import {
@@ -58,7 +61,7 @@ export function SettingsSheet({
   const [isResetting, setIsResetting] = useState(false);
   const [colorTheme, setColorTheme] = useState<string>(data.themeId ?? DEFAULT_COLOR_THEME);
   const [accentColor, setAccentColor] = useState<string>(data.accentColor ?? DEFAULT_ACCENT_COLOR);
-  const [fontTheme, setFontTheme] = useState<FontTheme>(DEFAULT_FONT_THEME);
+  const [fontTheme, setFontTheme] = useState<string>("default");
 
   useEffect(() => {
     try {
@@ -74,14 +77,31 @@ export function SettingsSheet({
 
     try {
       const savedFont = window.localStorage.getItem(FONT_STORAGE_KEY);
-      const font = FONT_THEMES.find((option) => option.id === savedFont)?.id ?? DEFAULT_FONT_THEME;
-      setFontTheme(font);
-      applyFontTheme(font);
+      if (savedFont && savedFont !== "default") {
+        const matched = FONT_THEMES.find((option) => option.id === savedFont);
+        if (matched) {
+          setFontTheme(matched.id);
+          applyFontTheme(matched.id as FontTheme);
+        } else {
+          setFontTheme("default");
+        }
+      } else {
+        // When unset or explicitly "default", do NOT call applyFontTheme(DEFAULT_FONT_THEME).
+        // Leave native stylesheet fonts (IBM Plex Sans body, Plus Jakarta Sans headings) untouched.
+        setFontTheme("default");
+      }
     } catch (error) {
       console.error("[settings] failed to load font theme:", error);
-      applyFontTheme(DEFAULT_FONT_THEME);
+      setFontTheme("default");
     }
   }, [data.themeId, data.accentColor]);
+
+  // Preload curated font preview stylesheet when settings drawer is opened
+  useEffect(() => {
+    if (open) {
+      loadFontPreviewStylesheet();
+    }
+  }, [open]);
 
   const handleColorThemeChange = (newThemeId: string) => {
     setColorTheme(newThemeId);
@@ -115,12 +135,28 @@ export function SettingsSheet({
     }
   };
 
-  const handleFontThemeChange = (font: FontTheme) => {
-    setFontTheme(font);
-    applyFontTheme(font);
+  const handleFontThemeChange = (selectedId: string) => {
+    setFontTheme(selectedId);
+
+    if (selectedId === "default") {
+      resetFontTheme();
+      try {
+        window.localStorage.removeItem(FONT_STORAGE_KEY);
+        toast.success("Typography reset to TradeZella default");
+      } catch (error) {
+        console.error("[settings] failed to reset font theme:", error);
+        toast.error("Font reset for this session but could not be saved.");
+      }
+      return;
+    }
+
+    applyFontTheme(selectedId as FontTheme);
     try {
-      window.localStorage.setItem(FONT_STORAGE_KEY, font);
-      toast.success(`Font changed to ${FONT_THEMES.find((f) => f.id === font)?.name}`);
+      window.localStorage.setItem(FONT_STORAGE_KEY, selectedId);
+      const matchedFont =
+        (CURATED_FONT_PAIRINGS && CURATED_FONT_PAIRINGS.find((f) => f.id === selectedId)) ??
+        FONT_THEMES.find((f) => f.id === selectedId);
+      toast.success(`Font changed to ${matchedFont?.name ?? selectedId}`);
     } catch (error) {
       console.error("[settings] failed to save font theme:", error);
       toast.error("Font changed for this session but could not be saved.");
@@ -140,11 +176,14 @@ export function SettingsSheet({
       resetAll(resetState);
       setColorTheme(DEFAULT_COLOR_THEME);
       setAccentColor(DEFAULT_ACCENT_COLOR);
+      setFontTheme("default");
       try {
         window.localStorage.removeItem(THEME_STORAGE_KEY);
         window.localStorage.removeItem(ACCENT_STORAGE_KEY);
+        window.localStorage.removeItem(FONT_STORAGE_KEY);
       } catch {}
       applyColorTheme(DEFAULT_COLOR_THEME, DEFAULT_ACCENT_COLOR);
+      resetFontTheme();
       setResetOpen(false);
       toast.success("All desk data reset");
     } catch (error) {
@@ -352,63 +391,144 @@ export function SettingsSheet({
             </p>
           </section>
 
-          {/* Typography & Font Section */}
+          {/* Typography & Curated Font Pairings Section */}
           <section className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
             <div className="mb-3">
               <div className="flex items-center gap-1.5 text-accent">
                 <Type className="size-3.5" />
-                <h3 className="text-[10px] font-semibold tracking-[0.16em] uppercase">Typography &amp; Font</h3>
+                <h3 className="text-[10px] font-semibold tracking-[0.16em] uppercase">Curated Typography</h3>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Select your preferred interface font family for headings, text, and data tables.
+                Select an editorial font pairing for headings and body text, or keep the platform default.
               </p>
             </div>
-            <div className="flex flex-col gap-2" role="radiogroup" aria-label="Typography & Font">
-              {FONT_THEMES.map((theme) => {
-                const isSelected = fontTheme === theme.id;
+
+            {/* Default Typography Option Card */}
+            <div className="mb-3">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={fontTheme === "default"}
+                onClick={() => handleFontThemeChange("default")}
+                className={cn(
+                  "flex w-full flex-col gap-2 rounded-lg border p-3 text-left transition-all",
+                  fontTheme === "default"
+                    ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
+                    : "border-border bg-surface-2 hover:border-accent/40"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-semibold text-foreground">
+                      Default Typography
+                    </span>
+                    <span className="rounded border border-white/[0.1] bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                      TradeZella System
+                    </span>
+                  </div>
+                  {fontTheme === "default" && (
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                      <Check className="size-3" />
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-muted-foreground">
+                  Original platform typography with Plus Jakarta Sans headings and IBM Plex Sans body.
+                </p>
+
+                {/* Dual Preview for Default */}
+                <div className="rounded border border-white/[0.06] bg-black/20 p-2.5">
+                  <div className="text-[14px] font-semibold tracking-tight text-white font-display">
+                    First Payout · Trade Confirmation
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-zinc-300 font-sans">
+                    +3.45R · NY AM Silver Bullet · EURUSD Execution
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2 text-[9px] text-muted-foreground font-mono">
+                    <span>Heading: Plus Jakarta Sans</span>
+                    <span>·</span>
+                    <span>Body: IBM Plex Sans</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* 8 Curated Font Pairings List */}
+            <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Curated Typography Pairings">
+              {((CURATED_FONT_PAIRINGS && CURATED_FONT_PAIRINGS.length > 0)
+                ? CURATED_FONT_PAIRINGS
+                : FONT_THEMES.filter((t) => t.category === "curated" || t.number)
+              ).map((pairing) => {
+                const isSelected = fontTheme === pairing.id;
                 return (
                   <button
-                    key={theme.id}
+                    key={pairing.id}
                     type="button"
                     role="radio"
                     aria-checked={isSelected}
-                    onClick={() => handleFontThemeChange(theme.id)}
+                    onClick={() => handleFontThemeChange(pairing.id)}
                     className={cn(
-                      "flex items-center justify-between rounded-md border p-2.5 text-left transition-all",
+                      "flex flex-col gap-2 rounded-lg border p-3 text-left transition-all",
                       isSelected
-                        ? "border-accent bg-accent/10 shadow-xs"
+                        ? "border-accent bg-accent/10 shadow-xs ring-1 ring-accent/30"
                         : "border-border bg-surface-2 hover:border-accent/40"
                     )}
                   >
-                    <div className="min-w-0">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span
-                          className="text-[13px] font-semibold text-white"
-                          style={{ fontFamily: theme.display }}
-                        >
-                          {theme.name}
+                        <span className="text-[13px] font-semibold text-foreground">
+                          {pairing.name}
                         </span>
                         <span className="rounded border border-white/[0.1] bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                          {theme.badge}
+                          {pairing.badge}
                         </span>
                       </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                        {theme.description}
-                      </p>
+                      {isSelected && (
+                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                          <Check className="size-3" />
+                        </span>
+                      )}
                     </div>
-                    {isSelected && (
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-white">
-                        <Check className="size-3" />
-                      </span>
-                    )}
+
+                    <p className="text-[11px] text-muted-foreground">
+                      {pairing.description}
+                    </p>
+
+                    {/* Dual Preview Container */}
+                    <div className="rounded border border-white/[0.06] bg-black/20 p-2.5">
+                      <div
+                        className="text-[14px] font-semibold tracking-tight text-white"
+                        style={{ fontFamily: pairing.display }}
+                      >
+                        First Payout · Trade Confirmation
+                      </div>
+                      <div
+                        className="mt-0.5 text-[11px] text-zinc-300"
+                        style={{ fontFamily: pairing.sans }}
+                      >
+                        +3.45R · NY AM Silver Bullet · EURUSD Execution
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-2 text-[9px] text-muted-foreground font-mono">
+                        <span>Heading: {pairing.headingName ?? pairing.display.split(",")[0].replace(/"/g, "")}</span>
+                        <span>·</span>
+                        <span>Body: {pairing.bodyName ?? pairing.sans.split(",")[0].replace(/"/g, "")}</span>
+                      </div>
+                    </div>
                   </button>
                 );
               })}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
+
+            {/* Active Font Status Indicator */}
+            <p className="mt-2.5 text-xs text-muted-foreground">
               Active font:{" "}
-              <span className="font-semibold text-white">
-                {FONT_THEMES.find((theme) => theme.id === fontTheme)?.name}
+              <span className="font-semibold text-foreground">
+                {fontTheme === "default"
+                  ? "Default (TradeZella System)"
+                  : (FONT_THEMES.find((theme) => theme.id === fontTheme)?.name ??
+                     CURATED_FONT_PAIRINGS?.find((p) => p.id === fontTheme)?.name ??
+                     fontTheme)}
               </span>
             </p>
           </section>
@@ -574,6 +694,11 @@ export function SettingsSheet({
                   setStoreAccentColor(accentColor);
                   window.localStorage.setItem(THEME_STORAGE_KEY, colorTheme);
                   window.localStorage.setItem(ACCENT_STORAGE_KEY, accentColor);
+                  if (fontTheme === "default") {
+                    window.localStorage.removeItem(FONT_STORAGE_KEY);
+                  } else {
+                    window.localStorage.setItem(FONT_STORAGE_KEY, fontTheme);
+                  }
                   toast.success("Account settings saved");
                   onOpenChange(false);
                 } catch (error) {
