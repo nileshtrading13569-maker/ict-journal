@@ -153,13 +153,6 @@ export function AppShell({
             const active = pathname === item.to;
             return (
               <div key={item.to} className="relative flex w-full items-center">
-                <span
-                  className={cn(
-                    "absolute -left-1 top-1/2 -translate-y-1/2 h-5 w-1 rounded-full bg-accent shadow-[0_0_12px_var(--color-accent,#d946ef),0_0_24px_color-mix(in_srgb,var(--color-accent,#d946ef)_85%,transparent)] z-10 pointer-events-none transition-[opacity,transform] duration-200 ease-out will-change-[transform,opacity]",
-                    active ? "opacity-100 scale-y-100" : "opacity-0 scale-y-50",
-                  )}
-                  aria-hidden="true"
-                />
                 <Link
                   to={item.to}
                   title={!sidebarExpanded ? item.label : undefined}
