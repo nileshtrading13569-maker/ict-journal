@@ -4,7 +4,8 @@ import { MISS_OUTCOMES, MISS_REASONS, type MissedTrade } from "@/lib/ict-types";
 import { emptyMissed } from "@/lib/ict-defaults";
 import { nowHHMM } from "@/lib/ict-time";
 import { todayISO } from "@/lib/utils";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
+import { syncDeskToServer } from "@/lib/desk-sync";
 import {
   Dialog,
   DialogContent,
@@ -111,10 +112,19 @@ export function MissedForm({
         </div>
         <DialogFooter>
           <Button
-            onClick={() => {
+            onClick={async () => {
+              const prevMissed = useDeskStore.getState().missed;
               upsert(form);
-              toast.success("Missed trade saved");
-              onOpenChange(false);
+              try {
+                const snapshot = deskSnapshot();
+                await syncDeskToServer(snapshot);
+                toast.success("Missed trade saved");
+                onOpenChange(false);
+              } catch (err) {
+                console.error("[missed-form] failed to sync missed trade:", err);
+                useDeskStore.setState({ missed: prevMissed });
+                toast.error("Failed to sync missed trade to cloud.");
+              }
             }}
           >
             Save

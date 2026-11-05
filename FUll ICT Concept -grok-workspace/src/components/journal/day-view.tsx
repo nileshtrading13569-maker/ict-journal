@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
 import { formatDateKey } from "@/lib/journal-dates";
@@ -123,13 +123,16 @@ export function DayView({
 
   const handleSaveNote = async () => {
     setIsSavingNote(true);
+    const prevPlans = useDeskStore.getState().dailyPlans;
     try {
       setDailyJournalNote(selectedDate, noteContent);
-      await syncDeskToServer();
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
       toast.success("Daily journal note saved");
     } catch (err) {
       console.error("[day-view] note save error:", err);
-      toast.error("Saved locally. Could not sync with server.");
+      useDeskStore.setState({ dailyPlans: prevPlans });
+      toast.error("Failed to save note to cloud. Check your connection.");
     } finally {
       setIsSavingNote(false);
     }

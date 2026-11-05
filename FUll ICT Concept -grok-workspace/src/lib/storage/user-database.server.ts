@@ -1,6 +1,6 @@
 import { getSql } from "../db.ts";
-import { createResetState, ensureMinimumDeskData } from "../ict-defaults.ts";
-import type { DeskData, LiquidityLevel, DailyPlan, WeeklyNarrative, Trade, MissedTrade } from "../ict-types.ts";
+import { createResetState, ensureMinimumDeskData, DEFAULT_MODELS } from "../ict-defaults.ts";
+import type { DeskData, LiquidityLevel, DailyPlan, WeeklyNarrative, Trade, MissedTrade, SetupModel } from "../ict-types.ts";
 import { DEFAULT_FOLDERS, SEED_NOTES, type NotebookEntry } from "../notebook-defaults.ts";
 
 export type GoogleUserIdentity = {
@@ -98,7 +98,14 @@ export async function loadUserDatabase(userId: string): Promise<DeskData> {
     limit 1
   `;
 
-  if (rows[0] && rows[0].desk_state && typeof rows[0].desk_state === "object") {
+  const hasValidDeskState =
+    rows[0] &&
+    rows[0].desk_state &&
+    typeof rows[0].desk_state === "object" &&
+    Object.keys(rows[0].desk_state as object).length > 0 &&
+    (rows[0].desk_state as Record<string, unknown>).hasBootstrapped !== undefined;
+
+  if (hasValidDeskState) {
     const rawDeskState = rows[0].desk_state as Partial<DeskData>;
     const rawTradeHistory = (rows[0].trade_history ?? {}) as Partial<PartitionedTradeHistory> | Trade[];
     const rawMapData = (rows[0].map_data ?? {}) as Partial<PartitionedMapData> | LiquidityLevel[];
@@ -138,10 +145,20 @@ export async function loadUserDatabase(userId: string): Promise<DeskData> {
         ? rawDeskState.weeklies
         : [];
 
+    const models = Array.isArray(rawDeskState.models)
+      ? rawDeskState.models
+      : DEFAULT_MODELS.map((m: SetupModel) => ({ ...m, validWhen: [...m.validWhen], invalidWhen: [...m.invalidWhen] }));
+
+    const recentlyDeletedModels = Array.isArray(rawDeskState.recentlyDeletedModels)
+      ? rawDeskState.recentlyDeletedModels
+      : [];
+
     // Reconstruct full desk data with guaranteed isolation
     const reconstructed: DeskData = {
       ...createResetState(),
       ...rawDeskState,
+      models,
+      recentlyDeletedModels,
       trades,
       missed,
       liquidity,
@@ -188,20 +205,29 @@ export async function saveUserDatabase(userId: string, data: DeskData): Promise<
   const { googleUserId, email, name, picture } = identity;
   const sql = await getSql();
 
+  // Ensure models and recentlyDeletedModels are clean, full arrays
+  const models = Array.isArray(data.models) ? data.models : [];
+  const recentlyDeletedModels = Array.isArray(data.recentlyDeletedModels) ? data.recentlyDeletedModels : [];
+  const trades = Array.isArray(data.trades) ? data.trades : [];
+  const missed = Array.isArray(data.missed) ? data.missed : [];
+  const liquidity = Array.isArray(data.liquidity) ? data.liquidity : [];
+  const dailyPlans = typeof data.dailyPlans === "object" && data.dailyPlans !== null ? data.dailyPlans : {};
+  const weeklies = Array.isArray(data.weeklies) ? data.weeklies : [];
+
   // Partition the data for granular isolation
   const tradeHistory: PartitionedTradeHistory = {
-    trades: data.trades ?? [],
-    missed: data.missed ?? [],
+    trades,
+    missed,
   };
 
   const mapData: PartitionedMapData = {
-    liquidity: data.liquidity ?? [],
-    dailyPlans: data.dailyPlans ?? {},
-    weeklies: data.weeklies ?? [],
+    liquidity,
+    dailyPlans,
+    weeklies,
   };
 
   const screenshots: PartitionedScreenshots = {
-    tradeScreenshots: (data.trades ?? [])
+    tradeScreenshots: trades
       .filter((t) => Boolean(t.screenshotHtf || t.screenshotExec))
       .map((t) => ({
         tradeId: t.id,
@@ -210,34 +236,26 @@ export async function saveUserDatabase(userId: string, data: DeskData): Promise<
       })),
   };
 
-  // Base desk state without huge arrays for streamlined indexing
-  const deskState: Partial<DeskData> = {
-    hasBootstrapped: data.hasBootstrapped,
-    accountName: data.accountName,
-    phaseId: data.phaseId,
-    phases: data.phases,
-    rules: data.rules,
-    mantra: data.mantra,
-    themeId: data.themeId,
-    accentColor: data.accentColor,
-    instruments: data.instruments,
-    models: data.models,
-    recentlyDeletedModels: data.recentlyDeletedModels ?? [],
-    checklistItems: data.checklistItems,
-    checks: data.checks,
-    protocolDays: data.protocolDays,
-    newsEvents: data.newsEvents,
-    forceClosedDates: data.forceClosedDates,
-    forceOpenDates: data.forceOpenDates,
+  // Base desk state with full models array and complete metadata
+  const fullDeskState: DeskData = {
+    ...data,
+    hasBootstrapped: true,
+    models,
+    recentlyDeletedModels,
+    trades,
+    missed,
+    liquidity,
+    dailyPlans,
+    weeklies,
   };
 
   const tradeHistoryJson = JSON.stringify(tradeHistory);
   const mapDataJson = JSON.stringify(mapData);
   const screenshotsJson = JSON.stringify(screenshots);
-  const deskStateJson = JSON.stringify(data); // Complete state for fast restore
+  const deskStateJson = JSON.stringify(fullDeskState); // Complete state with models for fast restore
 
   // 1. Atomically persist to isolated google_user_databases SQL table
-  await sql`
+  const gdbRows = await sql<{ google_user_id: string }>`
     insert into google_user_databases (
       google_user_id,
       user_id,
@@ -273,15 +291,25 @@ export async function saveUserDatabase(userId: string, data: DeskData): Promise<
       screenshots = excluded.screenshots,
       desk_state = excluded.desk_state,
       updated_at = now()
+    returning google_user_id
   `;
 
+  if (!gdbRows || gdbRows.length === 0) {
+    throw new Error(`Failed to write desk state to google_user_databases for user ${googleUserId}`);
+  }
+
   // 2. Synchronize to user_desk_state for backward compatibility
-  await sql`
+  const legacyRows = await sql<{ user_id: string }>`
     insert into user_desk_state (user_id, state, updated_at)
     values (${userId}, ${deskStateJson}::jsonb, now())
     on conflict (user_id)
     do update set state = excluded.state, updated_at = now()
+    returning user_id
   `;
+
+  if (!legacyRows || legacyRows.length === 0) {
+    throw new Error(`Failed to write desk state to user_desk_state for user ${userId}`);
+  }
 
   return { success: true };
 }
@@ -329,10 +357,13 @@ export async function loadUserNotebook(
       const nb = rows[0].notebook_state as { folders?: string[]; notes?: NotebookEntry[]; initialized?: boolean };
       // Only treat as valid user state if explicitly initialized or has notes
       if (nb.initialized === true || (Array.isArray(nb.notes) && nb.notes.length > 0)) {
-        return {
+        const recovered = {
           folders: Array.isArray(nb.folders) && nb.folders.length > 0 ? nb.folders : [...DEFAULT_FOLDERS],
           notes: Array.isArray(nb.notes) ? nb.notes : [],
         };
+        // Synchronize forward to user_notebook_state
+        await saveUserNotebook(userId, recovered);
+        return recovered;
       }
     }
   } catch (err) {
@@ -366,56 +397,58 @@ export async function saveUserNotebook(
   const jsonStr = JSON.stringify(payload);
 
   // 1. Atomically upsert to user_notebook_state
-  try {
-    await sql`
-      insert into user_notebook_state (user_id, folders, notes, updated_at)
-      values (${userId}, ${JSON.stringify(cleanFolders)}::jsonb, ${JSON.stringify(cleanNotes)}::jsonb, now())
-      on conflict (user_id)
-      do update set
-        folders = excluded.folders,
-        notes = excluded.notes,
-        updated_at = now()
-    `;
-  } catch (err) {
-    console.warn("[user-database] failed to update user_notebook_state:", err);
+  const nbResult = await sql<{ user_id: string }>`
+    insert into user_notebook_state (user_id, folders, notes, updated_at)
+    values (${userId}, ${JSON.stringify(cleanFolders)}::jsonb, ${JSON.stringify(cleanNotes)}::jsonb, now())
+    on conflict (user_id)
+    do update set
+      folders = excluded.folders,
+      notes = excluded.notes,
+      updated_at = now()
+    returning user_id
+  `;
+
+  if (!nbResult || nbResult.length === 0) {
+    throw new Error(`Failed to write notebook state to user_notebook_state for user ${userId}`);
   }
 
   // 2. Upsert to google_user_databases table notebook_state
-  try {
-    await sql`
-      insert into google_user_databases (
-        google_user_id,
-        user_id,
-        email,
-        name,
-        picture,
-        trade_history,
-        map_data,
-        screenshots,
-        desk_state,
-        notebook_state,
-        updated_at
-      )
-      values (
-        ${googleUserId},
-        ${userId},
-        ${email},
-        ${name},
-        ${picture},
-        '[]'::jsonb,
-        '{}'::jsonb,
-        '{}'::jsonb,
-        '{}'::jsonb,
-        ${jsonStr}::jsonb,
-        now()
-      )
-      on conflict (google_user_id)
-      do update set
-        notebook_state = excluded.notebook_state,
-        updated_at = now()
-    `;
-  } catch (err) {
-    console.warn("[user-database] failed to update google_user_databases notebook_state:", err);
+  const gdbResult = await sql<{ google_user_id: string }>`
+    insert into google_user_databases (
+      google_user_id,
+      user_id,
+      email,
+      name,
+      picture,
+      trade_history,
+      map_data,
+      screenshots,
+      desk_state,
+      notebook_state,
+      updated_at
+    )
+    values (
+      ${googleUserId},
+      ${userId},
+      ${email},
+      ${name},
+      ${picture},
+      '[]'::jsonb,
+      '{}'::jsonb,
+      '{}'::jsonb,
+      '{}'::jsonb,
+      ${jsonStr}::jsonb,
+      now()
+    )
+    on conflict (google_user_id)
+    do update set
+      notebook_state = excluded.notebook_state,
+      updated_at = now()
+    returning google_user_id
+  `;
+
+  if (!gdbResult || gdbResult.length === 0) {
+    throw new Error(`Failed to write notebook state to google_user_databases for user ${googleUserId}`);
   }
 
   return { success: true };

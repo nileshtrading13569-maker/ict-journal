@@ -30,8 +30,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { closedTrades, fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { formatR } from "@/lib/utils";
+import { toast } from "sonner";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { TradeInspectorDialog } from "@/components/journal/trade-inspector-dialog";
 import { TradeFormModal } from "@/components/journal/trade-form-modal";
@@ -792,14 +793,30 @@ export function PlaybookDetailModal({
           setEditingTrade(t);
         }}
         onDeleteTrade={async (id) => {
+          const prevTrades = useDeskStore.getState().trades;
           removeTrade(id);
-          await syncDeskToServer();
-          setInspectingTrade(null);
+          try {
+            const snapshot = deskSnapshot();
+            await syncDeskToServer(snapshot);
+            setInspectingTrade(null);
+          } catch (err) {
+            console.error("[playbook-detail] failed to delete trade:", err);
+            useDeskStore.setState({ trades: prevTrades });
+            toast.error("Failed to delete trade from cloud.");
+          }
         }}
         onUpdateTrade={async (t) => {
+          const prevTrades = useDeskStore.getState().trades;
           upsertTrade(t);
-          await syncDeskToServer();
-          setInspectingTrade(t);
+          try {
+            const snapshot = deskSnapshot();
+            await syncDeskToServer(snapshot);
+            setInspectingTrade(t);
+          } catch (err) {
+            console.error("[playbook-detail] failed to update trade:", err);
+            useDeskStore.setState({ trades: prevTrades });
+            toast.error("Failed to update trade on cloud.");
+          }
         }}
       />
 

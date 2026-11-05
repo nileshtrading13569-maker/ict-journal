@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { importTradesFromCsv } from "@/lib/journal-csv";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -124,7 +124,8 @@ function JournalPage() {
       }
 
       // Persist in-memory Zustand store changes to Neon Postgres
-      await syncDeskToServer();
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
 
       toast.success(
         `Imported ${result.trades.length} trade${result.trades.length === 1 ? "" : "s"}${
@@ -274,8 +275,17 @@ function JournalPage() {
               onLogMissed={openNewMissed}
               onEditTrade={openEditTrade}
               onDeleteTrade={async (id) => {
+                const prevTrades = useDeskStore.getState().trades;
                 removeTrade(id);
-                await syncDeskToServer();
+                try {
+                  const snapshot = deskSnapshot();
+                  await syncDeskToServer(snapshot);
+                  toast.success("Trade deleted");
+                } catch (err) {
+                  console.error("[journal] failed to delete trade:", err);
+                  useDeskStore.setState({ trades: prevTrades });
+                  toast.error("Failed to delete trade from cloud.");
+                }
               }}
             />
           </TabsContent>
@@ -293,7 +303,19 @@ function JournalPage() {
             <MissedPanel
               missed={missed}
               onEdit={openEditMissed}
-              onDelete={removeMissed}
+              onDelete={async (id) => {
+                const prevMissed = useDeskStore.getState().missed;
+                removeMissed(id);
+                try {
+                  const snapshot = deskSnapshot();
+                  await syncDeskToServer(snapshot);
+                  toast.success("Missed trade deleted");
+                } catch (err) {
+                  console.error("[journal] failed to delete missed trade:", err);
+                  useDeskStore.setState({ missed: prevMissed });
+                  toast.error("Failed to delete missed trade from cloud.");
+                }
+              }}
               onAdd={openNewMissed}
             />
           </TabsContent>

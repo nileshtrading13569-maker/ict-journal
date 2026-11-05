@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDelete } from "@/components/desk/confirm-delete";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
 import {
@@ -92,10 +92,15 @@ export function TradeInspector({
           : "screenshotExec";
 
       void prepareScreenshotFile(file)
-        .then((dataUrl) => {
+        .then(async (dataUrl) => {
           updateTradeScreenshots(trade.id, { [key]: dataUrl });
-          void syncDeskToServer();
-          toast.success(`${SCREENSHOT_LABELS[key]} attached from clipboard`);
+          try {
+            await syncDeskToServer();
+            toast.success(`${SCREENSHOT_LABELS[key]} attached from clipboard`);
+          } catch (err) {
+            console.error("[trade-inspector] failed to sync clipboard screenshot:", err);
+            toast.error("Failed to sync screenshot to cloud.");
+          }
         })
         .catch((error: unknown) =>
           toast.error(error instanceof Error ? error.message : "Could not read that screenshot."),
@@ -130,72 +135,116 @@ export function TradeInspector({
   const followedCount = defaultRulesList.filter((r) => (rules[r.key] ?? "followed") === "followed").length;
   const totalCount = defaultRulesList.length;
 
-  const handleRuleToggle = (ruleKey: string, status: "followed" | "not" | "na") => {
+  const handleRuleToggle = async (ruleKey: string, status: "followed" | "not" | "na") => {
     updateTradeRule(trade.id, ruleKey, status);
-    void syncDeskToServer();
+    try {
+      await syncDeskToServer();
+    } catch (err) {
+      console.error("[trade-inspector] failed to sync rule toggle:", err);
+      toast.error("Failed to sync rule update to cloud.");
+    }
   };
 
-  const handleReviewToggle = () => {
+  const handleReviewToggle = async () => {
     const next = !trade.reviewed;
     updateTradeReview(trade.id, next);
-    void syncDeskToServer();
-    toast.success(next ? "Marked as reviewed" : "Unmarked reviewed");
+    try {
+      await syncDeskToServer();
+      toast.success(next ? "Marked as reviewed" : "Unmarked reviewed");
+    } catch (err) {
+      console.error("[trade-inspector] failed to sync review status:", err);
+      toast.error("Failed to sync review status to cloud.");
+    }
   };
 
-  const handleGradeChange = (g: Grade) => {
+  const handleGradeChange = async (g: Grade) => {
     updateTradeGrade(trade.id, g);
-    void syncDeskToServer();
+    try {
+      await syncDeskToServer();
+      toast.success(`Grade updated to ${g}`);
+    } catch (err) {
+      console.error("[trade-inspector] failed to sync grade:", err);
+      toast.error("Failed to sync grade to cloud.");
+    }
   };
 
-  const handlePlaybookChange = (nextModelId: string) => {
+  const handlePlaybookChange = async (nextModelId: string) => {
     const nextModel = models.find((m) => m.id === nextModelId);
     if (!nextModel) return;
     updateTradePlaybook(trade.id, nextModel.id, nextModel.name);
-    void syncDeskToServer();
-    toast.success(`Assigned to ${nextModel.name}`);
+    try {
+      await syncDeskToServer();
+      toast.success(`Assigned to ${nextModel.name}`);
+    } catch (err) {
+      console.error("[trade-inspector] failed to sync playbook assignment:", err);
+      toast.error("Failed to sync playbook assignment to cloud.");
+    }
   };
 
   const setupTags = trade.setupTags ?? trade.tags ?? [];
   const mistakeTags = trade.mistakeTags ?? [];
 
-  const handleAddSetupTag = () => {
+  const handleAddSetupTag = async () => {
     const val = newSetup.trim();
     if (val && !setupTags.includes(val)) {
       updateTradeTags(trade.id, [...setupTags, val], mistakeTags);
-      void syncDeskToServer();
+      try {
+        await syncDeskToServer();
+      } catch (err) {
+        console.error("[trade-inspector] failed to sync setup tag:", err);
+        toast.error("Failed to sync tag to cloud.");
+      }
     }
     setNewSetup("");
     setAddingSetup(false);
   };
 
-  const handleAddMistakeTag = () => {
+  const handleAddMistakeTag = async () => {
     const val = newMistake.trim();
     if (val && !mistakeTags.includes(val)) {
       updateTradeTags(trade.id, setupTags, [...mistakeTags, val]);
-      void syncDeskToServer();
+      try {
+        await syncDeskToServer();
+      } catch (err) {
+        console.error("[trade-inspector] failed to sync mistake tag:", err);
+        toast.error("Failed to sync tag to cloud.");
+      }
     }
     setNewMistake("");
     setAddingMistake(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    const prevTrades = useDeskStore.getState().trades;
     removeTrade(trade.id);
-    void syncDeskToServer();
-    toast.success("Trade deleted from journal");
-    setDeleteOpen(false);
-    onClose();
+    try {
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
+      toast.success("Trade deleted from journal");
+      setDeleteOpen(false);
+      onClose();
+    } catch (err) {
+      console.error("[trade-inspector] failed to delete trade from cloud:", err);
+      useDeskStore.setState({ trades: prevTrades });
+      toast.error("Failed to delete trade from cloud.");
+    }
   };
 
-  const saveScreenshot = (key: ScreenshotSlot, dataUrl: string) => {
+  const saveScreenshot = async (key: ScreenshotSlot, dataUrl: string) => {
     updateTradeScreenshots(trade.id, { [key]: dataUrl });
-    void syncDeskToServer();
-    toast.success(`${SCREENSHOT_LABELS[key]} attached`);
+    try {
+      await syncDeskToServer();
+      toast.success(`${SCREENSHOT_LABELS[key]} attached`);
+    } catch (err) {
+      console.error("[trade-inspector] failed to save screenshot:", err);
+      toast.error("Failed to save screenshot to cloud.");
+    }
   };
 
   const readScreenshotFile = async (file: File | undefined, key: ScreenshotSlot) => {
     try {
       const dataUrl = await prepareScreenshotFile(file);
-      saveScreenshot(key, dataUrl);
+      await saveScreenshot(key, dataUrl);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not read that screenshot.");
     }
@@ -211,9 +260,15 @@ export function TradeInspector({
     e.target.value = "";
   };
 
-  const clearScreenshot = (key: ScreenshotSlot) => {
+  const clearScreenshot = async (key: ScreenshotSlot) => {
     updateTradeScreenshots(trade.id, { [key]: "" });
-    void syncDeskToServer();
+    try {
+      await syncDeskToServer();
+      toast.success(`${SCREENSHOT_LABELS[key]} removed`);
+    } catch (err) {
+      console.error("[trade-inspector] failed to clear screenshot:", err);
+      toast.error("Failed to remove screenshot from cloud.");
+    }
   };
 
   const emptySlot = (): ScreenshotSlot =>

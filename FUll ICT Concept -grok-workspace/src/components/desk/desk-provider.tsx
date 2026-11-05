@@ -108,7 +108,7 @@ export function DeskProvider({ children }: { children: React.ReactNode }) {
       let cancelled = false;
       setSyncStatus("loading");
       setLoadError(null);
-      if (loadedUserId !== userId) {
+      if (loadedUserId && loadedUserId !== userId) {
         useDeskStore.getState().resetAll();
       }
       try {
@@ -123,7 +123,7 @@ export function DeskProvider({ children }: { children: React.ReactNode }) {
           if (cancelled) return;
           const state = ensureMinimumDeskData(remoteState ?? createInitialState());
           useDeskStore.getState().replaceAll(state);
-          if (!remoteState || state !== remoteState) {
+          if (!remoteState) {
             await saveDeskState({ data: deskSnapshot() });
           }
           if (cancelled) return;

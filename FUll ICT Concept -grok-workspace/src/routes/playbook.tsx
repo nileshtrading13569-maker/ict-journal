@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { closedTrades, fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
 import { formatR } from "@/lib/utils";
@@ -397,23 +397,45 @@ function PlaybookPage() {
   const handleToggleActive = async (m: SetupModel) => {
     const updated = { ...m, active: !m.active };
     upsertModel(updated);
-    await syncDeskToServer();
-    toast.success(updated.active ? `Activated ${m.name}` : `Deactivated ${m.name}`);
+    try {
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
+      toast.success(updated.active ? `Activated ${m.name}` : `Deactivated ${m.name}`);
+    } catch (err) {
+      console.error("[playbook] failed to sync model active toggle:", err);
+      upsertModel(m);
+      toast.error("Failed to sync playbook status with cloud.");
+    }
   };
 
   const handleConfirmDelete = async () => {
     if (!deletingModel) return;
-    removeModel(deletingModel.id);
-    await syncDeskToServer();
-    toast.success(`Moved ${deletingModel.name} to recently deleted`);
-    setDeletingModel(null);
+    const modelToDelete = deletingModel;
+    removeModel(modelToDelete.id);
+    try {
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
+      toast.success(`Moved ${modelToDelete.name} to recently deleted`);
+      setDeletingModel(null);
+    } catch (err) {
+      console.error("[playbook] failed to delete model:", err);
+      restoreModel(modelToDelete.id);
+      toast.error("Failed to delete playbook from cloud.");
+    }
   };
 
   const handleRestore = async (id: string, name: string) => {
     const success = restoreModel(id);
     if (success) {
-      await syncDeskToServer();
-      toast.success(`Restored ${name}`);
+      try {
+        const snapshot = deskSnapshot();
+        await syncDeskToServer(snapshot);
+        toast.success(`Restored ${name}`);
+      } catch (err) {
+        console.error("[playbook] failed to sync restored model:", err);
+        removeModel(id);
+        toast.error("Failed to sync restored playbook with cloud.");
+      }
     } else {
       toast.error("Could not restore. Another active model already uses that code.");
     }
@@ -421,10 +443,19 @@ function PlaybookPage() {
 
   const handlePermanentDelete = async () => {
     if (!permDeletingModel) return;
-    permanentlyDeleteModel(permDeletingModel.id);
-    await syncDeskToServer();
-    toast.success(`Permanently deleted ${permDeletingModel.name}`);
-    setPermDeletingModel(null);
+    const modelToPermDelete = permDeletingModel;
+    const prevDeleted = useDeskStore.getState().recentlyDeletedModels ?? [];
+    permanentlyDeleteModel(modelToPermDelete.id);
+    try {
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
+      toast.success(`Permanently deleted ${modelToPermDelete.name}`);
+      setPermDeletingModel(null);
+    } catch (err) {
+      console.error("[playbook] failed to permanently delete model:", err);
+      useDeskStore.setState({ recentlyDeletedModels: prevDeleted });
+      toast.error("Failed to delete playbook from cloud.");
+    }
   };
 
   const handleExportStats = () => {

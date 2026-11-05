@@ -69,13 +69,20 @@ export const getIsolatedStorageInfo = createServerFn({ method: "GET" })
     return resolveGoogleUserIdentity(context.userId);
   });
 
-export async function syncDeskToServer(): Promise<{ saved: boolean }> {
-  try {
-    const { deskSnapshot } = await import("@/lib/ict-store");
-    const snapshot = deskSnapshot();
-    return await saveDeskState({ data: snapshot });
-  } catch (error) {
-    console.warn("[desk-sync] server sync notice:", error);
-    return { saved: false };
+export async function syncDeskToServer(customSnapshot?: DeskData): Promise<{ saved: boolean }> {
+  const { deskSnapshot } = await import("@/lib/ict-store");
+  const { isGuestSession } = await import("@/lib/auth/guest-session");
+  const { authEnabled } = await import("@/lib/auth/client");
+
+  // In local demo / guest session mode, cloud sync is not active
+  if (authEnabled && isGuestSession()) {
+    return { saved: true };
   }
+
+  const snapshot = customSnapshot ?? deskSnapshot();
+  const res = await saveDeskState({ data: snapshot });
+  if (!res || !res.saved) {
+    throw new Error("Failed to save desk state to cloud");
+  }
+  return res;
 }

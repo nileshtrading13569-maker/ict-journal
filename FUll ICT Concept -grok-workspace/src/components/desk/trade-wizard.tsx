@@ -36,7 +36,8 @@ import {
 import { currentBalance, lockInfo, planFor } from "@/lib/ict-stats";
 import { nowHHMM } from "@/lib/ict-time";
 import { formatR, todayISO } from "@/lib/utils";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
+import { syncDeskToServer } from "@/lib/desk-sync";
 import {
   Dialog,
   DialogContent,
@@ -160,14 +161,14 @@ export function TradeWizard({
     ? { ...data, trades: data.trades.filter((item) => item.id !== trade.id) }
     : data;
   const tradeLock = lockInfo(lockData, form.date);
-  const saveTrade = () => {
+  const saveTrade = async () => {
     const r = form.result === "open" ? null : (computeTradeR(form) ?? form.rMultiple);
     const planSnapshot = trade?.planSnapshot ?? {
       capturedAt: new Date().toISOString(),
       plan: planFor(data, form.date),
       warnings: [...tradeLock.reasons, ...tradeLock.warnings],
     };
-    upsertTrade({
+    const updatedTrade: Trade = {
       ...form,
       ruleFollowed: tradeLock.locked ? false : form.ruleFollowed,
       planSnapshot,
@@ -175,9 +176,19 @@ export function TradeWizard({
       result: form.result === "open" ? "open" : resultFromR(r, form.result),
       lots: lots,
       modelName: model?.name ?? form.modelName,
-    });
-    toast.success(trade ? "Trade updated" : "Trade logged");
-    onOpenChange(false);
+    };
+    const prevTrades = useDeskStore.getState().trades;
+    upsertTrade(updatedTrade);
+    try {
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
+      toast.success(trade ? "Trade updated" : "Trade logged");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("[trade-wizard] error saving trade:", error);
+      useDeskStore.setState({ trades: prevTrades });
+      toast.error("Failed to save trade to cloud. Check your connection.");
+    }
   };
   const attachScreenshot = useCallback(
     (key: "screenshotHtf" | "screenshotExec", file?: File) => {

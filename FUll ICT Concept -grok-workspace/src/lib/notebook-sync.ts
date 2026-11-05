@@ -3,31 +3,34 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { NotebookEntry } from "@/lib/notebook-defaults";
 
-const notebookEntrySchema = z.object({
-  id: z.string(),
-  folder: z.string(),
-  title: z.string(),
-  subDate: z.string().optional(),
-  date: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  pinned: z.boolean(),
-  tags: z.array(z.string()),
-  content: z.string(),
-  manualMetrics: z
-    .object({
-      netPnl: z.number(),
-      grossPnl: z.number(),
-      commissions: z.number(),
-      totalTrades: z.number(),
-      winners: z.number(),
-      losers: z.number(),
-      winrate: z.number(),
-      volume: z.number(),
-      profitFactor: z.number(),
-    })
-    .optional(),
-});
+const notebookEntrySchema = z
+  .object({
+    id: z.string(),
+    folder: z.string().default("Daily Journal"),
+    title: z.string().default("Untitled Note"),
+    subDate: z.string().nullish(),
+    date: z.string().nullish(),
+    createdAt: z.string().nullish(),
+    updatedAt: z.string().nullish(),
+    pinned: z.boolean().default(false),
+    tags: z.array(z.string()).default([]),
+    content: z.string().default(""),
+    manualMetrics: z
+      .object({
+        netPnl: z.number().nullish(),
+        grossPnl: z.number().nullish(),
+        commissions: z.number().nullish(),
+        totalTrades: z.number().nullish(),
+        winners: z.number().nullish(),
+        losers: z.number().nullish(),
+        winrate: z.number().nullish(),
+        volume: z.number().nullish(),
+        profitFactor: z.number().nullish(),
+      })
+      .partial()
+      .nullish(),
+  })
+  .passthrough();
 
 const notebookPayloadSchema = z.object({
   folders: z.array(z.string()),
@@ -46,6 +49,6 @@ export const saveNotebookState = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
     const { saveUserNotebook } = await import("@/lib/storage/user-database.server");
-    await saveUserNotebook(context.userId, data);
+    await saveUserNotebook(context.userId, data as unknown as { folders: string[]; notes: NotebookEntry[] });
     return { saved: true };
   });

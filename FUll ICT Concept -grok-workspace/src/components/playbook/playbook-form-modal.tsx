@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { uid } from "@/lib/utils";
 import type { SetupModel } from "@/lib/ict-types";
@@ -190,16 +190,18 @@ export function PlaybookFormModal({ open, onOpenChange, model, onSaved }: Playbo
     };
 
     setSaving(true);
+    const prevModels = useDeskStore.getState().models;
     try {
       upsertModel(updatedModel);
-      await syncDeskToServer();
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
       toast.success(model ? "Playbook updated" : "Playbook created");
       onSaved?.(updatedModel);
       onOpenChange(false);
     } catch (err) {
       console.error("[playbook-form] save error:", err);
-      toast.error("Saved locally. Could not sync with server.");
-      onOpenChange(false);
+      useDeskStore.setState({ models: prevModels });
+      toast.error("Failed to save playbook to cloud. Please try again.");
     } finally {
       setSaving(false);
     }

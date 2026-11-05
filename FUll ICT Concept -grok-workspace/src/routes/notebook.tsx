@@ -310,7 +310,7 @@ function NotebookPage() {
   const deskTrades = useDeskStore((s) => s.trades);
   const accountName = useDeskStore((s) => s.accountName);
 
-  const { user } = useCurrentUserState();
+  const { user, isPending } = useCurrentUserState();
   const userId = user?.id ?? null;
   const userScope = userId ? `user_${userId}` : "guest";
 
@@ -328,7 +328,7 @@ function NotebookPage() {
   const [mobileView, setMobileView] = useState<"list" | "detail" | "folders">("list");
   const [perfCollapsed, setPerfCollapsed] = useState(false);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "pnl" | "title">("newest");
-  const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | "local">("saved");
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | "local" | "error">("saved");
   const [currentFontSize, setCurrentFontSize] = useState<number>(15);
   const [currentFontFamily, setCurrentFontFamily] = useState<string>("font-sans");
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
@@ -348,6 +348,9 @@ function NotebookPage() {
   // Load and sync folders & notes: full backend database/storage when authenticated, local cache fallback
   useEffect(() => {
     let cancelled = false;
+
+    // While auth status is loading, wait for resolution before loading notes
+    if (isPending) return;
 
     const readLocalCache = () => {
       try {
@@ -407,6 +410,7 @@ function NotebookPage() {
     };
 
     if (userId) {
+      setAutoSaveStatus("saving");
       void (async () => {
         try {
           const remote = await loadNotebookState();
@@ -428,7 +432,9 @@ function NotebookPage() {
           }
         } catch (err) {
           if (cancelled) return;
-          console.warn("[notebook] backend load error, falling back to local cache:", err);
+          console.error("[notebook] backend load error, falling back to local cache:", err);
+          setAutoSaveStatus("error");
+          toast.error("Could not fetch latest notes from cloud. Using local copy.");
         }
         if (!cancelled) {
           readLocalCache();
@@ -442,12 +448,12 @@ function NotebookPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId, userScope]);
+  }, [userId, userScope, isPending]);
 
-  // Save notes: instant local cache + debounced full backend persistence
-  const persistNotes = (updated: NotebookEntry[]) => {
+  // Save notes: instant local cache + immediate or debounced backend persistence
+  const persistNotes = async (updated: NotebookEntry[], immediate = false) => {
     setNotes(updated);
-    setAutoSaveStatus("saving");
+    notesRef.current = updated;
 
     // 1. Instant local storage write
     try {
@@ -456,28 +462,45 @@ function NotebookPage() {
       console.error("[notebook] failed to persist notes to localStorage:", e);
     }
 
-    // 2. Full backend sync if authenticated
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
     }
 
-    if (userId) {
+    if (!userId) {
+      setAutoSaveStatus("local");
+      return;
+    }
+
+    setAutoSaveStatus("saving");
+
+    if (immediate) {
+      try {
+        await saveNotebookState({ data: { folders: foldersRef.current, notes: updated } });
+        setAutoSaveStatus("saved");
+      } catch (err) {
+        console.error("[notebook] failed to persist notes to backend:", err);
+        setAutoSaveStatus("error");
+        toast.error("Cloud save failed. Check your connection.");
+        throw err;
+      }
+    } else {
       saveTimerRef.current = setTimeout(async () => {
         try {
           await saveNotebookState({ data: { folders: foldersRef.current, notes: updated } });
           setAutoSaveStatus("saved");
         } catch (err) {
           console.error("[notebook] failed to persist notes to backend:", err);
-          setAutoSaveStatus("saved");
+          setAutoSaveStatus("error");
+          toast.error("Cloud save failed. Check your connection.");
         }
       }, 400);
-    } else {
-      setTimeout(() => setAutoSaveStatus("saved"), 350);
     }
   };
 
-  const persistFolders = (updatedFolders: string[]) => {
+  const persistFolders = async (updatedFolders: string[]) => {
     setFolders(updatedFolders);
+    foldersRef.current = updatedFolders;
     try {
       window.localStorage.setItem(getScopedKey(NOTEBOOK_FOLDERS_KEY), JSON.stringify(updatedFolders));
     } catch (e) {
@@ -485,11 +508,16 @@ function NotebookPage() {
     }
 
     if (userId) {
-      void saveNotebookState({ data: { folders: updatedFolders, notes: notesRef.current } })
-        .then(() => setAutoSaveStatus("saved"))
-        .catch((err) => {
-          console.error("[notebook] failed to persist folders to backend:", err);
-        });
+      setAutoSaveStatus("saving");
+      try {
+        await saveNotebookState({ data: { folders: updatedFolders, notes: notesRef.current } });
+        setAutoSaveStatus("saved");
+      } catch (err) {
+        console.error("[notebook] failed to persist folders to backend:", err);
+        setAutoSaveStatus("error");
+        toast.error("Failed to sync folders with cloud.");
+        throw err;
+      }
     }
   };
 
@@ -649,10 +677,10 @@ function NotebookPage() {
       }
       return n;
     });
-    persistNotes(updated);
+    void persistNotes(updated, false);
   };
 
-  const handleCreateEntry = (folderParam?: string) => {
+  const handleCreateEntry = async (folderParam?: string) => {
     const targetFolder = folderParam ?? (activeFolder === "All notes" ? "Daily Journal" : activeFolder);
     const today = new Date();
     const isDaily = targetFolder === "Daily Journal";
@@ -691,48 +719,73 @@ function NotebookPage() {
     };
 
     const updated = [newNote, ...notes];
-    persistNotes(updated);
-    setSelectedNoteId(newNote.id);
-    setMobileView("detail");
-    toast.success(isDaily ? "New daily journal log created" : "New note created");
+    try {
+      await persistNotes(updated, true);
+      setSelectedNoteId(newNote.id);
+      setMobileView("detail");
+      toast.success(isDaily ? "New daily journal log created" : "New note created");
+    } catch (err) {
+      console.error("[notebook] failed to create note on cloud:", err);
+    }
   };
 
-  const handleDeleteNote = (id: string) => {
+  const handleDeleteNote = async (id: string) => {
     if (notes.length <= 1) {
       toast.error("Cannot delete the only remaining note.");
       return;
     }
     const updated = notes.filter((n) => n.id !== id);
-    persistNotes(updated);
-    if (selectedNoteId === id) {
-      const remainingInFolder = updated.filter((n) => activeFolder === "All notes" || n.folder === activeFolder);
-      setSelectedNoteId(remainingInFolder[0]?.id ?? updated[0]?.id ?? "");
+    try {
+      await persistNotes(updated, true);
+      if (selectedNoteId === id) {
+        const remainingInFolder = updated.filter((n) => activeFolder === "All notes" || n.folder === activeFolder);
+        setSelectedNoteId(remainingInFolder[0]?.id ?? updated[0]?.id ?? "");
+      }
+      toast.success("Note removed");
+    } catch (err) {
+      console.error("[notebook] failed to delete note from cloud:", err);
     }
-    toast.success("Note removed");
   };
 
-  const handleDeleteFolder = (folderName: string) => {
+  const handleDeleteFolder = async (folderName: string) => {
     if (DEFAULT_FOLDERS.includes(folderName)) return;
     if (window.confirm(`Delete folder "${folderName}"? Notes in this folder will be moved to "Trade Notes".`)) {
       const nextFolders = folders.filter((f) => f !== folderName);
       const updatedNotes = notes.map((n) => (n.folder === folderName ? { ...n, folder: "Trade Notes" } : n));
-      persistFolders(nextFolders);
-      persistNotes(updatedNotes);
+      setFolders(nextFolders);
+      foldersRef.current = nextFolders;
+      setNotes(updatedNotes);
+      notesRef.current = updatedNotes;
       if (activeFolder === folderName) {
         setActiveFolder("Trade Notes");
       }
-      toast.success(`Folder "${folderName}" removed`);
+      try {
+        if (userId) {
+          setAutoSaveStatus("saving");
+          await saveNotebookState({ data: { folders: nextFolders, notes: updatedNotes } });
+          setAutoSaveStatus("saved");
+        }
+        toast.success(`Folder "${folderName}" removed`);
+      } catch (err) {
+        console.error("[notebook] failed to delete folder on cloud:", err);
+        setAutoSaveStatus("error");
+        toast.error("Failed to delete folder on cloud.");
+      }
     }
   };
 
-  const handleTogglePin = (id: string) => {
+  const handleTogglePin = async (id: string) => {
     const updated = notes.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n));
-    persistNotes(updated);
-    const n = notes.find((item) => item.id === id);
-    toast.success(n?.pinned ? "Note unpinned" : "Note pinned to top");
+    try {
+      await persistNotes(updated, true);
+      const n = notes.find((item) => item.id === id);
+      toast.success(n?.pinned ? "Note unpinned" : "Note pinned to top");
+    } catch (err) {
+      console.error("[notebook] failed to sync pin status:", err);
+    }
   };
 
-  const handleDuplicateNote = (id: string) => {
+  const handleDuplicateNote = async (id: string) => {
     const orig = notes.find((n) => n.id === id);
     if (!orig) return;
     const copy: NotebookEntry = {
@@ -742,37 +795,63 @@ function NotebookPage() {
       pinned: false,
     };
     const updated = [copy, ...notes];
-    persistNotes(updated);
-    setSelectedNoteId(copy.id);
-    toast.success("Note duplicated");
+    try {
+      await persistNotes(updated, true);
+      setSelectedNoteId(copy.id);
+      toast.success("Note duplicated");
+    } catch (err) {
+      console.error("[notebook] failed to sync duplicate note:", err);
+    }
   };
 
-  const handleAddFolder = () => {
+  const handleAddFolder = async () => {
     const name = window.prompt("Enter new folder name:");
     if (name && name.trim()) {
       const cleanName = name.trim();
       if (!folders.includes(cleanName)) {
         const next = [...folders, cleanName];
-        persistFolders(next);
-        setActiveFolder(cleanName);
-        toast.success(`Folder "${cleanName}" created`);
+        try {
+          await persistFolders(next);
+          setActiveFolder(cleanName);
+          toast.success(`Folder "${cleanName}" created`);
+        } catch (err) {
+          console.error("[notebook] failed to create folder on cloud:", err);
+        }
       }
     }
   };
 
-  const handleAddTag = () => {
+  const handleAddTag = async () => {
     if (!newTagInput.trim() || !selectedNote) return;
     const clean = newTagInput.trim().replace(/^#/, "");
     if (!selectedNote.tags.includes(clean)) {
-      handleUpdateNote({ tags: [...selectedNote.tags, clean] });
-      toast.success(`Tag #${clean} added`);
+      const nowTime = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+      const updated = notes.map((n) =>
+        n.id === selectedNote.id ? { ...n, tags: [...selectedNote.tags, clean], updatedAt: nowTime } : n,
+      );
+      try {
+        await persistNotes(updated, true);
+        toast.success(`Tag #${clean} added`);
+      } catch (err) {
+        console.error("[notebook] failed to sync tag addition:", err);
+      }
     }
     setNewTagInput("");
   };
 
-  const handleRemoveTag = (tagToRemove: string) => {
+  const handleRemoveTag = async (tagToRemove: string) => {
     if (!selectedNote) return;
-    handleUpdateNote({ tags: selectedNote.tags.filter((t) => t !== tagToRemove) });
+    const nowTime = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    const updated = notes.map((n) =>
+      n.id === selectedNote.id
+        ? { ...n, tags: selectedNote.tags.filter((t) => t !== tagToRemove), updatedAt: nowTime }
+        : n,
+    );
+    try {
+      await persistNotes(updated, true);
+    } catch (err) {
+      console.error("[notebook] failed to sync tag removal:", err);
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -791,19 +870,23 @@ function NotebookPage() {
     setSelectedNoteIds(next);
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedNoteIds.size === 0) return;
     if (selectedNoteIds.size >= notes.length) {
       toast.error("Cannot delete all notes. Keep at least one.");
       return;
     }
     const updated = notes.filter((n) => !selectedNoteIds.has(n.id));
-    persistNotes(updated);
-    setSelectedNoteIds(new Set());
-    if (selectedNoteIds.has(selectedNoteId)) {
-      setSelectedNoteId(updated[0].id);
+    try {
+      await persistNotes(updated, true);
+      setSelectedNoteIds(new Set());
+      if (selectedNoteIds.has(selectedNoteId)) {
+        setSelectedNoteId(updated[0].id);
+      }
+      toast.success("Selected notes deleted");
+    } catch (err) {
+      console.error("[notebook] failed to delete selected notes:", err);
     }
-    toast.success("Selected notes deleted");
   };
 
   // Text formatting commands
@@ -1334,6 +1417,11 @@ function NotebookPage() {
                         type="text"
                         value={selectedNote.title}
                         onChange={(e) => handleUpdateNote({ title: e.target.value })}
+                        onBlur={() => {
+                          if (saveTimerRef.current) {
+                            void persistNotes(notesRef.current, true);
+                          }
+                        }}
                         className="flex-1 min-w-[140px] bg-transparent font-display font-bold text-base sm:text-xl lg:text-2xl text-white focus:outline-none placeholder-[#6f6f6d]"
                         placeholder="Note Title..."
                         aria-label="Note title"
@@ -1346,6 +1434,8 @@ function NotebookPage() {
                           <span className="text-amber-400 animate-pulse">Saving...</span>
                         ) : autoSaveStatus === "local" ? (
                           <span className="text-[#a2a2a0]">● Local</span>
+                        ) : autoSaveStatus === "error" ? (
+                          <span className="text-red-400">● Sync failed</span>
                         ) : (
                           <span>✓ Synced</span>
                         )}
@@ -1914,6 +2004,11 @@ function NotebookPage() {
                     value={selectedNote.content}
                     onChange={(e) => handleUpdateNote({ content: e.target.value })}
                     onKeyDown={handleEditorKeyDown}
+                    onBlur={() => {
+                      if (saveTimerRef.current) {
+                        void persistNotes(notesRef.current, true);
+                      }
+                    }}
                     style={{ fontSize: `${currentFontSize}px` }}
                     className={cn(
                       "w-full h-full min-h-[440px] resize-none bg-transparent outline-none leading-relaxed text-[#e8e8e6] placeholder-[#6f6f6d]",

@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useDeskStore } from "@/lib/ict-store";
+import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { calcTradeMetrics, fmtCurrency, instrumentOf } from "@/lib/ict-calc";
 import { emptyTrade } from "@/lib/ict-defaults";
@@ -203,16 +203,18 @@ export function TradeFormModal({ open, onOpenChange, trade, onSaved }: TradeForm
     };
 
     setSaving(true);
+    const prevTrades = useDeskStore.getState().trades;
     try {
       upsertTrade(updatedTrade);
-      await syncDeskToServer();
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
       toast.success(trade ? "Trade updated successfully" : "Trade logged successfully");
       onSaved?.(updatedTrade);
       onOpenChange(false);
     } catch (error) {
       console.error("[trade-form] error saving trade:", error);
-      toast.error("Saved locally. Could not sync with server.");
-      onOpenChange(false);
+      useDeskStore.setState({ trades: prevTrades });
+      toast.error("Failed to save trade to cloud. Check your connection.");
     } finally {
       setSaving(false);
     }
