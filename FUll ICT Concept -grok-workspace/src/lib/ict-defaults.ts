@@ -478,7 +478,9 @@ export function ensureMinimumDeskData(data: DeskData): DeskData {
       checklistItems: CHECKLIST.map((item) => ({ id: uid("chk"), ...item })),
     };
   }
-  if (!Array.isArray(data.models) || data.models.length === 0) {
+  const hasNoModels = !Array.isArray(data.models) || data.models.length === 0;
+  const hasNoDeleted = !Array.isArray(repaired.recentlyDeletedModels) || repaired.recentlyDeletedModels.length === 0;
+  if (hasNoModels && hasNoDeleted) {
     repaired = {
       ...repaired,
       models: DEFAULT_MODELS.map((model) => ({

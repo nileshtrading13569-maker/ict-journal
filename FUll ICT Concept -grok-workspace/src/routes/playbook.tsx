@@ -294,6 +294,18 @@ function PlaybookPage() {
   // Overall totals across all closed trades
   const allClosedTrades = useMemo(() => closedTrades(trades), [trades]);
 
+  const tradeDateLabel = useMemo(() => {
+    if (allClosedTrades.length === 0) return "closed trades · all-time";
+    const dates = allClosedTrades.map((t) => t.date).filter(Boolean).sort();
+    if (dates.length === 0) return "closed trades · all-time";
+    const min = dates[0];
+    const max = dates[dates.length - 1];
+    if (min === max) {
+      return `closed trades · ${min}`;
+    }
+    return `closed trades · ${min} – ${max}`;
+  }, [allClosedTrades]);
+
   const { totalNetPnL, totalGrossProfit, totalWins, totalLosses, totalBE, overallAvgR, overallWinRate } = useMemo(() => {
     let net = 0;
     let gross = 0;
@@ -438,6 +450,34 @@ function PlaybookPage() {
       }
     } else {
       toast.error("Could not restore. Another active model already uses that code.");
+    }
+  };
+
+  const handleRestoreAll = async () => {
+    const list = useDeskStore.getState().recentlyDeletedModels ?? [];
+    if (list.length === 0) return;
+    const currentModels = useDeskStore.getState().models;
+    const toRestore = list.map((item) => item.model);
+    const existingCodes = new Set(currentModels.map((m) => m.code.toLowerCase()));
+    const validToRestore = toRestore.filter((m) => !existingCodes.has(m.code.toLowerCase()));
+    if (validToRestore.length === 0) {
+      toast.error("Could not restore. Active models already use those setup codes.");
+      return;
+    }
+    useDeskStore.setState((s) => ({
+      models: [...s.models, ...validToRestore],
+      recentlyDeletedModels: (s.recentlyDeletedModels ?? []).filter(
+        (item) => !validToRestore.some((r) => r.id === item.model.id)
+      ),
+    }));
+    try {
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
+      toast.success(`Restored ${validToRestore.length} playbooks`);
+    } catch (err) {
+      console.error("[playbook] failed to sync restore all:", err);
+      useDeskStore.setState({ models: currentModels, recentlyDeletedModels: list });
+      toast.error("Failed to sync restored playbooks with cloud.");
     }
   };
 
@@ -588,7 +628,7 @@ function PlaybookPage() {
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-[#111111] text-xs text-[#a0a0a0]">
               <Calendar className="size-3.5 text-[#a1a1aa]" />
-              <span>closed trades · Oct 1 - Oct 29, 2026</span>
+              <span className="capitalize">{tradeDateLabel}</span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#3ddc84] ml-0.5"></span>
             </div>
 
@@ -647,7 +687,7 @@ function PlaybookPage() {
             <div className="mt-3 flex items-center justify-between text-[11px] text-[#a1a1aa] border-t border-white/[0.05] pt-2">
               <span>Assigned execution rate</span>
               <span className="font-mono text-white font-medium">
-                {executionRatePct}% ({assignedTradesCount}/{allClosedTrades.length || 0})
+                {allClosedTrades.length > 0 ? `${executionRatePct}%` : "—"} ({assignedTradesCount}/{allClosedTrades.length || 0})
               </span>
             </div>
           </div>
@@ -658,23 +698,48 @@ function PlaybookPage() {
               <span className="text-[10px] font-semibold tracking-wider uppercase text-[#a1a1aa]">
                 BEST PERFORMER
               </span>
-              <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#3ddc84]/15 border border-[#3ddc84]/40 text-[#3ddc84]">
-                {bestPerformer?.model.code ?? "C"}
-              </span>
+              {bestPerformer ? (
+                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#3ddc84]/15 border border-[#3ddc84]/40 text-[#3ddc84]">
+                  {bestPerformer.model.code}
+                </span>
+              ) : (
+                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/10 text-[#666666]">
+                  —
+                </span>
+              )}
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-mono text-2xl font-bold text-[#3ddc84] tracking-tight">
-                +{fmtCurrency(bestPerformer?.stats.netPnL ?? 434)}
-              </span>
-              <span className="text-xs text-[#888888] font-medium truncate">
-                {bestPerformer?.model.name ?? "Continuation"}
-              </span>
+              {bestPerformer ? (
+                <>
+                  <span className={`font-mono text-2xl font-bold tracking-tight ${bestPerformer.stats.netPnL >= 0 ? "text-[#3ddc84]" : "text-[#ff6b7d]"}`}>
+                    {fmtCurrency(bestPerformer.stats.netPnL)}
+                  </span>
+                  <span className="text-xs text-[#888888] font-medium truncate">
+                    {bestPerformer.model.name}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-mono text-2xl font-bold text-[#555555] tracking-tight">
+                    $0.00
+                  </span>
+                  <span className="text-xs text-[#666666] font-medium truncate">
+                    No trade data
+                  </span>
+                </>
+              )}
             </div>
             <div className="mt-3 flex items-center justify-between text-[11px] text-[#a1a1aa] border-t border-white/[0.05] pt-2">
               <span>Win Rate / Expectancy</span>
-              <span className="font-mono text-[#3ddc84] font-medium">
-                {bestPerformer?.stats.winRate ?? 100}% · {formatR(bestPerformer?.stats.avgR ?? 2.89)}
-              </span>
+              {bestPerformer ? (
+                <span className="font-mono text-[#3ddc84] font-medium">
+                  {bestPerformer.stats.winRate}% · {formatR(bestPerformer.stats.avgR)}
+                </span>
+              ) : (
+                <span className="font-mono text-[#666666] font-medium">
+                  — · —
+                </span>
+              )}
             </div>
           </div>
 
@@ -684,25 +749,45 @@ function PlaybookPage() {
               <span className="text-[10px] font-semibold tracking-wider uppercase text-[#a1a1aa]">
                 MOST TRADED
               </span>
-              <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-400">
-                {mostTraded?.model.code ?? "A"}
-              </span>
+              {mostTraded ? (
+                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/40 text-red-400">
+                  {mostTraded.model.code}
+                </span>
+              ) : (
+                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/10 text-[#666666]">
+                  —
+                </span>
+              )}
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-mono text-2xl font-bold text-white tracking-tight">
-                {mostTraded?.stats.closedCount ?? 4}
-              </span>
-              <span className="text-xs text-[#888888]">Trades</span>
-              <span className="text-xs text-[#bbbbbb] font-medium truncate">
-                {mostTraded?.model.name ?? "Sell-side raid"}
-              </span>
+              {mostTraded ? (
+                <>
+                  <span className="font-mono text-2xl font-bold text-white tracking-tight">
+                    {mostTraded.stats.closedCount}
+                  </span>
+                  <span className="text-xs text-[#888888]">Trades</span>
+                  <span className="text-xs text-[#bbbbbb] font-medium truncate">
+                    {mostTraded.model.name}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-mono text-2xl font-bold text-[#555555] tracking-tight">
+                    0
+                  </span>
+                  <span className="text-xs text-[#666666]">Trades</span>
+                  <span className="text-xs text-[#666666] font-medium truncate">
+                    No trade data
+                  </span>
+                </>
+              )}
             </div>
             <div className="mt-3 flex items-center justify-between text-[11px] text-[#a1a1aa] border-t border-white/[0.05] pt-2">
               <span>Volume share</span>
               <span className="font-mono text-white font-medium">
                 {allClosedTrades.length > 0 && mostTraded
-                  ? ((mostTraded.stats.closedCount / allClosedTrades.length) * 100).toFixed(1)
-                  : "36.4"}% of total
+                  ? `${((mostTraded.stats.closedCount / allClosedTrades.length) * 100).toFixed(1)}% of total`
+                  : "—"}
               </span>
             </div>
           </div>
@@ -713,22 +798,37 @@ function PlaybookPage() {
               <span className="text-[10px] font-semibold tracking-wider uppercase text-[#a1a1aa]">
                 HIGHEST DISCIPLINE
               </span>
-              <div className="size-4 rounded-full bg-[#3ddc84]/15 border border-[#3ddc84]/40 flex items-center justify-center text-[#3ddc84]">
+              <div className={`size-4 rounded-full flex items-center justify-center ${
+                highestDiscipline ? "bg-[#3ddc84]/15 border border-[#3ddc84]/40 text-[#3ddc84]" : "bg-white/[0.04] border border-white/10 text-[#666666]"
+              }`}>
                 <CheckCircle2 className="size-3" />
               </div>
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-mono text-2xl font-bold text-[#3ddc84] tracking-tight">
-                {highestDiscipline?.stats.rulesFollowedPct ?? 94}%
-              </span>
-              <span className="text-xs text-[#888888] font-medium">
-                {highestDiscipline?.stats.followedCount ?? 15} / {highestDiscipline?.stats.assessedCount ?? 16} Checklist
-              </span>
+              {highestDiscipline ? (
+                <>
+                  <span className="font-mono text-2xl font-bold text-[#3ddc84] tracking-tight">
+                    {highestDiscipline.stats.rulesFollowedPct}%
+                  </span>
+                  <span className="text-xs text-[#888888] font-medium">
+                    {highestDiscipline.stats.followedCount} / {highestDiscipline.stats.assessedCount} Checklist
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-mono text-2xl font-bold text-[#555555] tracking-tight">
+                    —
+                  </span>
+                  <span className="text-xs text-[#666666] font-medium">
+                    0 / 0 Checklist
+                  </span>
+                </>
+              )}
             </div>
             <div className="mt-3 flex items-center justify-between text-[11px] text-[#a1a1aa] border-t border-white/[0.05] pt-2">
               <span>Playbook model</span>
-              <span className="font-mono text-white font-medium">
-                {highestDiscipline?.model.code ?? "C"} · {highestDiscipline?.model.name ?? "Continuation"}
+              <span className="font-mono text-[#888888] font-medium truncate">
+                {highestDiscipline ? `${highestDiscipline.model.code} · ${highestDiscipline.model.name}` : "No trade data"}
               </span>
             </div>
           </div>
@@ -856,7 +956,45 @@ function PlaybookPage() {
                   {sortedModels.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="py-12 text-center text-sm text-[#a2a2a0]">
-                        No playbooks match your criteria.
+                        {models.length === 0 && recentlyDeletedModels.length > 0 ? (
+                          <div className="flex flex-col items-center justify-center gap-3">
+                            <p className="text-white font-medium text-sm">
+                              All playbooks ({recentlyDeletedModels.length}) are currently in Recently Deleted.
+                            </p>
+                            <p className="text-xs text-[#888888] max-w-md">
+                              Restore playbooks to resume tracking, or create a brand new custom setup.
+                            </p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <button
+                                type="button"
+                                onClick={handleRestoreAll}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#3ddc84]/15 border border-[#3ddc84]/40 text-xs font-semibold text-[#3ddc84] hover:bg-[#3ddc84]/25 transition-colors"
+                              >
+                                <RotateCcw className="size-3.5" /> Restore All Playbooks ({recentlyDeletedModels.length})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleOpenCreate}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-xs font-semibold text-white transition-colors"
+                              >
+                                <Plus className="size-3.5" /> Create Playbook
+                              </button>
+                            </div>
+                          </div>
+                        ) : query ? (
+                          "No playbooks match your search query."
+                        ) : (
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <p>No playbooks match your criteria.</p>
+                            <button
+                              type="button"
+                              onClick={handleOpenCreate}
+                              className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                            >
+                              <Plus className="size-3.5" /> Create Playbook
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -1063,20 +1201,49 @@ function PlaybookPage() {
             {sortedModels.length === 0 ? (
               <div className="rounded-xl border border-white/[0.08] bg-[#0a0a0a]/85 p-12 text-center text-[#a2a2a0]">
                 <BookOpen className="mx-auto size-8 text-[#6f6f6d]" />
-                <p className="mt-3 text-[14px] font-medium text-white">No playbooks found</p>
-                <p className="mt-1 text-[12px] text-[#a2a2a0]">
-                  {query
-                    ? "Try adjusting your search query or filter"
-                    : "Create your first playbook to start logging trades against standard setups."}
-                </p>
-                {!query && (
-                  <button
-                    type="button"
-                    onClick={handleOpenCreate}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-red-500"
-                  >
-                    <Plus className="size-3.5" /> Create Playbook
-                  </button>
+                {models.length === 0 && recentlyDeletedModels.length > 0 ? (
+                  <>
+                    <p className="mt-3 text-[14px] font-medium text-white">
+                      All playbooks ({recentlyDeletedModels.length}) are in Recently Deleted
+                    </p>
+                    <p className="mt-1 text-[12px] text-[#a2a2a0]">
+                      Restore playbooks to reactivate them, or create a brand new playbook.
+                    </p>
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleRestoreAll}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-[#3ddc84]/15 border border-[#3ddc84]/40 px-3.5 py-1.5 text-[12px] font-semibold text-[#3ddc84] hover:bg-[#3ddc84]/25"
+                      >
+                        <RotateCcw className="size-3.5" /> Restore All Playbooks
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenCreate}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-red-500"
+                      >
+                        <Plus className="size-3.5" /> Create Playbook
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-3 text-[14px] font-medium text-white">No playbooks found</p>
+                    <p className="mt-1 text-[12px] text-[#a2a2a0]">
+                      {query
+                        ? "Try adjusting your search query or filter"
+                        : "Create your first playbook to start logging trades against standard setups."}
+                    </p>
+                    {!query && (
+                      <button
+                        type="button"
+                        onClick={handleOpenCreate}
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-red-500"
+                      >
+                        <Plus className="size-3.5" /> Create Playbook
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
@@ -1202,9 +1369,21 @@ function PlaybookPage() {
                 <span className="text-white/20">·</span>
                 <span className="text-[#666666]">Linked execution trades are permanently kept in journal</span>
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-semibold text-[#888888] tracking-wider uppercase">
-                <span>{deletedSectionOpen ? "COLLAPSE" : "EXPAND"}</span>
-                <ChevronDown className={`size-3.5 transition-transform ${deletedSectionOpen ? "rotate-0" : "-rotate-90"}`} />
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleRestoreAll();
+                  }}
+                  className="px-2.5 py-1 rounded border border-white/10 hover:border-white/20 bg-white/[0.04] text-[11px] font-medium text-[#cccccc] hover:text-white transition-colors"
+                >
+                  Restore all ({recentlyDeletedModels.length})
+                </button>
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-[#888888] tracking-wider uppercase">
+                  <span>{deletedSectionOpen ? "COLLAPSE" : "EXPAND"}</span>
+                  <ChevronDown className={`size-3.5 transition-transform ${deletedSectionOpen ? "rotate-0" : "-rotate-90"}`} />
+                </div>
               </div>
             </div>
 
