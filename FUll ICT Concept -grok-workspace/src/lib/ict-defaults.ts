@@ -8,6 +8,7 @@ import type {
   MissedTrade,
   NewsEvent,
   Phase,
+  PlanQuestion,
   ProtocolDay,
   SetupModel,
   Trade,
@@ -165,6 +166,13 @@ const CHECKLIST: { group: ChecklistItem["group"]; label: string }[] = [
   { group: "lifestyle", label: "Sleep 7–9 hours" },
   { group: "lifestyle", label: "Emotional state is normal" },
   { group: "lifestyle", label: "Notifications off during the window" },
+];
+
+export const DEFAULT_PLAN_QUESTIONS: PlanQuestion[] = [
+  { id: "plan-q1", label: "Have you done your high timeframe?" },
+  { id: "plan-q2", label: "Do you have that FVG gap?" },
+  { id: "plan-q3", label: "Do we have an inverse to the upside?" },
+  { id: "plan-q4", label: "Did we think about this entry before entering?" },
 ];
 
 export function defaultRules(start: string): AccountRules {
@@ -440,6 +448,7 @@ export function emptyDesk(): DeskData {
     liquidity: [],
     checklistItems: [],
     checks: {},
+    planQuestions: DEFAULT_PLAN_QUESTIONS.map((q) => ({ ...q })),
     protocolDays: [],
     newsEvents: [],
     forceClosedDates: [],
@@ -494,6 +503,12 @@ export function ensureMinimumDeskData(data: DeskData): DeskData {
     repaired = {
       ...repaired,
       instruments: DEFAULT_INSTRUMENTS.map((instrument) => ({ ...instrument })),
+    };
+  }
+  if (!Array.isArray(data.planQuestions) || data.planQuestions.length === 0) {
+    repaired = {
+      ...repaired,
+      planQuestions: DEFAULT_PLAN_QUESTIONS.map((q) => ({ ...q })),
     };
   }
   return repaired;

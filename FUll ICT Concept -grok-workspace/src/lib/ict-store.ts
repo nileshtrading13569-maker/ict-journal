@@ -15,13 +15,14 @@ import type {
   MissedTrade,
   NewsEvent,
   Phase,
+  PlanQuestion,
   ProtocolDay,
   RecentlyDeletedModel,
   SetupModel,
   Trade,
   WeeklyNarrative,
 } from "./ict-types";
-import { createInitialState, createResetState, emptyDesk } from "./ict-defaults";
+import { createInitialState, createResetState, emptyDesk, DEFAULT_PLAN_QUESTIONS } from "./ict-defaults";
 import { uid } from "./utils";
 
 type DeskActions = {
@@ -69,6 +70,7 @@ type DeskActions = {
   setThemeId: (id: string) => void;
   setAccentColor: (color: string) => void;
   setCustomThemeColors: (colors: Partial<CustomThemeColors>) => void;
+  setPlanQuestions: (questions: PlanQuestion[]) => void;
 };
 
 export type DeskStore = DeskData & DeskActions;
@@ -224,6 +226,7 @@ export const useDeskStore = create<DeskStore>()(
           else cur.add(id);
           return { checks: { ...s.checks, [date]: [...cur] } };
         }),
+      setPlanQuestions: (questions) => set({ planQuestions: questions }),
       upsertNews: (event) => set((s) => ({ newsEvents: upsert(s.newsEvents, event) })),
       removeNews: (id) => set((s) => ({ newsEvents: s.newsEvents.filter((x) => x.id !== id) })),
       upsertProtocolDay: (day) => set((s) => ({ protocolDays: upsert(s.protocolDays, day) })),
@@ -325,6 +328,7 @@ export const useDeskStore = create<DeskStore>()(
         liquidity: state.liquidity,
         checklistItems: state.checklistItems,
         checks: state.checks,
+        planQuestions: state.planQuestions ?? DEFAULT_PLAN_QUESTIONS,
         protocolDays: state.protocolDays,
         newsEvents: state.newsEvents,
         forceClosedDates: state.forceClosedDates,
@@ -356,6 +360,7 @@ export function deskSnapshot(): DeskData {
     liquidity: state.liquidity,
     checklistItems: state.checklistItems,
     checks: state.checks,
+    planQuestions: state.planQuestions ?? DEFAULT_PLAN_QUESTIONS,
     protocolDays: state.protocolDays,
     newsEvents: state.newsEvents,
     forceClosedDates: state.forceClosedDates,

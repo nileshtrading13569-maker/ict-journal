@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useDeskStore, deskSnapshot } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
+import { DEFAULT_PLAN_QUESTIONS } from "@/lib/ict-defaults";
+import type { PlanQuestion } from "@/lib/ict-types";
 import { todayISO, nyParts, nowHHMM } from "@/lib/ict-time";
 import { fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
 import { cn } from "@/lib/utils";
@@ -19,19 +21,8 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-export interface PlanQuestion {
-  id: string;
-  label: string;
-}
+export { DEFAULT_PLAN_QUESTIONS, type PlanQuestion };
 
-export const DEFAULT_PLAN_QUESTIONS: PlanQuestion[] = [
-  { id: "plan-q1", label: "Have you done your high timeframe?" },
-  { id: "plan-q2", label: "Do you have that FVG gap?" },
-  { id: "plan-q3", label: "Do we have an inverse to the upside?" },
-  { id: "plan-q4", label: "Did we think about this entry before entering?" },
-];
-
-const PLAN_QUESTIONS_KEY = "ict-desk-plan-questions-v3";
 const PLAN_DOCK_OPEN_KEY = "ict-desk-plan-dock-open";
 
 export function PlanDock() {
@@ -39,6 +30,8 @@ export function PlanDock() {
   const dailyPlans = useDeskStore((s) => s.dailyPlans);
   const checks = useDeskStore((s) => s.checks);
   const trades = useDeskStore((s) => s.trades);
+  const storePlanQuestions = useDeskStore((s) => s.planQuestions);
+  const setPlanQuestions = useDeskStore((s) => s.setPlanQuestions);
   const toggleCheck = useDeskStore((s) => s.toggleCheck);
   const setPlan = useDeskStore((s) => s.setPlan);
 
@@ -62,25 +55,21 @@ export function PlanDock() {
   const [sessionSectionOpen, setSessionSectionOpen] = useState(true);
   const [tradesSectionOpen, setTradesSectionOpen] = useState(true);
 
-  // Checklist questions
-  const [checklistQuestions, setChecklistQuestions] = useState<PlanQuestion[]>(() => {
-    if (typeof window === "undefined") return DEFAULT_PLAN_QUESTIONS;
-    try {
-      const saved = window.localStorage.getItem(PLAN_QUESTIONS_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {
-      // fallback
-    }
-    return DEFAULT_PLAN_QUESTIONS;
-  });
+  // Checklist questions synced with Neon backend store
+  const checklistQuestions = useMemo(() => {
+    return Array.isArray(storePlanQuestions) && storePlanQuestions.length > 0
+      ? storePlanQuestions
+      : DEFAULT_PLAN_QUESTIONS;
+  }, [storePlanQuestions]);
 
   // Checklist editor modal state
   const [checklistEditorOpen, setChecklistEditorOpen] = useState(false);
   const [editingQuestions, setEditingQuestions] = useState<PlanQuestion[]>(checklistQuestions);
   const [newQuestionText, setNewQuestionText] = useState("");
+
+  useEffect(() => {
+    setEditingQuestions(checklistQuestions);
+  }, [checklistQuestions]);
 
   // Plan writing/editing state
   const currentPlan = dailyPlans[today];
@@ -164,17 +153,21 @@ export function PlanDock() {
     }
   };
 
-  const handleSaveChecklistQuestions = () => {
+  const handleSaveChecklistQuestions = async () => {
     const valid = editingQuestions.filter((q) => q.label.trim().length > 0);
     const finalQuestions = valid.length > 0 ? valid : DEFAULT_PLAN_QUESTIONS;
-    setChecklistQuestions(finalQuestions);
-    try {
-      window.localStorage.setItem(PLAN_QUESTIONS_KEY, JSON.stringify(finalQuestions));
-    } catch {
-      // ignore
-    }
+    const prevQuestions = useDeskStore.getState().planQuestions;
+    setPlanQuestions(finalQuestions);
     setChecklistEditorOpen(false);
-    toast.success("Checklist questions updated");
+    try {
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
+      toast.success("Checklist questions synced to cloud");
+    } catch (err) {
+      console.error("[plan-dock] failed to sync checklist questions:", err);
+      setPlanQuestions(prevQuestions ?? DEFAULT_PLAN_QUESTIONS);
+      toast.error("Could not sync checklist questions with cloud.");
+    }
   };
 
   const handleAddQuestion = () => {

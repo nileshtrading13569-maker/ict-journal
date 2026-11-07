@@ -33,7 +33,8 @@ export function isDeskData(value: unknown): value is DeskData {
     Array.isArray(data.protocolDays) &&
     Array.isArray(data.newsEvents) &&
     Array.isArray(data.forceClosedDates) &&
-    Array.isArray(data.forceOpenDates)
+    Array.isArray(data.forceOpenDates) &&
+    (data.planQuestions === undefined || Array.isArray(data.planQuestions))
   );
 }
 

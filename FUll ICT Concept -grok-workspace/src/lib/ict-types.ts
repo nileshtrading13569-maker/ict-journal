@@ -565,6 +565,11 @@ export type NewsEvent = {
   avoid: boolean;
 };
 
+export interface PlanQuestion {
+  id: string;
+  label: string;
+}
+
 export type DeskData = {
   hasBootstrapped: boolean;
   accountName: string;
@@ -585,6 +590,7 @@ export type DeskData = {
   liquidity: LiquidityLevel[];
   checklistItems: ChecklistItem[];
   checks: Record<string, string[]>;
+  planQuestions?: PlanQuestion[];
   protocolDays: ProtocolDay[];
   newsEvents: NewsEvent[];
   forceClosedDates: string[];
