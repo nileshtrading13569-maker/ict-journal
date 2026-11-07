@@ -722,10 +722,14 @@ export function SettingsModal({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         {/* Backdrop overlay */}
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay
+          style={{ position: "fixed" }}
+          className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        />
 
         {/* Floating Modal Content */}
         <DialogPrimitive.Content
+          style={{ position: "fixed" }}
           className={cn(
             "fixed top-1/2 left-1/2 z-[60] flex flex-col w-[94vw] max-w-4xl -translate-x-1/2 -translate-y-1/2",
             "max-h-[90vh] h-[88vh] rounded-[28px] overflow-hidden shadow-2xl",
@@ -734,6 +738,10 @@ export function SettingsModal({
             "focus-visible:outline-none",
           )}
         >
+          <DialogPrimitive.Title className="sr-only">Settings</DialogPrimitive.Title>
+          <DialogPrimitive.Description className="sr-only">
+            Desk preferences, themes, buttons, typography and account settings
+          </DialogPrimitive.Description>
           {/* Circular Close Button */}
           <DialogPrimitive.Close
             className="absolute top-5 right-5 z-40 size-8 rounded-full bg-black/35 hover:bg-black/55 text-white flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95"

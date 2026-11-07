@@ -513,18 +513,18 @@
 button:not([data-no-spotlight]):not(.no-spotlight),
 section,
 article,
-div[class*="rounded-"][class*="border"],
-div[class*="rounded"][class*="border"],
-div[class*="rounded-2xl"],
-div[class*="rounded-xl"],
-div[class*="rounded-lg"],
-div[class*="rounded-md"],
+div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"]),
+div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"]),
+div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"]),
+div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"]),
+div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"]),
+div[class*="rounded-md"]:not(.fixed):not([class*="fixed"]),
 li[class*="rounded-"][class*="border"],
 li[class*="rounded"][class*="border"],
 .kpi-card,
 .stat-tile,
-[class*="bg-card"][class*="border"],
-[class*="bg-surface"][class*="border"] {
+[class*="bg-card"][class*="border"]:not(.fixed):not([class*="fixed"]),
+[class*="bg-surface"][class*="border"]:not(.fixed):not([class*="fixed"]) {
   position: relative;
   --mouse-x: -300px;
   --mouse-y: -300px;
@@ -538,18 +538,18 @@ li[class*="rounded"][class*="border"],
 button:not([data-no-spotlight]):not(.no-spotlight)::before,
 section::before,
 article::before,
-div[class*="rounded-"][class*="border"]::before,
-div[class*="rounded"][class*="border"]::before,
-div[class*="rounded-2xl"]::before,
-div[class*="rounded-xl"]::before,
-div[class*="rounded-lg"]::before,
-div[class*="rounded-md"]::before,
+div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"])::before,
+div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"])::before,
+div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"])::before,
+div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"])::before,
+div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"])::before,
+div[class*="rounded-md"]:not(.fixed):not([class*="fixed"])::before,
 li[class*="rounded-"][class*="border"]::before,
 li[class*="rounded"][class*="border"]::before,
 .kpi-card::before,
 .stat-tile::before,
-[class*="bg-card"][class*="border"]::before,
-[class*="bg-surface"][class*="border"]::before {
+[class*="bg-card"][class*="border"]:not(.fixed):not([class*="fixed"])::before,
+[class*="bg-surface"][class*="border"]:not(.fixed):not([class*="fixed"])::before {
   content: "";
   position: absolute;
   inset: 0;
