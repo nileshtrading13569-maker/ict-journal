@@ -24,6 +24,8 @@ import {
   DEFAULT_COLOR_THEME,
   DEFAULT_ACCENT_COLOR,
 } from "@/lib/color-themes";
+import { applyButtonTheme, getButtonTheme } from "@/lib/button-themes";
+import { initGlobalSoundListeners } from "@/lib/sound-fx";
 
 export function DeskProvider({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -53,6 +55,49 @@ export function DeskProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.error("[desk-provider] failed to apply font theme:", e);
+    }
+
+    try {
+      const savedBtn = getButtonTheme();
+      applyButtonTheme(savedBtn);
+    } catch (e) {
+      console.error("[desk-provider] failed to apply button theme:", e);
+    }
+
+    try {
+      initGlobalSoundListeners();
+    } catch (e) {
+      console.error("[desk-provider] failed to init sound listeners:", e);
+    }
+
+    try {
+      const savedTextTone = window.localStorage.getItem("first-payout-text-tone-v1");
+      if (savedTextTone) {
+        const toneHex = {
+          ink: "#0a0a0a",
+          graphite: "#374151",
+          espresso: "#3c2a21",
+          navy: "#0f172a",
+        }[savedTextTone] ?? (savedTextTone.startsWith("#") ? savedTextTone : null);
+        if (toneHex) {
+          document.documentElement.style.setProperty("--color-foreground", toneHex);
+        }
+      }
+
+      const savedLineStyle = window.localStorage.getItem("first-payout-line-style-v1");
+      if (savedLineStyle) {
+        let borderVal = "rgba(0, 0, 0, 0.08)";
+        if (savedLineStyle === "text") {
+          borderVal = "color-mix(in srgb, var(--color-foreground) 18%, transparent)";
+        } else if (savedLineStyle === "accent") {
+          borderVal = "color-mix(in srgb, var(--color-accent) 26%, transparent)";
+        } else if (savedLineStyle.startsWith("#") || savedLineStyle.startsWith("rgba")) {
+          borderVal = savedLineStyle;
+        }
+        document.documentElement.style.setProperty("--color-border", borderVal);
+      }
+    } catch (e) {
+      console.error("[desk-provider] failed to restore text-tone/line-style:", e);
     }
   }, []);
 

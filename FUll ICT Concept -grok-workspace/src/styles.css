@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@700,500,400&f[]=gambetta@700,500,400&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -233,4 +234,263 @@
   background-image: 
     linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+/* ==========================================================================
+   Liquid & Chrome Physical Button Aesthetics
+   ========================================================================== */
+
+/* Base liquid raised plate behavior */
+.btn-liquid-plate {
+  position: relative;
+  border-radius: 9999px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s ease;
+}
+
+.btn-liquid-theme {
+  background: var(--color-accent);
+  color: var(--color-accent-foreground);
+  box-shadow: 0 4px 0 var(--color-accent-deep, #000000), 0 6px 12px rgba(0, 0, 0, 0.22);
+}
+.btn-liquid-theme:hover {
+  filter: brightness(1.05);
+}
+.btn-liquid-theme:active {
+  transform: translateY(2.5px);
+  box-shadow: 0 1.5px 0 var(--color-accent-deep, #000000), 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-liquid-black {
+  background: #12141a;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 0 #000000, 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+.btn-liquid-black:hover {
+  background: #171a22;
+}
+.btn-liquid-black:active {
+  transform: translateY(2.5px);
+  box-shadow: 0 1.5px 0 #000000, 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.btn-liquid-white {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 0 #d1d5db, 0 6px 14px rgba(0, 0, 0, 0.06);
+}
+.btn-liquid-white:hover {
+  background: #fdfdfd;
+}
+.btn-liquid-white:active {
+  transform: translateY(2.5px);
+  box-shadow: 0 1.5px 0 #cbd5e1, 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.btn-liquid-gold {
+  background: #ffffff;
+  color: #b45309;
+  border: 1px solid #d97706;
+  box-shadow: 0 4px 0 #fde68a, 0 6px 14px rgba(217, 119, 6, 0.12);
+}
+.btn-liquid-gold:hover {
+  background: #fffdf5;
+  border-color: #b45309;
+  box-shadow: 0 4px 0 #fde68a, 0 6px 18px rgba(217, 119, 6, 0.18);
+}
+.btn-liquid-gold:active {
+  transform: translateY(2.5px);
+  box-shadow: 0 1.5px 0 #fde68a;
+}
+
+.btn-liquid-amethyst {
+  background: #ffffff;
+  color: #7e22ce;
+  border: 1px solid #a855f7;
+  box-shadow: 0 4px 0 #e9d5ff, 0 6px 14px rgba(168, 85, 247, 0.12);
+}
+.btn-liquid-amethyst:hover {
+  background: #faf5ff;
+  border-color: #7e22ce;
+  box-shadow: 0 4px 0 #e9d5ff, 0 6px 18px rgba(168, 85, 247, 0.18);
+}
+.btn-liquid-amethyst:active {
+  transform: translateY(2.5px);
+  box-shadow: 0 1.5px 0 #e9d5ff;
+}
+
+/* Chrome Specular Glowing Buttons */
+.btn-chrome-specular {
+  position: relative;
+  border-radius: 9999px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-chrome-theme {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 30%, #1e2029) 0%, #0d0f14 100%);
+  color: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 60%, rgba(255, 255, 255, 0.3));
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+.btn-chrome-theme:hover {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 4px 14px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+.btn-chrome-theme:active {
+  transform: scale(0.98);
+}
+
+.btn-chrome-black {
+  background: linear-gradient(180deg, #2e313a 0%, #101115 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 3px 10px rgba(0, 0, 0, 0.6);
+}
+.btn-chrome-black:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 4px 14px rgba(0, 0, 0, 0.8);
+}
+.btn-chrome-black:active {
+  transform: scale(0.98);
+}
+
+.btn-chrome-matte {
+  background: #1b1d24;
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.btn-chrome-matte:hover {
+  background: #23262f;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.btn-chrome-matte:active {
+  transform: scale(0.98);
+}
+
+.btn-chrome-white {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f3f6 100%);
+  color: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.btn-chrome-white:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #e8ebf0 100%);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+.btn-chrome-white:active {
+  transform: scale(0.98);
+}
+
+/* Global button styling hook */
+[data-button-style="liquid-theme"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: var(--color-accent) !important;
+  color: var(--color-accent-foreground, #ffffff) !important;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 80%, black) !important;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--color-accent) 60%, black), 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+[data-button-style="liquid-theme"] .btn-primary-action:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-accent) 60%, black) !important;
+}
+
+[data-button-style="liquid-black"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: #12141a !important;
+  color: #ffffff !important;
+  border: 1px solid #232733 !important;
+  box-shadow: 0 3px 0 #000000, 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+[data-button-style="liquid-black"] .btn-primary-action:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 1px 0 #000000 !important;
+}
+
+[data-button-style="liquid-white"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 3px 0 #cbd5e1, 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+[data-button-style="liquid-white"] .btn-primary-action:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 1px 0 #cbd5e1 !important;
+}
+
+[data-button-style="liquid-gold"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: #ffffff !important;
+  color: #b45309 !important;
+  border: 1px solid #d97706 !important;
+  box-shadow: 0 3px 0 #fde68a, 0 4px 12px rgba(217, 119, 6, 0.15) !important;
+}
+[data-button-style="liquid-gold"] .btn-primary-action:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 1px 0 #fde68a !important;
+}
+
+[data-button-style="liquid-amethyst"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: #ffffff !important;
+  color: #7e22ce !important;
+  border: 1px solid #a855f7 !important;
+  box-shadow: 0 3px 0 #e9d5ff, 0 4px 12px rgba(168, 85, 247, 0.15) !important;
+}
+[data-button-style="liquid-amethyst"] .btn-primary-action:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 1px 0 #e9d5ff !important;
+}
+
+[data-button-style="chrome-theme"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 40%, #1e2029) 0%, #0d0f14 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 60%, rgba(255, 255, 255, 0.3)) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 3px 10px rgba(0, 0, 0, 0.45) !important;
+}
+[data-button-style="chrome-theme"] .btn-primary-action:active {
+  transform: scale(0.98) !important;
+}
+
+[data-button-style="chrome-black"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: linear-gradient(180deg, #2e313a 0%, #101115 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 3px 10px rgba(0, 0, 0, 0.6) !important;
+}
+[data-button-style="chrome-black"] .btn-primary-action:active {
+  transform: scale(0.98) !important;
+}
+
+[data-button-style="chrome-matte"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: #1b1d24 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+}
+[data-button-style="chrome-matte"] .btn-primary-action:active {
+  transform: scale(0.98) !important;
+}
+
+[data-button-style="chrome-white"] .btn-primary-action {
+  border-radius: 9999px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f3f6 100%) !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+[data-button-style="chrome-white"] .btn-primary-action:active {
+  transform: scale(0.98) !important;
 }

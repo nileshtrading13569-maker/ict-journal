@@ -31,7 +31,7 @@ import { useDeskSyncStatus } from "@/components/desk/desk-sync-context";
 import { lockInfo, protocolDayNumber } from "@/lib/ict-stats";
 import { cn, todayISO } from "@/lib/utils";
 import { TradeWizard } from "@/components/desk/trade-wizard";
-import { SettingsSheet } from "@/components/desk/settings-sheet";
+import { SettingsModal } from "@/components/desk/settings-modal";
 import { RoomSheet } from "@/components/desk/room-sheet";
 import { ConfluenceGraderModal } from "@/components/playbook/confluence-grader-modal";
 import { PlanDock } from "@/components/desk/plan-dock";
@@ -434,7 +434,7 @@ export function AppShell({
       </nav>
 
       <TradeWizard open={tradeOpen} onOpenChange={setTradeOpen} trade={null} />
-      <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       <RoomSheet open={roomOpen} onOpenChange={setRoomOpen} />
       <ConfluenceGraderModal
         open={confluenceOpen}
