@@ -207,39 +207,47 @@ function JournalPage() {
           onValueChange={(val) => setActiveTab(val as typeof activeTab)}
           className="mt-4"
         >
-          {/* Uppercase Navigation Tabs with Red Underline */}
-          <TabsList className="flex h-10 items-end gap-6 border-b border-white/[0.07] bg-transparent p-0 text-[11px] font-semibold tracking-[0.14em] uppercase">
-            <TabsTrigger
-              value="all"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
-            >
-              ALL <span className="font-mono ml-1 text-[#a2a2a0]">{trades.length}</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="day"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
-            >
-              DAY
-            </TabsTrigger>
-            <TabsTrigger
-              value="calendar"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
-            >
-              CALENDAR
-            </TabsTrigger>
-            <TabsTrigger
-              value="quarter"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
-            >
-              QUARTER
-            </TabsTrigger>
-            <TabsTrigger
-              value="missed"
-              className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-2.5 text-[#a1a1aa] shadow-none transition-colors data-[state=active]:border-[#e50914] data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none"
-            >
-              MISSED <span className="font-mono ml-1 text-[#a2a2a0]">{missed.length}</span>
-            </TabsTrigger>
-          </TabsList>
+          {/* Frosted Glass Segmented Control matching reference Image 2 */}
+          <div className="flex items-center overflow-x-auto pb-1 [scrollbar-width:none]">
+            <TabsList className="inline-flex h-11 items-center gap-1 rounded-full border border-white/[0.18] bg-white/[0.04] p-1 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_1.5px_rgba(255,255,255,0.25),inset_0_-1px_1px_rgba(0,0,0,0.35)] w-auto max-w-full">
+              <TabsTrigger
+                value="all"
+                className="group relative inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold tracking-wider uppercase text-white/60 border border-transparent shadow-none bg-transparent transition-all duration-200 after:hidden hover:text-white hover:bg-white/[0.05] data-[state=active]:bg-white/[0.15] data-[state=active]:text-white data-[state=active]:border-white/[0.22] data-[state=active]:shadow-[inset_0_1px_1px_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.4)]"
+              >
+                <span>ALL</span>
+                <span className="font-mono ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-white/80 border border-white/10 group-data-[state=active]:bg-white/[0.18] group-data-[state=active]:text-white">
+                  {trades.length}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="day"
+                className="relative inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold tracking-wider uppercase text-white/60 border border-transparent shadow-none bg-transparent transition-all duration-200 after:hidden hover:text-white hover:bg-white/[0.05] data-[state=active]:bg-white/[0.15] data-[state=active]:text-white data-[state=active]:border-white/[0.22] data-[state=active]:shadow-[inset_0_1px_1px_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.4)]"
+              >
+                DAY
+              </TabsTrigger>
+              <TabsTrigger
+                value="calendar"
+                className="relative inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold tracking-wider uppercase text-white/60 border border-transparent shadow-none bg-transparent transition-all duration-200 after:hidden hover:text-white hover:bg-white/[0.05] data-[state=active]:bg-white/[0.15] data-[state=active]:text-white data-[state=active]:border-white/[0.22] data-[state=active]:shadow-[inset_0_1px_1px_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.4)]"
+              >
+                CALENDAR
+              </TabsTrigger>
+              <TabsTrigger
+                value="quarter"
+                className="relative inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold tracking-wider uppercase text-white/60 border border-transparent shadow-none bg-transparent transition-all duration-200 after:hidden hover:text-white hover:bg-white/[0.05] data-[state=active]:bg-white/[0.15] data-[state=active]:text-white data-[state=active]:border-white/[0.22] data-[state=active]:shadow-[inset_0_1px_1px_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.4)]"
+              >
+                QUARTER
+              </TabsTrigger>
+              <TabsTrigger
+                value="missed"
+                className="group relative inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold tracking-wider uppercase text-white/60 border border-transparent shadow-none bg-transparent transition-all duration-200 after:hidden hover:text-white hover:bg-white/[0.05] data-[state=active]:bg-white/[0.15] data-[state=active]:text-white data-[state=active]:border-white/[0.22] data-[state=active]:shadow-[inset_0_1px_1px_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.4)]"
+              >
+                <span>MISSED</span>
+                <span className="font-mono ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.08] text-white/80 border border-white/10 group-data-[state=active]:bg-white/[0.18] group-data-[state=active]:text-white">
+                  {missed.length}
+                </span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* 5 KPI Metric Cards Mounted Below Tabs */}
           <div className="mt-4">
