@@ -27,7 +27,7 @@ export function KpiCard({ label, value, hint, icon: Icon, variant = "default", c
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-xl border border-white/[0.09] bg-card/85 p-4 transition-all duration-300 ease-[var(--ease-cinema)] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent hover:-translate-y-0.5 hover:border-white/[0.2] hover:bg-surface-2/80 sm:p-5",
+        "spotlight-red group relative overflow-hidden rounded-xl border border-white/[0.09] bg-card/85 p-4 transition-all duration-300 ease-[var(--ease-cinema)] hover:-translate-y-0.5 hover:border-white/[0.2] hover:bg-surface-2/80 sm:p-5",
         className,
       )}
     >

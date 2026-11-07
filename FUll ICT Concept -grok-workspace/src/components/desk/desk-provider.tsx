@@ -26,6 +26,7 @@ import {
 } from "@/lib/color-themes";
 import { applyButtonTheme, getButtonTheme } from "@/lib/button-themes";
 import { initGlobalSoundListeners } from "@/lib/sound-fx";
+import { initGlobalSpotlightListener } from "@/lib/spotlight-effect";
 
 export function DeskProvider({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -68,6 +69,12 @@ export function DeskProvider({ children }: { children: React.ReactNode }) {
       initGlobalSoundListeners();
     } catch (e) {
       console.error("[desk-provider] failed to init sound listeners:", e);
+    }
+
+    try {
+      initGlobalSpotlightListener();
+    } catch (e) {
+      console.error("[desk-provider] failed to init spotlight listener:", e);
     }
 
     try {

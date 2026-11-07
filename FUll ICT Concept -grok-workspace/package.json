@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test scripts/sidebar-animation.test.mjs && node --experimental-strip-types --test src/lib/activity-calendar.test.ts src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/playbook.test.ts src/lib/color-themes.test.ts src/lib/storage/user-database.test.ts src/lib/sound-fx.test.ts src/lib/button-themes.test.ts",
+    "test": "node --test scripts/sidebar-animation.test.mjs && node --experimental-strip-types --test src/lib/activity-calendar.test.ts src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/playbook.test.ts src/lib/color-themes.test.ts src/lib/storage/user-database.test.ts src/lib/sound-fx.test.ts src/lib/button-themes.test.ts src/lib/spotlight-effect.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
