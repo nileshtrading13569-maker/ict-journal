@@ -51,7 +51,7 @@ function ProtocolPage() {
               className={cn(
                 "group relative overflow-hidden rounded-xl border p-4 text-left transition-colors duration-200",
                 isActive
-                  ? "border-accent/60 bg-accent/[0.07] before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-accent"
+                  ? "border-accent/60 bg-accent/[0.07] shadow-[inset_0_2px_0_0_var(--color-accent)]"
                   : "border-white/[0.09] bg-card/70 hover:border-white/[0.2] hover:bg-card",
               )}
             >

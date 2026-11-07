@@ -30,7 +30,7 @@ export function StatTile({
   mono?: boolean;
 }) {
   return (
-    <div className={cn("rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2", className)}>
+    <div className={cn("spotlight-red rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-2", className)}>
       <p className="text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase sm:text-[10px]">
         {label}
       </p>

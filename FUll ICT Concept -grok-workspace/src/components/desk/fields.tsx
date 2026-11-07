@@ -115,7 +115,7 @@ export function Panel({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-white/[0.09] bg-card/85 transition-colors duration-200 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/60 before:to-transparent hover:border-white/[0.16]",
+        "spotlight-red relative overflow-hidden rounded-2xl border border-white/[0.09] bg-card/85 transition-colors duration-200 hover:border-white/[0.16]",
         className,
       )}
     >

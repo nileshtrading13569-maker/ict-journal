@@ -1,45 +1,75 @@
 // Universal Red Pointer Spotlight & Border Glow Engine
-// Provides GPU-accelerated cursor tracking across buttons, cards, and UI surfaces.
+// Provides GPU-accelerated cursor tracking across every box, card, panel, and button in the app.
 
 let isListenerActive = false;
-let currentTarget: HTMLElement | null = null;
+let activeElements = new Set<HTMLElement>();
+
+export const BOX_SPOTLIGHT_SELECTOR = [
+  '.spotlight-red',
+  '.btn-spotlight-red',
+  '[data-spotlight="red"]',
+  'button:not([data-no-spotlight]):not(.no-spotlight)',
+  'section',
+  'article',
+  'div[class*="rounded-"][class*="border"]',
+  'div[class*="rounded"][class*="border"]',
+  'div[class*="rounded-2xl"]',
+  'div[class*="rounded-xl"]',
+  'div[class*="rounded-lg"]',
+  'div[class*="rounded-md"]',
+  'li[class*="rounded-"][class*="border"]',
+  'li[class*="rounded"][class*="border"]',
+  '.kpi-card',
+  '.stat-tile',
+  '[class*="bg-card"][class*="border"]',
+  '[class*="bg-surface"][class*="border"]',
+].join(', ');
 
 export function initGlobalSpotlightListener(): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (isListenerActive) return;
 
-  // Verify pointer device supports hover
-  const canHover = window.matchMedia("(hover: hover)").matches;
-  if (!canHover) return;
-
-  const selector = '.spotlight-red, .btn-spotlight-red, [data-spotlight="red"], button:not([data-no-spotlight]):not(.no-spotlight), .kpi-card-glow, .stat-tile-glow';
-
   const onPointerMove = (e: PointerEvent) => {
-    const target = (e.target as HTMLElement | null)?.closest(selector) as HTMLElement | null;
+    const newActive = new Set<HTMLElement>();
+    let el = e.target as HTMLElement | null;
 
-    if (target !== currentTarget) {
-      if (currentTarget) {
-        currentTarget.style.setProperty("--spotlight-opacity", "0");
+    // Walk up the DOM tree from mouse position to capture both inner controls and outer box/card containers
+    while (el && el !== document.body && el !== document.documentElement) {
+      if (el.matches && el.matches(BOX_SPOTLIGHT_SELECTOR)) {
+        newActive.add(el);
+
+        const rect = el.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (el.style && typeof el.style.setProperty === "function") {
+          el.style.setProperty("--mouse-x", `${x}px`);
+          el.style.setProperty("--mouse-y", `${y}px`);
+          el.style.setProperty("--spotlight-opacity", "1");
+        }
       }
-      currentTarget = target;
+      el = el.parentElement;
     }
 
-    if (currentTarget) {
-      const rect = currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      currentTarget.style.setProperty("--mouse-x", `${x}px`);
-      currentTarget.style.setProperty("--mouse-y", `${y}px`);
-      currentTarget.style.setProperty("--spotlight-opacity", "1");
+    // Smoothly fade out elements that the mouse has left
+    for (const prev of activeElements) {
+      if (!newActive.has(prev)) {
+        if (prev.style && typeof prev.style.setProperty === "function") {
+          prev.style.setProperty("--spotlight-opacity", "0");
+        }
+      }
     }
+
+    activeElements = newActive;
   };
 
   const onPointerLeave = () => {
-    if (currentTarget) {
-      currentTarget.style.setProperty("--spotlight-opacity", "0");
-      currentTarget = null;
+    for (const el of activeElements) {
+      if (el.style && typeof el.style.setProperty === "function") {
+        el.style.setProperty("--spotlight-opacity", "0");
+      }
     }
+    activeElements.clear();
   };
 
   document.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -56,13 +86,17 @@ export function attachSpotlightToElement(el: HTMLElement | null): () => void {
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    el.style.setProperty("--mouse-x", `${x}px`);
-    el.style.setProperty("--mouse-y", `${y}px`);
-    el.style.setProperty("--spotlight-opacity", "1");
+    if (el.style && typeof el.style.setProperty === "function") {
+      el.style.setProperty("--mouse-x", `${x}px`);
+      el.style.setProperty("--mouse-y", `${y}px`);
+      el.style.setProperty("--spotlight-opacity", "1");
+    }
   };
 
   const onLeave = () => {
-    el.style.setProperty("--spotlight-opacity", "0");
+    if (el.style && typeof el.style.setProperty === "function") {
+      el.style.setProperty("--spotlight-opacity", "0");
+    }
   };
 
   el.addEventListener("mousemove", onMove, { passive: true });
