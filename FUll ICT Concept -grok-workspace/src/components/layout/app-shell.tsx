@@ -46,11 +46,11 @@ const NAV = [
   { to: "/", label: "Today", icon: LayoutDashboard },
   { to: "/weekly", label: "Weekly", icon: CalendarRange },
   { to: "/daily", label: "Daily", icon: Sun },
-  { to: "/playbook", label: "Playbook", icon: Compass },
   { to: "/notebook", label: "Notebook", icon: NotebookPen },
   { to: "/journal", label: "Journal", icon: BookOpen },
   { to: "/replay", label: "Replay", icon: RotateCcw },
   { to: "/analytics", label: "Analytics", icon: ChartLine },
+  { to: "/playbook", label: "Playbook", icon: Compass },
   { to: "/protocol", label: "Protocol", icon: ListChecks },
 ] as const;
 
@@ -63,9 +63,9 @@ const MOBILE = [
 
 const MOBILE_MORE = [
   { to: "/daily", label: "Daily map" },
-  { to: "/playbook", label: "Playbook" },
   { to: "/notebook", label: "Notebook" },
   { to: "/replay", label: "Replay" },
+  { to: "/playbook", label: "Playbook" },
   { to: "/protocol", label: "Protocol" },
 ] as const;
 
