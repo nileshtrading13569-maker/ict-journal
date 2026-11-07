@@ -372,7 +372,7 @@ function Home() {
         )}
       </Panel>
 
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-card/70 p-6 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/70 before:to-transparent">
+      <div className="spotlight-red relative overflow-hidden rounded-2xl border border-white/[0.09] bg-card/70 p-6">
         <Quote className="mb-2 size-6 text-accent/50" aria-hidden="true" />
         <p className="font-display text-2xl leading-snug tracking-wide text-foreground italic sm:text-3xl">
           “{data.mantra}”

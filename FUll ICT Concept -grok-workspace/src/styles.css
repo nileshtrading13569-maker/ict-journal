@@ -498,13 +498,28 @@
 /* ==========================================================================
    Universal Red Pointer Border Spotlight Engine
    Renders illuminated pure Cinema Red border beam pinned to mouse cursor coordinates
+   Active across every Box, Card, Panel, and Button across Today, Weekly, Daily,
+   Notebook, Journal, Replay, Analytics, Playbook, and Protocol.
    ========================================================================== */
 
 .spotlight-red,
 .btn-spotlight-red,
 [data-spotlight="red"],
+button:not([data-no-spotlight]):not(.no-spotlight),
+section,
+article,
+div[class*="rounded-"][class*="border"],
+div[class*="rounded"][class*="border"],
+div[class*="rounded-2xl"],
+div[class*="rounded-xl"],
+div[class*="rounded-lg"],
+div[class*="rounded-md"],
+li[class*="rounded-"][class*="border"],
+li[class*="rounded"][class*="border"],
 .kpi-card,
-.stat-tile-glow {
+.stat-tile,
+[class*="bg-card"][class*="border"],
+[class*="bg-surface"][class*="border"] {
   position: relative;
   --mouse-x: -300px;
   --mouse-y: -300px;
@@ -515,15 +530,28 @@
 .spotlight-red::before,
 .btn-spotlight-red::before,
 [data-spotlight="red"]::before,
+button:not([data-no-spotlight]):not(.no-spotlight)::before,
+section::before,
+article::before,
+div[class*="rounded-"][class*="border"]::before,
+div[class*="rounded"][class*="border"]::before,
+div[class*="rounded-2xl"]::before,
+div[class*="rounded-xl"]::before,
+div[class*="rounded-lg"]::before,
+div[class*="rounded-md"]::before,
+li[class*="rounded-"][class*="border"]::before,
+li[class*="rounded"][class*="border"]::before,
 .kpi-card::before,
-.stat-tile-glow::before {
+.stat-tile::before,
+[class*="bg-card"][class*="border"]::before,
+[class*="bg-surface"][class*="border"]::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1.5px;
   background: radial-gradient(
-    130px circle at var(--mouse-x, -300px) var(--mouse-y, -300px),
+    190px circle at var(--mouse-x, -300px) var(--mouse-y, -300px),
     #ff1e27 0%,
     #e50914 25%,
     rgba(229, 9, 20, 0.45) 50%,
@@ -532,32 +560,46 @@
   );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: var(--spotlight-opacity, 0);
-  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
-  z-index: 10;
+  z-index: 2;
 }
 
 /* Ambient Outward Red Flare */
 .spotlight-red::after,
 .btn-spotlight-red::after,
 [data-spotlight="red"]::after,
+button:not([data-no-spotlight]):not(.no-spotlight)::after,
+section::after,
+article::after,
+div[class*="rounded-"][class*="border"]::after,
+div[class*="rounded"][class*="border"]::after,
+div[class*="rounded-2xl"]::after,
+div[class*="rounded-xl"]::after,
+div[class*="rounded-lg"]::after,
+div[class*="rounded-md"]::after,
+li[class*="rounded-"][class*="border"]::after,
+li[class*="rounded"][class*="border"]::after,
 .kpi-card::after,
-.stat-tile-glow::after {
+.stat-tile::after,
+[class*="bg-card"][class*="border"]::after,
+[class*="bg-surface"][class*="border"]::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: radial-gradient(
-    160px circle at var(--mouse-x, -300px) var(--mouse-y, -300px),
-    rgba(229, 9, 20, 0.16) 0%,
-    rgba(229, 9, 20, 0.04) 50%,
+    220px circle at var(--mouse-x, -300px) var(--mouse-y, -300px),
+    rgba(229, 9, 20, 0.12) 0%,
+    rgba(229, 9, 20, 0.04) 45%,
     transparent 75%
   );
   opacity: var(--spotlight-opacity, 0);
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
-  z-index: 9;
+  z-index: 1;
 }
 

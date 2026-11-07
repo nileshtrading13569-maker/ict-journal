@@ -1,12 +1,20 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { initGlobalSpotlightListener, attachSpotlightToElement } from "./spotlight-effect.ts";
+import { initGlobalSpotlightListener, attachSpotlightToElement, BOX_SPOTLIGHT_SELECTOR } from "./spotlight-effect.ts";
 
-describe("Universal Red Spotlight Engine", () => {
+describe("Universal Red Spotlight Engine across all Boxes & UI", () => {
   it("safely handles initGlobalSpotlightListener in SSR without window or document", () => {
     assert.doesNotThrow(() => {
       initGlobalSpotlightListener();
     });
+  });
+
+  it("contains selectors for sections, panels, cards, tiles, and buttons", () => {
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes("section"));
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes(".kpi-card"));
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes(".stat-tile"));
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes(".spotlight-red"));
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes("button"));
   });
 
   it("safely handles attachSpotlightToElement when element is null", () => {
@@ -17,13 +25,13 @@ describe("Universal Red Spotlight Engine", () => {
     });
   });
 
-  it("attaches mouse event listeners and sets properties when element is provided", () => {
+  it("attaches mouse event listeners and sets relative coordinates on box", () => {
     let mouseX = "";
     let mouseY = "";
     let opacity = "";
     const listeners: Record<string, Function> = {};
 
-    const mockElement = {
+    const mockBox = {
       style: {
         setProperty: (key: string, val: string) => {
           if (key === "--mouse-x") mouseX = val;
@@ -32,10 +40,10 @@ describe("Universal Red Spotlight Engine", () => {
         },
       },
       getBoundingClientRect: () => ({
-        left: 50,
-        top: 100,
-        width: 200,
-        height: 50,
+        left: 100,
+        top: 200,
+        width: 400,
+        height: 300,
       }),
       addEventListener: (evt: string, fn: Function) => {
         listeners[evt] = fn;
@@ -45,17 +53,17 @@ describe("Universal Red Spotlight Engine", () => {
       },
     } as unknown as HTMLElement;
 
-    const cleanup = attachSpotlightToElement(mockElement);
+    const cleanup = attachSpotlightToElement(mockBox);
     assert.ok(listeners.mousemove, "mousemove listener registered");
     assert.ok(listeners.mouseleave, "mouseleave listener registered");
 
-    // Simulate mouse move
-    listeners.mousemove({ clientX: 75, clientY: 120 });
-    assert.equal(mouseX, "25px");
-    assert.equal(mouseY, "20px");
+    // Simulate mouse moving inside the box at clientX=150, clientY=240
+    listeners.mousemove({ clientX: 150, clientY: 240 });
+    assert.equal(mouseX, "50px");
+    assert.equal(mouseY, "40px");
     assert.equal(opacity, "1");
 
-    // Simulate mouse leave
+    // Simulate mouse leaving the box
     listeners.mouseleave();
     assert.equal(opacity, "0");
 
