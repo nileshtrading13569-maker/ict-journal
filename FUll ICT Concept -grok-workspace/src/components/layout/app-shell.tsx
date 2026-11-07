@@ -34,6 +34,7 @@ import { TradeWizard } from "@/components/desk/trade-wizard";
 import { SettingsSheet } from "@/components/desk/settings-sheet";
 import { RoomSheet } from "@/components/desk/room-sheet";
 import { ConfluenceGraderModal } from "@/components/playbook/confluence-grader-modal";
+import { PlanDock } from "@/components/desk/plan-dock";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -383,6 +384,8 @@ export function AppShell({
           {children}
         </main>
       </div>
+
+      <PlanDock />
 
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/[0.08] bg-black/90 backdrop-blur-xl lg:hidden">
         {MOBILE.map((item) => {
