@@ -14,7 +14,7 @@ import {
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { authEnabled } from "@/lib/auth/client";
-import { isDeskData, saveDeskState } from "@/lib/desk-sync";
+import { isDeskData, saveDeskState, syncDeskToServer } from "@/lib/desk-sync";
 import { createResetState } from "@/lib/ict-defaults";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -167,6 +167,8 @@ export function SettingsModal({
   const [activeTab, setActiveTab] = useState<SettingsTab>("buttons");
   const [resetOpen, setResetOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isSavingMoney, setIsSavingMoney] = useState(false);
+  const [isSavingLook, setIsSavingLook] = useState(false);
 
   // Appearance state
   const [colorTheme, setColorTheme] = useState<string>(() => data.themeId ?? DEFAULT_COLOR_THEME);
@@ -205,6 +207,7 @@ export function SettingsModal({
   // Initialize and load saved state from localStorage & desk store
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!open) return;
 
     try {
       const savedTheme = data.themeId ?? window.localStorage.getItem(THEME_STORAGE_KEY) ?? DEFAULT_COLOR_THEME;
@@ -245,7 +248,7 @@ export function SettingsModal({
     } catch (e) {
       console.error("[settings-modal] initialization error:", e);
     }
-  }, [data.themeId, data.accentColor, data.customThemeColors]);
+  }, [open, data.themeId, data.accentColor, data.customThemeColors]);
 
   const pushHistory = (newState: HistoryState) => {
     if (isInternalChange.current) return;
@@ -256,12 +259,20 @@ export function SettingsModal({
     setHistoryIndex((prev) => prev + 1);
   };
 
-  const applyTextToneToDom = (toneId: string, hexOverride?: string) => {
+  const isLightTheme = (tid: string = colorTheme) => tid === "light" || tid === "platinum";
+
+  const applyTextToneToDom = (toneId: string, hexOverride?: string, currentTheme: string = colorTheme) => {
     if (typeof document === "undefined") return;
+    // For dark/obsidian themes, preserve the theme's high-contrast foreground unless custom override is passed
+    if (!isLightTheme(currentTheme) && !hexOverride) {
+      const theme = getThemeById(currentTheme, customColors);
+      document.documentElement.style.setProperty("--color-foreground", theme.colors.foreground);
+      return;
+    }
     const toneHex =
       hexOverride ??
       TEXT_TONES.find((t) => t.id === toneId)?.value ??
-      (toneId.startsWith("#") ? toneId : "#0a0a0a");
+      (toneId.startsWith("#") ? toneId : (isLightTheme(currentTheme) ? "#0a0a0a" : "#f5f5f4"));
     document.documentElement.style.setProperty("--color-foreground", toneHex);
   };
 
@@ -296,7 +307,7 @@ export function SettingsModal({
     applyColorTheme(state.themeId, state.accentColor, customColors);
     applyFontTheme(state.fontTheme as FontTheme);
     saveButtonTheme(state.buttonTheme);
-    applyTextToneToDom(state.textTone);
+    applyTextToneToDom(state.textTone, undefined, state.themeId);
     applyLineStyleToDom(state.lineStyle);
 
     try {
@@ -333,7 +344,7 @@ export function SettingsModal({
     applyColorTheme(state.themeId, state.accentColor, customColors);
     applyFontTheme(state.fontTheme as FontTheme);
     saveButtonTheme(state.buttonTheme);
-    applyTextToneToDom(state.textTone);
+    applyTextToneToDom(state.textTone, undefined, state.themeId);
     applyLineStyleToDom(state.lineStyle);
 
     try {
@@ -354,7 +365,8 @@ export function SettingsModal({
     toast("Redone look changes");
   };
 
-  const handleSaveLook = () => {
+  const handleSaveLook = async () => {
+    setIsSavingLook(true);
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, colorTheme);
       window.localStorage.setItem(ACCENT_STORAGE_KEY, accentColor);
@@ -364,10 +376,22 @@ export function SettingsModal({
       window.localStorage.setItem("first-payout-line-style-v1", lineStyle);
       setThemeId(colorTheme);
       setStoreAccentColor(accentColor);
+      if (colorTheme === CUSTOM_THEME_ID) {
+        setStoreCustomThemeColors(customColors);
+      }
       playClickSound();
+
+      const snapshot = deskSnapshot();
+      try {
+        await syncDeskToServer(snapshot);
+      } catch (cloudErr) {
+        console.warn("[settings] cloud sync warning:", cloudErr);
+      }
       toast.success("Saved this look! Theme, typography, and button settings preserved.");
     } catch {
-      toast.error("Could not save look to local storage");
+      toast.error("Could not save look");
+    } finally {
+      setIsSavingLook(false);
     }
   };
 
@@ -511,7 +535,11 @@ export function SettingsModal({
       // ignore error
     }
     previewSwitchSound(soundSwitchProfile);
-    const resolvedHex = hexVal ?? TEXT_TONES.find((t) => t.id === toneId)?.value ?? "#0a0a0a";
+    if (!isLightTheme(colorTheme) && !hexVal) {
+      toast("Text tone presets are optimized for Light and Platinum themes.");
+      return;
+    }
+    const resolvedHex = hexVal ?? TEXT_TONES.find((t) => t.id === toneId)?.value ?? (isLightTheme(colorTheme) ? "#0a0a0a" : "#f5f5f4");
     document.documentElement.style.setProperty("--color-foreground", resolvedHex);
     pushHistory({
       themeId: colorTheme,
@@ -553,45 +581,44 @@ export function SettingsModal({
 
   // Reset to default
   const handleResetToDefault = () => {
-    setColorTheme("light");
-    setAccentColor("blue");
+    setColorTheme(DEFAULT_COLOR_THEME);
+    setAccentColor(DEFAULT_ACCENT_COLOR);
     setFontTheme("satoshi");
     setButtonThemeState("liquid-theme");
     setTextTone("ink");
     setLineStyle("theme");
 
-    applyColorTheme("light", "blue");
+    applyColorTheme(DEFAULT_COLOR_THEME, DEFAULT_ACCENT_COLOR);
     applyFontTheme("satoshi" as FontTheme);
     saveButtonTheme("liquid-theme");
-    document.documentElement.style.setProperty("--color-foreground", "#0a0a0a");
-    document.documentElement.style.setProperty("--color-border", "rgba(0, 0, 0, 0.08)");
 
     try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, "light");
-      window.localStorage.setItem(ACCENT_STORAGE_KEY, "blue");
+      window.localStorage.setItem(THEME_STORAGE_KEY, DEFAULT_COLOR_THEME);
+      window.localStorage.setItem(ACCENT_STORAGE_KEY, DEFAULT_ACCENT_COLOR);
       window.localStorage.setItem(FONT_STORAGE_KEY, "satoshi");
-      window.localStorage.setItem("first-payout-text-tone-v1", "ink");
-      window.localStorage.setItem("first-payout-line-style-v1", "theme");
-      setThemeId("light");
-      setStoreAccentColor("blue");
+      window.localStorage.removeItem("first-payout-text-tone-v1");
+      window.localStorage.removeItem("first-payout-line-style-v1");
+      setThemeId(DEFAULT_COLOR_THEME);
+      setStoreAccentColor(DEFAULT_ACCENT_COLOR);
     } catch {
       // ignore error
     }
 
     pushHistory({
-      themeId: "light",
-      accentColor: "blue",
+      themeId: DEFAULT_COLOR_THEME,
+      accentColor: DEFAULT_ACCENT_COLOR,
       fontTheme: "satoshi",
       buttonTheme: "liquid-theme",
       textTone: "ink",
       lineStyle: "theme",
     });
     previewSwitchSound(soundSwitchProfile);
-    toast.success("Settings reset to Liquid default");
+    toast.success("Settings reset to Cinema dark default");
   };
 
   // Money tab handlers
-  const handleSaveMoneySettings = () => {
+  const handleSaveMoneySettings = async () => {
+    setIsSavingMoney(true);
     try {
       patchAccount({
         accountName: data.accountName,
@@ -599,10 +626,16 @@ export function SettingsModal({
         mantra: data.mantra,
         ...data.rules,
       });
-      toast.success("Account settings saved");
+      const snapshot = deskSnapshot();
+      await syncDeskToServer(snapshot);
+      playClickSound();
+      toast.success("Account settings saved and synced to cloud");
       onOpenChange(false);
-    } catch {
-      toast.error("Could not save account settings");
+    } catch (e) {
+      console.error("[settings] save money settings error:", e);
+      toast.error("Could not sync account settings to cloud");
+    } finally {
+      setIsSavingMoney(false);
     }
   };
 
@@ -689,12 +722,12 @@ export function SettingsModal({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         {/* Backdrop overlay */}
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
 
         {/* Floating Modal Content */}
         <DialogPrimitive.Content
           className={cn(
-            "fixed top-1/2 left-1/2 z-50 flex flex-col w-[94vw] max-w-4xl -translate-x-1/2 -translate-y-1/2",
+            "fixed top-1/2 left-1/2 z-[60] flex flex-col w-[94vw] max-w-4xl -translate-x-1/2 -translate-y-1/2",
             "max-h-[90vh] h-[88vh] rounded-[28px] overflow-hidden shadow-2xl",
             "border border-white/10 bg-[#090a0f] text-[#f3f4f6]",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -807,10 +840,11 @@ export function SettingsModal({
                 <button
                   type="button"
                   onClick={handleSaveLook}
-                  className="h-9 px-4 rounded-xl border border-white/10 bg-white/[0.08] shadow-xs hover:shadow-sm text-xs font-semibold text-white flex items-center gap-1.5 transition-all hover:bg-white/[0.15] active:scale-95 cursor-pointer"
+                  disabled={isSavingLook}
+                  className="h-9 px-4 rounded-xl border border-white/10 bg-white/[0.08] shadow-xs hover:shadow-sm text-xs font-semibold text-white flex items-center gap-1.5 transition-all hover:bg-white/[0.15] active:scale-95 cursor-pointer disabled:opacity-50"
                 >
                   <Bookmark className="size-3.5 text-white" />
-                  <span>Save this look</span>
+                  <span>{isSavingLook ? "Saving…" : "Save this look"}</span>
                 </button>
               </div>
             </div>
@@ -1632,7 +1666,7 @@ export function SettingsModal({
                             applyColorTheme(CUSTOM_THEME_ID, null, nextColors);
                             toast.success(`Applied ${preset.name} preset`);
                           }}
-                          className="flex items-center justify-between rounded-xl border border-white/10 bg-gray-50/70 px-3 py-2 text-left hover:border-white/30 transition-all cursor-pointer"
+                          className="flex items-center justify-between rounded-xl border border-white/10 bg-[#181922] px-3 py-2 text-left hover:border-white/30 hover:bg-[#20222e] transition-all cursor-pointer"
                         >
                           <span className="text-xs font-semibold text-white">
                             {preset.name}
@@ -2017,14 +2051,14 @@ export function SettingsModal({
                   </div>
 
                   {/* Restrict Toggles */}
-                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3.5 py-2.5 border border-white/[0.06]">
+                  <div className="flex items-center justify-between rounded-xl bg-[#181922] px-3.5 py-2.5 border border-white/10">
                     <span className="text-xs font-semibold text-white">News restricted</span>
                     <Switch
                       checked={data.rules.newsRestricted}
                       onCheckedChange={(v) => patchAccount({ newsRestricted: v })}
                     />
                   </div>
-                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3.5 py-2.5 border border-white/[0.06]">
+                  <div className="flex items-center justify-between rounded-xl bg-[#181922] px-3.5 py-2.5 border border-white/10">
                     <span className="text-xs font-semibold text-white">Weekend restricted</span>
                     <Switch
                       checked={data.rules.weekendRestricted}
@@ -2050,8 +2084,8 @@ export function SettingsModal({
 
                   {/* Action buttons */}
                   <div className="flex flex-wrap items-center gap-2.5 pt-3">
-                    <Button onClick={handleSaveMoneySettings}>
-                      Save settings
+                    <Button onClick={handleSaveMoneySettings} disabled={isSavingMoney}>
+                      {isSavingMoney ? "Saving…" : "Save settings"}
                     </Button>
                     <Button variant="outline" onClick={downloadBackup}>
                       Download backup
