@@ -696,7 +696,7 @@ export function SettingsModal({
           className={cn(
             "fixed top-1/2 left-1/2 z-50 flex flex-col w-[94vw] max-w-4xl -translate-x-1/2 -translate-y-1/2",
             "max-h-[90vh] h-[88vh] rounded-[28px] overflow-hidden shadow-2xl",
-            "border border-black/10 bg-[#f7f8fa] text-[#111827]",
+            "border border-white/10 bg-[#090a0f] text-[#f3f4f6]",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
             "focus-visible:outline-none",
           )}
@@ -710,18 +710,18 @@ export function SettingsModal({
           </DialogPrimitive.Close>
 
           {/* Top Header Section */}
-          <div className="relative shrink-0 px-8 pt-7 pb-4 border-b border-black/[0.06] bg-gradient-to-b from-[#f9fafb] to-[#f4f5f7]">
+          <div className="relative shrink-0 px-8 pt-7 pb-4 border-b border-white/[0.08] bg-gradient-to-b from-[#13151c] to-[#0c0d12]">
             {/* Upper Banner: Aa Watermark on Left, 3D Color Fan on Right */}
             <div className="flex items-start justify-between min-h-[90px] pr-10">
               {/* Left Typography Watermark */}
               <div className="flex flex-col select-none">
                 <span
-                  className="text-[70px] sm:text-[80px] font-bold leading-none tracking-tight text-[#111827] font-display"
+                  className="text-[70px] sm:text-[80px] font-bold leading-none tracking-tight text-white font-display"
                   style={{ fontFamily: JOURNAL_FONTS.find((f) => f.id === fontTheme)?.fontFamily }}
                 >
                   Aa
                 </span>
-                <span className="text-[11px] font-bold tracking-[0.25em] text-[#6b7280] uppercase mt-1">
+                <span className="text-[11px] font-bold tracking-[0.25em] text-zinc-400 uppercase mt-1">
                   {activeFontDisplayName}
                 </span>
               </div>
@@ -735,7 +735,7 @@ export function SettingsModal({
                   {FAN_SWATCHES.map((swatch, idx) => (
                     <div
                       key={idx}
-                      className="absolute bottom-0 w-11 h-22 sm:w-12 sm:h-24 rounded-2xl shadow-lg border border-black/10 flex flex-col justify-start p-1.5 transition-all hover:scale-110 hover:z-40 cursor-pointer"
+                      className="absolute bottom-0 w-11 h-22 sm:w-12 sm:h-24 rounded-2xl shadow-lg border border-white/10 flex flex-col justify-start p-1.5 transition-all hover:scale-110 hover:z-40 cursor-pointer"
                       style={{
                         backgroundColor: swatch.hex,
                         color: swatch.color,
@@ -766,7 +766,7 @@ export function SettingsModal({
                   type="button"
                   onClick={handleUndo}
                   disabled={historyIndex <= 0}
-                  className="size-9 rounded-xl border border-black/10 bg-white/90 shadow-xs flex items-center justify-center hover:bg-gray-100 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-[#111827]"
+                  className="size-9 rounded-xl border border-white/10 bg-white/[0.06] shadow-xs flex items-center justify-center hover:bg-white/[0.12] active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-white"
                   title="Undo look changes"
                   aria-label="Undo"
                 >
@@ -776,7 +776,7 @@ export function SettingsModal({
                   type="button"
                   onClick={handleRedo}
                   disabled={historyIndex >= history.length - 1}
-                  className="size-9 rounded-xl border border-black/10 bg-white/90 shadow-xs flex items-center justify-center hover:bg-gray-100 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-[#111827]"
+                  className="size-9 rounded-xl border border-white/10 bg-white/[0.06] shadow-xs flex items-center justify-center hover:bg-white/[0.12] active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-white"
                   title="Redo look changes"
                   aria-label="Redo"
                 >
@@ -786,7 +786,7 @@ export function SettingsModal({
 
               {/* Center: Title & Subtitle Badge */}
               <div className="text-center">
-                <h2 className="text-2xl font-bold tracking-tight text-[#111827] capitalize">
+                <h2 className="text-2xl font-bold tracking-tight text-white capitalize">
                   {activeTab === "buttons"
                     ? "Buttons"
                     : activeTab === "themes"
@@ -797,7 +797,7 @@ export function SettingsModal({
                     ? "Custom"
                     : "Money"}
                 </h2>
-                <p className="text-xs text-[#6b7280] mt-0.5 font-medium tracking-wide">
+                <p className="text-xs text-zinc-400 mt-0.5 font-medium tracking-wide">
                   {subtitleBadge}
                 </p>
               </div>
@@ -807,16 +807,16 @@ export function SettingsModal({
                 <button
                   type="button"
                   onClick={handleSaveLook}
-                  className="h-9 px-4 rounded-xl border border-black/10 bg-white shadow-xs hover:shadow-sm text-xs font-semibold text-[#111827] flex items-center gap-1.5 transition-all hover:bg-gray-50 active:scale-95 cursor-pointer"
+                  className="h-9 px-4 rounded-xl border border-white/10 bg-white/[0.08] shadow-xs hover:shadow-sm text-xs font-semibold text-white flex items-center gap-1.5 transition-all hover:bg-white/[0.15] active:scale-95 cursor-pointer"
                 >
-                  <Bookmark className="size-3.5 text-[#111827]" />
+                  <Bookmark className="size-3.5 text-white" />
                   <span>Save this look</span>
                 </button>
               </div>
             </div>
 
             {/* Horizontal Tabs: Buttons, Themes, Colours, Custom, Money */}
-            <div className="mt-5 flex items-center justify-center gap-8 border-t border-black/[0.06] pt-3">
+            <div className="mt-5 flex items-center justify-center gap-8 border-t border-white/[0.08] pt-3">
               {(
                 [
                   { id: "buttons", label: "Buttons" },
@@ -838,13 +838,13 @@ export function SettingsModal({
                     className={cn(
                       "group relative pb-2 text-sm font-semibold transition-colors cursor-pointer",
                       isActive
-                        ? "text-[#111827]"
-                        : "text-[#6b7280] hover:text-[#111827]",
+                        ? "text-white"
+                        : "text-zinc-400 hover:text-white",
                     )}
                   >
                     <span>{tab.label}</span>
                     {isActive && (
-                      <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#111827]" />
+                      <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-white" />
                     )}
                   </button>
                 );
@@ -853,21 +853,21 @@ export function SettingsModal({
           </div>
 
           {/* Scrollable Modal Content */}
-          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 bg-[#f7f8fa]">
+          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 bg-[#090a0f]">
             {/* ══════════════════════════════════════════════════════════════════
                 TAB 1: BUTTONS
                 ══════════════════════════════════════════════════════════════════ */}
             {activeTab === "buttons" && (
               <div className="space-y-6">
                 {/* Sound Section Card */}
-                <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-xs space-y-5">
-                  <h3 className="text-base font-bold text-[#111827]">Sound</h3>
+                <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-5">
+                  <h3 className="text-base font-bold text-white">Sound</h3>
 
                   {/* Click sound row */}
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-sm font-semibold text-[#111827]">Click sound</div>
-                      <p className="text-xs text-[#6b7280] mt-0.5">
+                      <div className="text-sm font-semibold text-white">Click sound</div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
                         A mechanical keyboard click on every button. Made in the browser, nothing to download.
                       </p>
                     </div>
@@ -888,10 +888,10 @@ export function SettingsModal({
                           type="button"
                           onClick={() => handleSelectSoundProfile(profile.id)}
                           className={cn(
-                            "flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-white",
+                            "flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-[#181922]",
                             isSelected
-                              ? "border-black shadow-xs ring-1 ring-black"
-                              : "border-black/[0.08] hover:border-black/30 hover:bg-gray-50/50",
+                              ? "border-white shadow-xs ring-1 ring-white"
+                              : "border-white/[0.08] hover:border-white/30 hover:bg-white/[0.04]",
                           )}
                         >
                           <div className="flex items-center gap-2">
@@ -899,11 +899,11 @@ export function SettingsModal({
                               className="size-2.5 rounded-full"
                               style={{ backgroundColor: profile.colorDot }}
                             />
-                            <span className="text-xs font-bold text-[#111827]">
+                            <span className="text-xs font-bold text-white">
                               {profile.name}
                             </span>
                           </div>
-                          <span className="text-[11px] text-[#6b7280]">
+                          <span className="text-[11px] text-zinc-400">
                             {profile.type}
                           </span>
                         </button>
@@ -912,10 +912,10 @@ export function SettingsModal({
                   </div>
 
                   {/* Typing sounds row */}
-                  <div className="flex items-center justify-between gap-4 pt-2 border-t border-black/[0.06]">
+                  <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/[0.08]">
                     <div>
-                      <div className="text-sm font-semibold text-[#111827]">Typing sounds</div>
-                      <p className="text-xs text-[#6b7280] mt-0.5">
+                      <div className="text-sm font-semibold text-white">Typing sounds</div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
                         The same switch every time you type: the AI, your journal, notes and search.
                       </p>
                     </div>
@@ -930,8 +930,8 @@ export function SettingsModal({
                 {/* Buttons Section */}
                 <div className="space-y-5">
                   <div>
-                    <h3 className="text-base font-bold text-[#111827]">Buttons</h3>
-                    <p className="text-xs text-[#6b7280] mt-0.5">
+                    <h3 className="text-base font-bold text-white">Buttons</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
                       Every button and switch in the journal. Theme picks the one your theme brings.
                     </p>
                   </div>
@@ -939,8 +939,8 @@ export function SettingsModal({
                   {/* Group 1: Liquid */}
                   <div className="space-y-3">
                     <div>
-                      <h4 className="text-sm font-bold text-[#111827]">Liquid</h4>
-                      <p className="text-xs text-[#6b7280]">
+                      <h4 className="text-sm font-bold text-white">Liquid</h4>
+                      <p className="text-xs text-zinc-400">
                         Raised plates. They press in and never move.
                       </p>
                     </div>
@@ -953,31 +953,31 @@ export function SettingsModal({
                             key={option.id}
                             onClick={() => handleSelectButtonTheme(option.id)}
                             className={cn(
-                              "rounded-2xl border p-4 transition-all cursor-pointer bg-white relative flex flex-col justify-between",
+                              "rounded-2xl border p-4 transition-all cursor-pointer bg-[#121319] relative flex flex-col justify-between",
                               isSelected
-                                ? "border-black shadow-sm ring-1.5 ring-black"
-                                : "border-black/[0.08] hover:border-black/30 hover:shadow-xs",
+                                ? "border-white shadow-sm ring-1.5 ring-white"
+                                : "border-white/[0.08] hover:border-white/30 hover:shadow-xs",
                             )}
                           >
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-[#111827]">
+                                <span className="text-xs font-bold text-white">
                                   {option.name}
                                 </span>
                                 {option.badge && (
-                                  <span className="text-[11px] font-medium text-[#6b7280] flex items-center gap-1">
+                                  <span className="text-[11px] font-medium text-zinc-400 flex items-center gap-1">
                                     {option.name === "Gold" ? "Prestige" : "Apex"}
-                                    <Lock className="size-3 text-[#6b7280]" />
+                                    <Lock className="size-3 text-zinc-400" />
                                   </span>
                                 )}
                               </div>
                               {isSelected && (
-                                <Check className="size-4 text-[#111827]" />
+                                <Check className="size-4 text-white" />
                               )}
                             </div>
 
                             {/* Interactive Button Preview Box */}
-                            <div className="rounded-xl border border-black/[0.06] bg-[#f8f9fa] p-3 space-y-2.5">
+                            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d12] p-3 space-y-2.5">
                               {/* Top row buttons */}
                               <div className="flex items-center gap-2">
                                 <button
@@ -1040,7 +1040,7 @@ export function SettingsModal({
                                   <span>Share</span>
                                 </button>
 
-                                <div className="flex items-center rounded-lg border border-black/10 bg-black/[0.04] p-0.5 text-[11px]">
+                                <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.06] p-0.5 text-[11px]">
                                   {(["trades", "daily", "weekly"] as const).map((seg) => (
                                     <button
                                       key={seg}
@@ -1056,11 +1056,11 @@ export function SettingsModal({
                                           ? option.id === "liquid-black"
                                             ? "bg-black text-white shadow-xs"
                                             : option.id === "liquid-gold"
-                                            ? "bg-white text-amber-700 border border-amber-500/70 shadow-xs font-semibold"
+                                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-xs font-semibold"
                                             : option.id === "liquid-amethyst"
-                                            ? "bg-white text-purple-700 border border-purple-500/70 shadow-xs font-semibold"
-                                            : "bg-white text-[#111827] shadow-xs"
-                                          : "text-[#6b7280] hover:text-[#111827]",
+                                            ? "bg-purple-500/20 text-purple-300 border border-purple-500/50 shadow-xs font-semibold"
+                                            : "bg-white/[0.15] text-white shadow-xs border border-white/20"
+                                          : "text-zinc-400 hover:text-white",
                                       )}
                                     >
                                       {seg}
@@ -1078,8 +1078,8 @@ export function SettingsModal({
                   {/* Group 2: Chrome */}
                   <div className="space-y-3 pt-3">
                     <div>
-                      <h4 className="text-sm font-bold text-[#111827]">Chrome</h4>
-                      <p className="text-xs text-[#6b7280]">
+                      <h4 className="text-sm font-bold text-white">Chrome</h4>
+                      <p className="text-xs text-zinc-400">
                         They follow your pointer, with a light under it.
                       </p>
                     </div>
@@ -1092,23 +1092,23 @@ export function SettingsModal({
                             key={option.id}
                             onClick={() => handleSelectButtonTheme(option.id)}
                             className={cn(
-                              "rounded-2xl border p-4 transition-all cursor-pointer bg-white relative flex flex-col justify-between",
+                              "rounded-2xl border p-4 transition-all cursor-pointer bg-[#121319] relative flex flex-col justify-between",
                               isSelected
-                                ? "border-black shadow-sm ring-1.5 ring-black"
-                                : "border-black/[0.08] hover:border-black/30 hover:shadow-xs",
+                                ? "border-white shadow-sm ring-1.5 ring-white"
+                                : "border-white/[0.08] hover:border-white/30 hover:shadow-xs",
                             )}
                           >
                             <div className="flex items-center justify-between mb-3">
-                              <span className="text-xs font-bold text-[#111827]">
+                              <span className="text-xs font-bold text-white">
                                 {option.name}
                               </span>
                               {isSelected && (
-                                <Check className="size-4 text-[#111827]" />
+                                <Check className="size-4 text-white" />
                               )}
                             </div>
 
                             {/* Chrome Button Preview Box */}
-                            <div className="rounded-xl border border-black/[0.06] bg-[#f8f9fa] p-3 space-y-2.5">
+                            <div className="rounded-xl border border-white/[0.06] bg-[#0c0d12] p-3 space-y-2.5">
                               {/* Top row */}
                               <div className="flex items-center gap-2">
                                 <button
@@ -1168,7 +1168,7 @@ export function SettingsModal({
                                   <span>Share</span>
                                 </button>
 
-                                <div className="flex items-center rounded-lg border border-black/10 bg-black/[0.04] p-0.5 text-[11px]">
+                                <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.06] p-0.5 text-[11px]">
                                   {(["trades", "daily", "weekly"] as const).map((seg) => (
                                     <button
                                       key={seg}
@@ -1183,8 +1183,8 @@ export function SettingsModal({
                                         activePreviewSegment === seg
                                           ? option.id === "chrome-black" || option.id === "chrome-matte"
                                             ? "bg-[#1f222a] text-white shadow-xs"
-                                            : "bg-white text-[#111827] shadow-xs"
-                                          : "text-[#6b7280] hover:text-[#111827]",
+                                            : "bg-white/[0.15] text-white shadow-xs border border-white/20"
+                                          : "text-zinc-400 hover:text-white",
                                       )}
                                     >
                                       {seg}
@@ -1215,27 +1215,27 @@ export function SettingsModal({
                         key={theme.id}
                         onClick={() => handleSelectTheme(theme.id)}
                         className={cn(
-                          "rounded-2xl border p-4.5 transition-all cursor-pointer bg-white relative flex flex-col justify-between gap-3",
+                          "rounded-2xl border p-4.5 transition-all cursor-pointer bg-[#121319] relative flex flex-col justify-between gap-3",
                           isSelected
-                            ? "border-black shadow-sm ring-1.5 ring-black"
-                            : "border-black/[0.08] hover:border-black/30 hover:shadow-xs",
+                            ? "border-white shadow-sm ring-1.5 ring-white"
+                            : "border-white/[0.08] hover:border-white/30 hover:shadow-xs",
                         )}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-[#111827]">
+                            <span className="text-sm font-bold text-white">
                               {theme.name}
                             </span>
-                            <span className="rounded border border-black/10 bg-black/[0.04] px-1.5 py-0.5 text-[10px] font-medium text-[#6b7280]">
+                            <span className="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
                               {theme.badge}
                             </span>
                           </div>
                           {isSelected && (
-                            <Check className="size-4 text-[#111827]" />
+                            <Check className="size-4 text-white" />
                           )}
                         </div>
 
-                        <p className="text-xs text-[#6b7280] leading-relaxed">
+                        <p className="text-xs text-zinc-400 leading-relaxed">
                           {theme.description}
                         </p>
 
@@ -1244,7 +1244,7 @@ export function SettingsModal({
                           {theme.previewColors.map((hex, idx) => (
                             <span
                               key={idx}
-                              className="h-3 flex-1 rounded-sm border border-black/10 shadow-inner"
+                              className="h-3 flex-1 rounded-sm border border-white/10 shadow-inner"
                               style={{ backgroundColor: hex }}
                               title={hex}
                             />
@@ -1263,10 +1263,10 @@ export function SettingsModal({
             {activeTab === "colours" && (
               <div className="space-y-6">
                 {/* Accent Swatches Card */}
-                <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-xs space-y-3.5">
+                <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-3.5">
                   <div>
-                    <h3 className="text-sm font-bold text-[#111827]">Accent</h3>
-                    <p className="text-xs text-[#6b7280] mt-0.5">
+                    <h3 className="text-sm font-bold text-white">Accent</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
                       Buttons, highlights and the page you are on.
                     </p>
                   </div>
@@ -1284,9 +1284,9 @@ export function SettingsModal({
                           onClick={() => handleSelectAccent(swatch.id, swatch.isThemeDefault ? undefined : swatch.color)}
                           className={cn(
                             "relative size-9 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center cursor-pointer shadow-xs",
-                            swatch.isThemeDefault && "bg-white border-black/30 text-[#111827]",
+                            swatch.isThemeDefault && "bg-[#0c0d12] border-white/40 text-white",
                             isSelected
-                              ? "border-black ring-2 ring-black/40 scale-105"
+                              ? "border-white ring-2 ring-white/40 scale-105"
                               : "border-transparent",
                           )}
                           style={swatch.isThemeDefault ? {} : { backgroundColor: swatch.color }}
@@ -1296,7 +1296,7 @@ export function SettingsModal({
                             <Check
                               className={cn(
                                 "size-4 drop-shadow",
-                                swatch.isThemeDefault ? "text-[#111827]" : "text-white",
+                                swatch.isThemeDefault ? "text-white" : "text-white",
                               )}
                             />
                           )}
@@ -1310,8 +1310,8 @@ export function SettingsModal({
                         type="button"
                         onClick={() => accentPickerRef.current?.click()}
                         className={cn(
-                          "size-9 rounded-full border border-black/15 transition-transform hover:scale-110 flex items-center justify-center cursor-pointer shadow-xs",
-                          accentColor === "custom-accent" && "ring-2 ring-black scale-105",
+                          "size-9 rounded-full border border-white/15 transition-transform hover:scale-110 flex items-center justify-center cursor-pointer shadow-xs",
+                          accentColor === "custom-accent" && "ring-2 ring-white scale-105",
                         )}
                         style={{
                           background:
@@ -1334,10 +1334,10 @@ export function SettingsModal({
                 </div>
 
                 {/* Text Tone Card */}
-                <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-xs space-y-3.5">
+                <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-3.5">
                   <div>
-                    <h3 className="text-sm font-bold text-[#111827]">Text</h3>
-                    <p className="text-xs text-[#6b7280] mt-0.5">
+                    <h3 className="text-sm font-bold text-white">Text</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
                       For Light and Platinum. Every tone is checked to stay easy to read.
                     </p>
                   </div>
@@ -1353,10 +1353,10 @@ export function SettingsModal({
                             type="button"
                             onClick={() => handleSelectTextTone(tone.id)}
                             className={cn(
-                              "flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer bg-white",
+                              "flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer bg-[#181922]",
                               isSelected
-                                ? "border-2 border-black shadow-xs"
-                                : "border-black/[0.08] hover:border-black/30",
+                                ? "border-2 border-white shadow-xs"
+                                : "border-white/[0.08] hover:border-white/30",
                             )}
                           >
                             <span
@@ -1365,7 +1365,7 @@ export function SettingsModal({
                             >
                               Aa
                             </span>
-                            <span className="text-xs font-semibold text-[#111827]">
+                            <span className="text-xs font-semibold text-white">
                               {tone.name}
                             </span>
                           </button>
@@ -1383,10 +1383,10 @@ export function SettingsModal({
                             type="button"
                             onClick={() => handleSelectTextTone(tone.id)}
                             className={cn(
-                              "flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer bg-white",
+                              "flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer bg-[#181922]",
                               isSelected
-                                ? "border-2 border-black shadow-xs"
-                                : "border-black/[0.08] hover:border-black/30",
+                                ? "border-2 border-white shadow-xs"
+                                : "border-white/[0.08] hover:border-white/30",
                             )}
                           >
                             <span
@@ -1395,7 +1395,7 @@ export function SettingsModal({
                             >
                               Aa
                             </span>
-                            <span className="text-xs font-semibold text-[#111827]">
+                            <span className="text-xs font-semibold text-white">
                               {tone.name}
                             </span>
                           </button>
@@ -1408,20 +1408,20 @@ export function SettingsModal({
                           type="button"
                           onClick={() => customTextToneRef.current?.click()}
                           className={cn(
-                            "w-full flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer bg-white",
+                            "w-full flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer bg-[#181922]",
                             textTone === "custom"
-                              ? "border-2 border-black shadow-xs"
-                              : "border-black/[0.08] hover:border-black/30",
+                              ? "border-2 border-white shadow-xs"
+                              : "border-white/[0.08] hover:border-white/30",
                           )}
                         >
                           <span
-                            className="size-4 rounded-full border border-black/10 shrink-0"
+                            className="size-4 rounded-full border border-white/10 shrink-0"
                             style={{
                               background:
                                 "conic-gradient(from 180deg at 50% 50%, #f43f5e, #fb923c, #facc15, #4ade80, #38bdf8, #818cf8, #c084fc, #f43f5e)",
                             }}
                           />
-                          <span className="text-xs font-semibold text-[#111827]">
+                          <span className="text-xs font-semibold text-white">
                             Your own
                           </span>
                         </button>
@@ -1441,10 +1441,10 @@ export function SettingsModal({
                 </div>
 
                 {/* Lines Card */}
-                <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-xs space-y-3.5">
+                <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-3.5">
                   <div>
-                    <h3 className="text-sm font-bold text-[#111827]">Lines</h3>
-                    <p className="text-xs text-[#6b7280] mt-0.5">
+                    <h3 className="text-sm font-bold text-white">Lines</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
                       The fading lines between rows and sections.
                     </p>
                   </div>
@@ -1455,14 +1455,14 @@ export function SettingsModal({
                       type="button"
                       onClick={() => handleSelectLineStyle("theme")}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-white",
+                        "flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-[#181922]",
                         lineStyle === "theme"
-                          ? "border-2 border-black shadow-xs"
-                          : "border-black/[0.08] hover:border-black/30",
+                          ? "border-2 border-white shadow-xs"
+                          : "border-white/[0.08] hover:border-white/30",
                       )}
                     >
                       <span className="text-muted-foreground font-semibold">—</span>
-                      <span className="text-xs font-semibold text-[#111827]">Theme</span>
+                      <span className="text-xs font-semibold text-white">Theme</span>
                     </button>
 
                     {/* Text colour */}
@@ -1470,14 +1470,14 @@ export function SettingsModal({
                       type="button"
                       onClick={() => handleSelectLineStyle("text")}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-white",
+                        "flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-[#181922]",
                         lineStyle === "text"
-                          ? "border-2 border-black shadow-xs"
-                          : "border-black/[0.08] hover:border-black/30",
+                          ? "border-2 border-white shadow-xs"
+                          : "border-white/[0.08] hover:border-white/30",
                       )}
                     >
-                      <span className="text-[#111827] font-bold">—</span>
-                      <span className="text-xs font-semibold text-[#111827]">Text colour</span>
+                      <span className="text-white font-bold">—</span>
+                      <span className="text-xs font-semibold text-white">Text colour</span>
                     </button>
 
                     {/* Accent */}
@@ -1485,14 +1485,14 @@ export function SettingsModal({
                       type="button"
                       onClick={() => handleSelectLineStyle("accent")}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-white",
+                        "flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-[#181922]",
                         lineStyle === "accent"
-                          ? "border-2 border-black shadow-xs"
-                          : "border-black/[0.08] hover:border-black/30",
+                          ? "border-2 border-white shadow-xs"
+                          : "border-white/[0.08] hover:border-white/30",
                       )}
                     >
                       <span className="text-blue-600 font-bold">—</span>
-                      <span className="text-xs font-semibold text-[#111827]">Accent</span>
+                      <span className="text-xs font-semibold text-white">Accent</span>
                     </button>
 
                     {/* Your own */}
@@ -1501,14 +1501,14 @@ export function SettingsModal({
                         type="button"
                         onClick={() => customLineColorRef.current?.click()}
                         className={cn(
-                          "w-full flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-white",
+                          "w-full flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-[#181922]",
                           lineStyle === "custom"
-                            ? "border-2 border-black shadow-xs"
-                            : "border-black/[0.08] hover:border-black/30",
+                            ? "border-2 border-white shadow-xs"
+                            : "border-white/[0.08] hover:border-white/30",
                         )}
                       >
                         <span className="font-bold text-blue-500">—</span>
-                        <span className="text-xs font-semibold text-[#111827]">Your own</span>
+                        <span className="text-xs font-semibold text-white">Your own</span>
                       </button>
                       <input
                         ref={customLineColorRef}
@@ -1525,10 +1525,10 @@ export function SettingsModal({
                 </div>
 
                 {/* Font Selector Card (2x2 Grid) */}
-                <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-xs space-y-3.5">
+                <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-3.5">
                   <div>
-                    <h3 className="text-sm font-bold text-[#111827]">Font</h3>
-                    <p className="text-xs text-[#6b7280] mt-0.5">
+                    <h3 className="text-sm font-bold text-white">Font</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
                       For the whole journal. Share cards keep Satoshi.
                     </p>
                   </div>
@@ -1542,24 +1542,24 @@ export function SettingsModal({
                           type="button"
                           onClick={() => handleSelectFont(font.id)}
                           className={cn(
-                            "flex flex-col justify-between rounded-2xl border p-4 text-left transition-all cursor-pointer bg-white h-24",
+                            "flex flex-col justify-between rounded-2xl border p-4 text-left transition-all cursor-pointer bg-[#181922] h-24",
                             isSelected
-                              ? "border-2 border-black shadow-xs"
-                              : "border-black/[0.08] hover:border-black/30",
+                              ? "border-2 border-white shadow-xs"
+                              : "border-white/[0.08] hover:border-white/30",
                           )}
                         >
                           <div
-                            className="text-3xl font-bold text-[#111827]"
+                            className="text-3xl font-bold text-white"
                             style={{ fontFamily: font.fontFamily }}
                           >
                             {font.displaySample}
                           </div>
 
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-[#111827]">
+                            <span className="font-semibold text-white">
                               {font.name}
                             </span>
-                            <span className="font-mono text-[#6b7280] font-medium">
+                            <span className="font-mono text-zinc-400 font-medium">
                               {font.previewPnl}
                             </span>
                           </div>
@@ -1571,13 +1571,13 @@ export function SettingsModal({
 
                 {/* Footer with theme status and Reset to default */}
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-[#6b7280]">
+                  <span className="text-xs text-zinc-400">
                     {activeThemeDisplayName} theme
                   </span>
                   <button
                     type="button"
                     onClick={handleResetToDefault}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/10 bg-white hover:bg-gray-50 text-xs font-semibold text-[#111827] shadow-xs active:scale-95 transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-white shadow-xs active:scale-95 transition-all cursor-pointer"
                   >
                     <RotateCcw className="size-3.5" />
                     <span>Reset to default</span>
@@ -1591,17 +1591,17 @@ export function SettingsModal({
                 ══════════════════════════════════════════════════════════════════ */}
             {activeTab === "custom" && (
               <div className="space-y-5">
-                <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-xs space-y-4">
+                <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-[#111827]">Custom Palette Builder</h3>
-                    <p className="text-xs text-[#6b7280] mt-0.5">
+                    <h3 className="text-sm font-bold text-white">Custom Palette Builder</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
                       Define bespoke colors for canvas, surface cards, primary text, and signature accent.
                     </p>
                   </div>
 
                   {/* Quick Starter Inspirations */}
                   <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-[#6b7280] mb-2">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">
                       Quick Starter Inspirations
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1632,15 +1632,15 @@ export function SettingsModal({
                             applyColorTheme(CUSTOM_THEME_ID, null, nextColors);
                             toast.success(`Applied ${preset.name} preset`);
                           }}
-                          className="flex items-center justify-between rounded-xl border border-black/10 bg-gray-50/70 px-3 py-2 text-left hover:border-black/30 transition-all cursor-pointer"
+                          className="flex items-center justify-between rounded-xl border border-white/10 bg-gray-50/70 px-3 py-2 text-left hover:border-white/30 transition-all cursor-pointer"
                         >
-                          <span className="text-xs font-semibold text-[#111827]">
+                          <span className="text-xs font-semibold text-white">
                             {preset.name}
                           </span>
                           <div className="flex items-center gap-1">
-                            <span className="size-2 rounded-full border border-black/20" style={{ backgroundColor: preset.background }} />
-                            <span className="size-2 rounded-full border border-black/20" style={{ backgroundColor: preset.surface }} />
-                            <span className="size-2 rounded-full border border-black/20" style={{ backgroundColor: preset.accent }} />
+                            <span className="size-2 rounded-full border border-white/20" style={{ backgroundColor: preset.background }} />
+                            <span className="size-2 rounded-full border border-white/20" style={{ backgroundColor: preset.surface }} />
+                            <span className="size-2 rounded-full border border-white/20" style={{ backgroundColor: preset.accent }} />
                           </div>
                         </button>
                       ))}
@@ -1651,7 +1651,7 @@ export function SettingsModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     {/* Canvas Background */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-[#111827]">Canvas Background</label>
+                      <label className="text-xs font-semibold text-white">Canvas Background</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
@@ -1673,7 +1673,7 @@ export function SettingsModal({
                             }
                             applyColorTheme(CUSTOM_THEME_ID, null, next);
                           }}
-                          className="size-9 rounded-lg border border-black/10 cursor-pointer p-0.5"
+                          className="size-9 rounded-lg border border-white/10 cursor-pointer p-0.5"
                         />
                         <Input
                           aria-label="Canvas Background hex code"
@@ -1695,14 +1695,14 @@ export function SettingsModal({
                             }
                             applyColorTheme(CUSTOM_THEME_ID, null, next);
                           }}
-                          className="bg-gray-50/80 font-mono text-xs text-[#111827]"
+                          className="bg-[#181922] font-mono text-xs text-white border-white/10"
                         />
                       </div>
                     </div>
 
                     {/* Surface Card */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-[#111827]">Surface Card</label>
+                      <label className="text-xs font-semibold text-white">Surface Card</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
@@ -1724,7 +1724,7 @@ export function SettingsModal({
                             }
                             applyColorTheme(CUSTOM_THEME_ID, null, next);
                           }}
-                          className="size-9 rounded-lg border border-black/10 cursor-pointer p-0.5"
+                          className="size-9 rounded-lg border border-white/10 cursor-pointer p-0.5"
                         />
                         <Input
                           aria-label="Surface / Card hex code"
@@ -1746,14 +1746,14 @@ export function SettingsModal({
                             }
                             applyColorTheme(CUSTOM_THEME_ID, null, next);
                           }}
-                          className="bg-gray-50/80 font-mono text-xs text-[#111827]"
+                          className="bg-[#181922] font-mono text-xs text-white border-white/10"
                         />
                       </div>
                     </div>
 
                     {/* Text Foreground */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-[#111827]">Text Foreground</label>
+                      <label className="text-xs font-semibold text-white">Text Foreground</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
@@ -1775,7 +1775,7 @@ export function SettingsModal({
                             }
                             applyColorTheme(CUSTOM_THEME_ID, null, next);
                           }}
-                          className="size-9 rounded-lg border border-black/10 cursor-pointer p-0.5"
+                          className="size-9 rounded-lg border border-white/10 cursor-pointer p-0.5"
                         />
                         <Input
                           aria-label="Text Foreground hex code"
@@ -1797,14 +1797,14 @@ export function SettingsModal({
                             }
                             applyColorTheme(CUSTOM_THEME_ID, null, next);
                           }}
-                          className="bg-gray-50/80 font-mono text-xs text-[#111827]"
+                          className="bg-[#181922] font-mono text-xs text-white border-white/10"
                         />
                       </div>
                     </div>
 
                     {/* Accent Color */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-[#111827]">Accent Color</label>
+                      <label className="text-xs font-semibold text-white">Accent Color</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
@@ -1826,7 +1826,7 @@ export function SettingsModal({
                             }
                             applyColorTheme(CUSTOM_THEME_ID, null, next);
                           }}
-                          className="size-9 rounded-lg border border-black/10 cursor-pointer p-0.5"
+                          className="size-9 rounded-lg border border-white/10 cursor-pointer p-0.5"
                         />
                         <Input
                           aria-label="Accent Color hex code"
@@ -1848,7 +1848,7 @@ export function SettingsModal({
                             }
                             applyColorTheme(CUSTOM_THEME_ID, null, next);
                           }}
-                          className="bg-gray-50/80 font-mono text-xs text-[#111827]"
+                          className="bg-[#181922] font-mono text-xs text-white border-white/10"
                         />
                       </div>
                     </div>
@@ -1862,10 +1862,10 @@ export function SettingsModal({
                 ══════════════════════════════════════════════════════════════════ */}
             {activeTab === "money" && (
               <div className="space-y-5">
-                <div className="rounded-2xl border border-black/[0.08] bg-white p-5 shadow-xs space-y-4">
+                <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-4">
                   <div>
-                    <h3 className="text-base font-bold text-[#111827]">Account Rules & Money</h3>
-                    <p className="text-xs text-[#6b7280] mt-0.5">
+                    <h3 className="text-base font-bold text-white">Account Rules & Money</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
                       Funded-account constraints plus risk tiers. ICT timing strictly uses {TRADING_TZ}.
                     </p>
                   </div>
@@ -1874,7 +1874,7 @@ export function SettingsModal({
                     <Input
                       value={data.accountName}
                       onChange={(e) => patchAccount({ accountName: e.target.value })}
-                      className="bg-gray-50/80 text-[#111827]"
+                      className="bg-[#181922] text-white border-white/10"
                     />
                   </Field>
 
@@ -1884,7 +1884,7 @@ export function SettingsModal({
                         type="number"
                         value={data.rules.startingBalance}
                         onChange={(e) => patchAccount({ startingBalance: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Payout threshold %">
@@ -1893,7 +1893,7 @@ export function SettingsModal({
                         step="0.5"
                         value={data.rules.payoutThresholdPct}
                         onChange={(e) => patchAccount({ payoutThresholdPct: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Profit target %">
@@ -1902,7 +1902,7 @@ export function SettingsModal({
                         step="0.5"
                         value={data.rules.profitTargetPct}
                         onChange={(e) => patchAccount({ profitTargetPct: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Profit split %">
@@ -1910,7 +1910,7 @@ export function SettingsModal({
                         type="number"
                         value={data.rules.profitSplit}
                         onChange={(e) => patchAccount({ profitSplit: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Max daily loss %">
@@ -1919,7 +1919,7 @@ export function SettingsModal({
                         step="0.1"
                         value={data.rules.maxDailyLossPct}
                         onChange={(e) => patchAccount({ maxDailyLossPct: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Max total DD %">
@@ -1928,7 +1928,7 @@ export function SettingsModal({
                         step="0.1"
                         value={data.rules.maxTotalDrawdownPct}
                         onChange={(e) => patchAccount({ maxTotalDrawdownPct: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Normal risk %">
@@ -1937,7 +1937,7 @@ export function SettingsModal({
                         step="0.05"
                         value={data.rules.normalRiskPct}
                         onChange={(e) => patchAccount({ normalRiskPct: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="High-conviction %">
@@ -1946,7 +1946,7 @@ export function SettingsModal({
                         step="0.05"
                         value={data.rules.highConvictionRiskPct}
                         onChange={(e) => patchAccount({ highConvictionRiskPct: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Max trades / day">
@@ -1954,7 +1954,7 @@ export function SettingsModal({
                         type="number"
                         value={data.rules.maxTrades}
                         onChange={(e) => patchAccount({ maxTrades: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Max consecutive losses">
@@ -1962,7 +1962,7 @@ export function SettingsModal({
                         type="number"
                         value={data.rules.maxConsecutiveLosses}
                         onChange={(e) => patchAccount({ maxConsecutiveLosses: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Window start (NY)">
@@ -1970,7 +1970,7 @@ export function SettingsModal({
                         type="time"
                         value={data.rules.windowStart}
                         onChange={(e) => patchAccount({ windowStart: e.target.value })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Window end (NY)">
@@ -1978,7 +1978,7 @@ export function SettingsModal({
                         type="time"
                         value={data.rules.windowEnd}
                         onChange={(e) => patchAccount({ windowEnd: e.target.value })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Min trading days">
@@ -1986,7 +1986,7 @@ export function SettingsModal({
                         type="number"
                         value={data.rules.minTradingDays}
                         onChange={(e) => patchAccount({ minTradingDays: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Consistency cap %">
@@ -1994,7 +1994,7 @@ export function SettingsModal({
                         type="number"
                         value={data.rules.consistencyPct}
                         onChange={(e) => patchAccount({ consistencyPct: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Max lots">
@@ -2003,7 +2003,7 @@ export function SettingsModal({
                         step="0.01"
                         value={data.rules.maxPositionLots}
                         onChange={(e) => patchAccount({ maxPositionLots: Number(e.target.value) })}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                     <Field label="Protocol start">
@@ -2011,21 +2011,21 @@ export function SettingsModal({
                         type="date"
                         value={data.rules.protocolStartDate}
                         onChange={(e) => rebuildProtocolDates(e.target.value)}
-                        className="bg-gray-50/80 text-[#111827]"
+                        className="bg-[#181922] text-white border-white/10"
                       />
                     </Field>
                   </div>
 
                   {/* Restrict Toggles */}
-                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3.5 py-2.5 border border-black/[0.06]">
-                    <span className="text-xs font-semibold text-[#111827]">News restricted</span>
+                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3.5 py-2.5 border border-white/[0.06]">
+                    <span className="text-xs font-semibold text-white">News restricted</span>
                     <Switch
                       checked={data.rules.newsRestricted}
                       onCheckedChange={(v) => patchAccount({ newsRestricted: v })}
                     />
                   </div>
-                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3.5 py-2.5 border border-black/[0.06]">
-                    <span className="text-xs font-semibold text-[#111827]">Weekend restricted</span>
+                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3.5 py-2.5 border border-white/[0.06]">
+                    <span className="text-xs font-semibold text-white">Weekend restricted</span>
                     <Switch
                       checked={data.rules.weekendRestricted}
                       onCheckedChange={(v) => patchAccount({ weekendRestricted: v })}
@@ -2036,7 +2036,7 @@ export function SettingsModal({
                     <Input
                       value={data.rules.scalingNote}
                       onChange={(e) => patchAccount({ scalingNote: e.target.value })}
-                      className="bg-gray-50/80 text-[#111827]"
+                      className="bg-[#181922] text-white border-white/10"
                     />
                   </Field>
 
@@ -2044,7 +2044,7 @@ export function SettingsModal({
                     <Textarea
                       value={data.mantra}
                       onChange={(e) => patchAccount({ mantra: e.target.value })}
-                      className="bg-gray-50/80 text-[#111827]"
+                      className="bg-[#181922] text-white border-white/10"
                     />
                   </Field>
 

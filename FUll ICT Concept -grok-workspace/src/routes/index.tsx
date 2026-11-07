@@ -29,7 +29,7 @@ import { Panel } from "@/components/desk/fields";
 import { RangeBar } from "@/components/desk/range-bar";
 import { KpiCard } from "@/components/desk/kpi-card";
 import { nowHHMM } from "@/lib/ict-time";
-import { Flame, ShieldAlert, Target, Wallet, Quote, AlertTriangle, CalendarClock } from "lucide-react";
+import { Flame, ShieldAlert, Target, Wallet, Quote, AlertTriangle, CalendarClock, Edit } from "lucide-react";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -83,21 +83,33 @@ function Home() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Today"
-        title="Was the read correct?"
-        description={`Narrative → liquidity → location → timing → trigger → risk.${proto ? ` ${proto.title}: ${proto.focus}` : ` Day ${day}.`}`}
-        aside={
-          <>
-            <span className="inline-flex items-center gap-1.5 rounded-sm border border-up/30 bg-up/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] text-up uppercase">
-              <span className="size-1.5 rounded-full bg-up animate-pulse" aria-hidden="true" />
-              Live New York
-            </span>
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {today} · {nowHHMM()} NY
-            </span>
-          </>
-        }
-      />
+              eyebrow="Today"
+              title="Was the read correct?"
+              description={`Narrative → liquidity → location → timing → trigger → risk.${proto ? ` ${proto.title}: ${proto.focus}` : ` Day ${day}.`}`}
+              aside={
+                <>
+                  <span className="inline-flex items-center gap-1.5 rounded-sm border border-up/30 bg-up/10 px-2 py-0.5 text-[10px] font-semibold tracking-[0.1em] text-up uppercase">
+                    <span className="size-1.5 rounded-full bg-up animate-pulse" aria-hidden="true" />
+                    Live New York
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {today} · {nowHHMM()} NY
+                  </span>
+                </>
+              }
+                actions={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setChecklistOpen(true)}
+                    className="gap-1.5"
+                    aria-label="Edit checklist items"
+                  >
+                    <Edit className="size-3.5" aria-hidden="true" />
+                    <span className="hidden sm:inline">Edit</span>
+                  </Button>
+          }
+        />
 
       <div className="mb-5 grid grid-cols-2 gap-2.5 md:grid-cols-4">
         <KpiCard
