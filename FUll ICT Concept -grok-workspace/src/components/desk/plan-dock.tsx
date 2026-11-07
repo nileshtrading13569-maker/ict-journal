@@ -31,7 +31,7 @@ export const DEFAULT_PLAN_QUESTIONS: PlanQuestion[] = [
   { id: "plan-q4", label: "Did we think about this entry before entering?" },
 ];
 
-const PLAN_QUESTIONS_KEY = "ict-desk-plan-questions-v2";
+const PLAN_QUESTIONS_KEY = "ict-desk-plan-questions-v3";
 const PLAN_DOCK_OPEN_KEY = "ict-desk-plan-dock-open";
 
 export function PlanDock() {
@@ -235,32 +235,32 @@ export function PlanDock() {
       .sort((a, b) => (b.time || "").localeCompare(a.time || ""));
   }, [trades, today]);
 
-  // Reusable panel content matching exact styling from Image 3
+  // Reusable panel content in Deep Black / Dark Luxury Theme
   const renderPanelContent = (isMobileView = false) => (
-    <div className="flex flex-col h-full space-y-4 text-[#334155] font-sans">
-      {/* Top Header Row (Matches Image 3) */}
-      <div className="flex items-center justify-between pb-3">
+    <div className="flex flex-col h-full space-y-4 text-zinc-200 font-sans">
+      {/* Top Header Row */}
+      <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
         <button
           type="button"
           onClick={() => (isMobileView ? setMobileOpen(false) : handleToggleDock(false))}
-          className="flex size-6 items-center justify-center text-[#64748b] hover:text-[#1e293b] transition-colors cursor-pointer"
+          className="flex size-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white hover:border-white/20 hover:bg-white/[0.08] transition-colors cursor-pointer"
           title="Collapse plan rail"
           aria-label="Collapse plan rail"
         >
           <ChevronsRight className="size-4" />
         </button>
-        <span className="font-sans text-sm font-semibold text-[#334155] tracking-tight">
+        <span className="font-mono text-xs font-bold text-white tracking-wider">
           {dateMMDD}
         </span>
       </div>
 
-      {/* Section 1: THE PLAN (Matches Image 3) */}
+      {/* Section 1: THE PLAN */}
       <div>
         <div className="flex items-center justify-between select-none mb-2">
           <button
             type="button"
             onClick={() => setPlanSectionOpen(!planSectionOpen)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-[#718096] hover:text-[#2d3748] uppercase transition-colors"
+            className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-[#a1a1aa] hover:text-white uppercase transition-colors cursor-pointer"
           >
             <ChevronDown
               className={cn("size-3.5 transition-transform duration-200", !planSectionOpen && "-rotate-90")}
@@ -270,7 +270,7 @@ export function PlanDock() {
           <button
             type="button"
             onClick={() => setIsEditingPlan(!isEditingPlan)}
-            className="text-[12px] font-normal text-[#4a5568] hover:text-[#1a202c] transition-colors cursor-pointer"
+            className="text-[11px] font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
             {isEditingPlan ? "Close" : planNotes ? "Edit" : "Write"}
           </button>
@@ -285,7 +285,7 @@ export function PlanDock() {
                   onChange={(e) => setDraftPlan(e.target.value)}
                   placeholder="Write today's pre-market narrative, bias, draw on liquidity, key levels..."
                   rows={4}
-                  className="w-full text-xs bg-white border border-[#cbd5e1] rounded-lg p-2.5 text-[#1e293b] placeholder:text-[#94a3b8] focus:outline-none focus:border-[#64748b] focus:ring-1 focus:ring-[#94a3b8] resize-none font-sans"
+                  className="w-full text-xs bg-black/60 border border-white/15 rounded-lg p-2.5 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 resize-none font-sans"
                   autoFocus
                 />
                 <div className="flex items-center justify-end gap-2">
@@ -295,14 +295,14 @@ export function PlanDock() {
                       setDraftPlan(planNotes);
                       setIsEditingPlan(false);
                     }}
-                    className="px-2.5 py-1 text-[11px] font-medium text-[#64748b] hover:text-[#1e293b] rounded border border-[#cbd5e1] bg-white transition-colors"
+                    className="px-2.5 py-1 text-[11px] font-medium text-zinc-400 hover:text-white rounded border border-white/10 hover:border-white/20 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handleSavePlan}
-                    className="px-3 py-1 text-[11px] font-semibold text-white bg-[#0f172a] hover:bg-[#1e293b] rounded transition-colors shadow-xs"
+                    className="px-3 py-1 text-[11px] font-semibold text-white bg-red-600 hover:bg-red-500 rounded transition-colors shadow-xs"
                   >
                     Save
                   </button>
@@ -311,19 +311,19 @@ export function PlanDock() {
             ) : planNotes ? (
               <div
                 onClick={() => setIsEditingPlan(true)}
-                className="group relative rounded-lg border border-dashed border-[#cbd5e1] bg-white/70 p-3 text-xs text-[#334155] hover:border-[#94a3b8] hover:bg-white transition-all cursor-pointer whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto [scrollbar-width:none]"
+                className="group relative rounded-lg border border-dashed border-white/20 bg-white/[0.03] p-3 text-xs text-zinc-200 hover:border-white/30 hover:bg-white/[0.05] transition-all cursor-pointer whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto [scrollbar-width:none]"
               >
                 {planNotes}
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Pencil className="size-3 text-[#64748b]" />
+                  <Pencil className="size-3 text-zinc-400" />
                 </div>
               </div>
             ) : (
-              /* The exact dashed rounded box from Image 3 */
+              /* The exact dashed rounded box in deep black */
               <button
                 type="button"
                 onClick={() => setIsEditingPlan(true)}
-                className="w-full rounded-lg border border-dashed border-[#cbd5e1] bg-white/40 py-3.5 px-3 text-center text-xs text-[#475569] hover:border-[#94a3b8] hover:bg-white/80 hover:text-[#1e293b] transition-all cursor-pointer"
+                className="w-full rounded-lg border border-dashed border-white/20 bg-white/[0.02] py-3.5 px-3 text-center text-xs text-zinc-400 hover:border-white/40 hover:bg-white/[0.05] hover:text-white transition-all cursor-pointer"
               >
                 No pre-market plan yet
               </button>
@@ -333,15 +333,15 @@ export function PlanDock() {
       </div>
 
       {/* Divider */}
-      <div className="border-t border-[#e2e8f0]" />
+      <div className="border-t border-white/[0.08]" />
 
-      {/* Section 2: CHECKLIST (Matches Image 3) */}
+      {/* Section 2: CHECKLIST */}
       <div>
         <div className="flex items-center justify-between select-none mb-2">
           <button
             type="button"
             onClick={() => setChecklistSectionOpen(!checklistSectionOpen)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-[#718096] hover:text-[#2d3748] uppercase transition-colors"
+            className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-[#a1a1aa] hover:text-white uppercase transition-colors cursor-pointer"
           >
             <ChevronDown
               className={cn("size-3.5 transition-transform duration-200", !checklistSectionOpen && "-rotate-90")}
@@ -349,7 +349,7 @@ export function PlanDock() {
             <span>CHECKLIST</span>
           </button>
           <div className="flex items-center gap-2">
-            <span className="font-sans text-[12px] font-normal text-[#64748b]">
+            <span className="font-mono text-[11px] font-medium text-zinc-400">
               {completedChecklistCount}/{checklistQuestions.length}
             </span>
             <button
@@ -358,7 +358,7 @@ export function PlanDock() {
                 setEditingQuestions([...checklistQuestions]);
                 setChecklistEditorOpen(true);
               }}
-              className="text-[#718096] hover:text-[#1e293b] transition-colors p-0.5 cursor-pointer"
+              className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 cursor-pointer"
               title="Edit checklist questions"
               aria-label="Edit checklist questions"
             >
@@ -368,30 +368,30 @@ export function PlanDock() {
         </div>
 
         {checklistSectionOpen && (
-          <div className="space-y-2.5 mt-2">
+          <div className="space-y-2 mt-2">
             {checklistQuestions.map((item) => {
               const checked = checkedSet.has(item.id);
               return (
                 <div
                   key={item.id}
                   onClick={() => handleToggleCheck(item.id)}
-                  className="flex items-start gap-2.5 cursor-pointer group py-0.5 text-xs select-none"
+                  className="flex items-start gap-2.5 cursor-pointer group py-1 text-xs select-none"
                 >
-                  {/* Round circular checkbox matching Image 3 */}
+                  {/* Round circular checkbox */}
                   <div
                     className={cn(
                       "size-4 shrink-0 rounded-full border transition-all mt-0.5 flex items-center justify-center",
                       checked
-                        ? "bg-[#10b981] border-[#10b981] text-white shadow-xs"
-                        : "border-[#94a3b8] group-hover:border-[#475569] bg-white"
+                        ? "bg-[#3ddc84] border-[#3ddc84] text-black shadow-[0_0_8px_rgba(61,220,132,0.5)]"
+                        : "border-white/30 group-hover:border-white/60 bg-transparent"
                     )}
                   >
                     {checked && <Check className="size-2.5 stroke-[3]" />}
                   </div>
                   <span
                     className={cn(
-                      "leading-snug transition-colors text-[12.5px]",
-                      checked ? "text-[#94a3b8] line-through" : "text-[#334155] group-hover:text-[#0f172a]"
+                      "leading-snug transition-colors text-xs",
+                      checked ? "text-zinc-500 line-through" : "text-zinc-300 group-hover:text-white"
                     )}
                   >
                     {item.label}
@@ -404,47 +404,47 @@ export function PlanDock() {
       </div>
 
       {/* Divider */}
-      <div className="border-t border-[#e2e8f0]" />
+      <div className="border-t border-white/[0.08]" />
 
-      {/* Section 3: SESSION (Matches Image 3) */}
+      {/* Section 3: SESSION */}
       <div>
-        <div className="flex items-center justify-between select-none mb-1">
+        <div className="flex items-center justify-between select-none mb-2">
           <button
             type="button"
             onClick={() => setSessionSectionOpen(!sessionSectionOpen)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-[#718096] hover:text-[#2d3748] uppercase transition-colors"
+            className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-[#a1a1aa] hover:text-white uppercase transition-colors cursor-pointer"
           >
             <ChevronDown
               className={cn("size-3.5 transition-transform duration-200", !sessionSectionOpen && "-rotate-90")}
             />
             <span>SESSION</span>
           </button>
-          <span className="font-sans text-xs text-[#718096] font-medium">{activeSessionName}</span>
+          <span className="font-mono text-xs text-zinc-400 font-medium">{activeSessionName}</span>
         </div>
 
         {sessionSectionOpen && (
           <div className="space-y-2 mt-1">
-            <p className="text-xs font-semibold text-[#1e293b]">
+            <p className="text-xs font-semibold text-white">
               {activeSessionDetail !== "—" ? activeSessionDetail : "—"}
             </p>
-            <div className="flex items-center justify-between pt-1 text-[12.5px]">
-              <span className="text-[#475569]">Rules kept</span>
-              <span className="font-sans text-[#475569] font-medium">{rulesKeptDisplay}</span>
+            <div className="flex items-center justify-between pt-1 border-t border-white/[0.05] text-xs">
+              <span className="text-zinc-400">Rules kept</span>
+              <span className="font-mono text-zinc-200 font-medium">{rulesKeptDisplay}</span>
             </div>
           </div>
         )}
       </div>
 
       {/* Divider */}
-      <div className="border-t border-[#e2e8f0]" />
+      <div className="border-t border-white/[0.08]" />
 
-      {/* Section 4: RECENT TRADES (Matches Image 3) */}
+      {/* Section 4: RECENT TRADES */}
       <div className="pb-2">
         <div className="flex items-center justify-between select-none mb-2">
           <button
             type="button"
             onClick={() => setTradesSectionOpen(!tradesSectionOpen)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-[#718096] hover:text-[#2d3748] uppercase transition-colors"
+            className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-[#a1a1aa] hover:text-white uppercase transition-colors cursor-pointer"
           >
             <ChevronDown
               className={cn("size-3.5 transition-transform duration-200", !tradesSectionOpen && "-rotate-90")}
@@ -453,7 +453,7 @@ export function PlanDock() {
           </button>
           <Link
             to="/journal"
-            className="text-[12px] font-normal text-[#4a5568] hover:text-[#1a202c] transition-colors"
+            className="text-[11px] font-medium text-zinc-400 hover:text-white transition-colors"
           >
             All
           </Link>
@@ -462,8 +462,7 @@ export function PlanDock() {
         {tradesSectionOpen && (
           <div className="space-y-2 mt-1">
             {todayTrades.length === 0 ? (
-              /* Exact text from Image 3: Nothing logged yet. */
-              <p className="text-xs text-[#64748b] py-1">Nothing logged yet.</p>
+              <p className="text-xs text-zinc-500 py-1">Nothing logged yet.</p>
             ) : (
               todayTrades.map((t) => {
                 const inst = instrumentOf(data, t.market);
@@ -474,30 +473,30 @@ export function PlanDock() {
                 return (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between p-2 rounded-lg border border-[#cbd5e1] bg-white/60 hover:bg-white transition-colors text-xs"
+                    className="flex items-center justify-between p-2 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] transition-colors text-xs"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span
                         className={cn(
                           "size-5 rounded flex items-center justify-center text-[10px] font-bold font-mono uppercase",
                           t.side === "long"
-                            ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
-                            : "bg-rose-100 text-rose-700 border border-rose-300"
+                            ? "bg-[#3ddc84]/15 text-[#3ddc84] border border-[#3ddc84]/30"
+                            : "bg-[#ff6b7d]/15 text-[#ff6b7d] border border-[#ff6b7d]/30"
                         )}
                       >
                         {t.side === "long" ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
                       </span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-[#0f172a] truncate">{t.market}</span>
-                          <span className="font-mono text-[10px] text-[#64748b]">{t.time}</span>
+                          <span className="font-semibold text-white truncate">{t.market}</span>
+                          <span className="font-mono text-[10px] text-zinc-500">{t.time}</span>
                         </div>
-                        <p className="font-mono text-[10px] text-[#475569] truncate">{t.modelName || "Setup"}</p>
+                        <p className="font-mono text-[10px] text-zinc-400 truncate">{t.modelName || "Setup"}</p>
                       </div>
                     </div>
 
                     <div className="text-right font-mono text-xs font-bold shrink-0">
-                      <span className={isWin ? "text-emerald-600" : isLoss ? "text-rose-600" : "text-[#64748b]"}>
+                      <span className={isWin ? "text-[#3ddc84]" : isLoss ? "text-[#ff6b7d]" : "text-zinc-400"}>
                         {fmtCurrency(pnl.net)}
                       </span>
                     </div>
@@ -513,32 +512,32 @@ export function PlanDock() {
 
   return (
     <>
-      {/* Desktop Persistent Rail matching Image 2 (Collapsed) and Image 3 (Expanded) */}
+      {/* Desktop Persistent Rail in Deep Black / Dark Luxury Theme */}
       <aside
         id="plan-dock-sidebar"
         aria-label="Daily plan rail"
         className={cn(
-          "sticky top-3 my-3 mr-3.5 ml-1 hidden h-[calc(100dvh-1.5rem)] shrink-0 flex-col overflow-hidden rounded-[30px] border border-[#cbd5e1]/80 bg-[#edf1f7] shadow-[0_10px_35px_rgba(0,0,0,0.15)] transition-[width,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width] lg:flex z-20",
-          isOpen ? "w-64 xl:w-72 px-4 py-4" : "w-11 px-1 py-4 cursor-pointer hover:bg-[#e4e9f2] group select-none"
+          "sticky top-3 my-3 mr-3.5 ml-1 hidden h-[calc(100dvh-1.5rem)] shrink-0 flex-col overflow-hidden rounded-[34px] border border-white/[0.08] bg-[#0c0c0e]/95 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.08)] transition-[width,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width] lg:flex z-20",
+          isOpen ? "w-64 xl:w-72 px-4 py-4" : "w-11 px-1 py-4 cursor-pointer hover:border-white/20 hover:bg-[#0f0f13] group select-none"
         )}
         onClick={!isOpen ? () => handleToggleDock(true) : undefined}
       >
         {!isOpen ? (
-          /* Exact Collapsed View matching Image 2 */
+          /* Collapsed View in Black Theme */
           <div className="flex h-full w-full flex-col items-center justify-between py-4">
-            <div className="flex size-7 items-center justify-center rounded-lg text-[#64748b] group-hover:text-[#1e293b] transition-colors">
+            <div className="flex size-7 items-center justify-center rounded-lg text-zinc-500 group-hover:text-white transition-colors">
               <ChevronsRight className="size-4 rotate-180" />
             </div>
-            {/* Vertical text PLAN matching Image 2 */}
+            {/* Vertical text PLAN in Deep Black Rail */}
             <div className="flex flex-1 items-end justify-center pb-6">
-              <span className="font-sans text-[11px] font-bold tracking-[0.25em] text-[#475569] group-hover:text-[#0f172a] transition-colors [writing-mode:vertical-rl] -rotate-180 uppercase select-none">
+              <span className="font-mono text-[11px] font-bold tracking-[0.28em] text-zinc-400 group-hover:text-white transition-colors [writing-mode:vertical-rl] -rotate-180 uppercase select-none">
                 PLAN
               </span>
             </div>
-            <div className="w-1.5 h-1.5 rounded-full bg-[#94a3b8] group-hover:bg-[#10b981] transition-colors" />
+            <div className="w-1.5 h-1.5 rounded-full bg-zinc-600 group-hover:bg-[#3ddc84] transition-colors" />
           </div>
         ) : (
-          /* Exact Expanded View matching Image 3 */
+          /* Expanded View in Black Theme */
           <div className="h-full overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pr-0.5">
             {renderPanelContent(false)}
           </div>
@@ -549,7 +548,7 @@ export function PlanDock() {
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 rounded-l-xl border-l border-y border-[#cbd5e1] bg-[#edf1f7] px-2 py-3 shadow-xl cursor-pointer hover:bg-[#e4e9f2] active:scale-95 transition-all text-xs font-sans font-bold tracking-widest text-[#475569] hover:text-[#0f172a] [writing-mode:vertical-rl] -rotate-180 lg:hidden"
+        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 rounded-l-xl border-l border-y border-white/10 bg-[#0c0c0e]/95 backdrop-blur-xl px-2 py-3 shadow-2xl cursor-pointer hover:border-white/25 active:scale-95 transition-all text-xs font-mono font-bold tracking-widest text-zinc-400 hover:text-white [writing-mode:vertical-rl] -rotate-180 lg:hidden"
         title="Open Plan"
         aria-label="Open Plan"
       >
@@ -557,8 +556,8 @@ export function PlanDock() {
       </button>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in-0 duration-200">
-          <div className="relative w-80 max-w-[90vw] h-full bg-[#edf1f7] border-l border-[#cbd5e1] p-4 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/75 backdrop-blur-sm lg:hidden animate-in fade-in-0 duration-200">
+          <div className="relative w-80 max-w-[90vw] h-full bg-[#0c0c0e] border-l border-white/[0.08] p-4 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto">
             {renderPanelContent(true)}
           </div>
         </div>
@@ -566,13 +565,13 @@ export function PlanDock() {
 
       {/* Checklist Question Customization Dialog */}
       <Dialog open={checklistEditorOpen} onOpenChange={setChecklistEditorOpen}>
-        <DialogContent className="max-w-md border-[#cbd5e1] bg-[#edf1f7] text-[#1e293b]">
+        <DialogContent className="max-w-md border-white/10 bg-[#121214] text-white">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold text-[#0f172a]">Customize Plan Checklist</DialogTitle>
+            <DialogTitle className="text-base font-semibold text-white">Customize Plan Checklist</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            <p className="text-xs text-[#64748b]">
+            <p className="text-xs text-zinc-400">
               Customize the checklist questions that appear in your pre-flight Plan rail.
             </p>
 
@@ -587,14 +586,14 @@ export function PlanDock() {
                       updated[idx] = { ...q, label: e.target.value };
                       setEditingQuestions(updated);
                     }}
-                    className="flex-1 bg-white border border-[#cbd5e1] rounded px-2.5 py-1.5 text-xs text-[#1e293b] focus:outline-none focus:border-[#64748b]"
+                    className="flex-1 bg-black/50 border border-white/15 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-white/30"
                   />
                   <button
                     type="button"
                     onClick={() => {
                       setEditingQuestions(editingQuestions.filter((item) => item.id !== q.id));
                     }}
-                    className="p-1.5 text-[#94a3b8] hover:text-red-500 transition-colors rounded hover:bg-white"
+                    className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors rounded hover:bg-white/[0.05]"
                     title="Remove question"
                   >
                     <Trash2 className="size-3.5" />
@@ -603,30 +602,30 @@ export function PlanDock() {
               ))}
             </div>
 
-            <div className="flex items-center gap-2 pt-2 border-t border-[#cbd5e1]">
+            <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08]">
               <input
                 type="text"
                 value={newQuestionText}
                 onChange={(e) => setNewQuestionText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddQuestion()}
                 placeholder="Add new question..."
-                className="flex-1 bg-white border border-[#cbd5e1] rounded px-2.5 py-1.5 text-xs text-[#1e293b] placeholder:text-[#94a3b8] focus:outline-none focus:border-[#64748b]"
+                className="flex-1 bg-black/50 border border-white/15 rounded px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
               />
               <Button
                 type="button"
                 size="sm"
                 onClick={handleAddQuestion}
-                className="bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs h-8 px-3"
+                className="bg-white/10 hover:bg-white/20 text-white text-xs h-8 px-3"
               >
                 <Plus className="size-3.5 mr-1" /> Add
               </Button>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-[#cbd5e1]">
+            <div className="flex items-center justify-between pt-3 border-t border-white/[0.08]">
               <button
                 type="button"
                 onClick={() => setEditingQuestions(DEFAULT_PLAN_QUESTIONS)}
-                className="text-xs text-[#64748b] hover:text-[#0f172a] underline underline-offset-2 transition-colors cursor-pointer"
+                className="text-xs text-zinc-400 hover:text-white underline underline-offset-2 transition-colors cursor-pointer"
               >
                 Reset to default
               </button>
@@ -635,14 +634,14 @@ export function PlanDock() {
                   variant="outline"
                   size="sm"
                   onClick={() => setChecklistEditorOpen(false)}
-                  className="border-[#cbd5e1] text-xs h-8 bg-white text-[#334155]"
+                  className="border-white/10 text-xs h-8 bg-transparent text-zinc-300 hover:text-white"
                 >
                   Cancel
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleSaveChecklistQuestions}
-                  className="bg-[#0f172a] hover:bg-[#1e293b] text-white text-xs h-8 px-4"
+                  className="bg-red-600 hover:bg-red-500 text-white text-xs h-8 px-4"
                 >
                   Save changes
                 </Button>
