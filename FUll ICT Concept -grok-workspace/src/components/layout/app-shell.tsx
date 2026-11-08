@@ -224,8 +224,10 @@ export function AppShell({
           <div className="relative flex w-full items-center">
             <button
               type="button"
+              data-no-spotlight="true"
+              data-settings-trigger="true"
               onClick={() => setSettingsOpen(true)}
-              className="group relative flex h-10 w-full items-center rounded-full border border-transparent text-zinc-400 transition-[border-color,background-color,color] duration-200 hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-white cursor-pointer"
+              className="group relative flex h-10 w-full items-center rounded-full border border-transparent text-zinc-400 transition-[border-color,background-color,color] duration-200 hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-white cursor-pointer no-spotlight"
               aria-label="Open settings"
               title={!sidebarExpanded ? "Settings" : undefined}
             >
@@ -327,10 +329,12 @@ export function AppShell({
           <Button
             variant="ghost"
             size="icon-sm"
+            data-no-spotlight="true"
+            data-settings-trigger="true"
             aria-label="Settings"
             title="Settings"
             onClick={() => setSettingsOpen(true)}
-            className="rounded-sm border border-white/[0.08] hover:border-white/[0.2]"
+            className="rounded-sm border border-white/[0.08] hover:border-white/[0.2] no-spotlight"
           >
             <Settings2 className="size-4" aria-hidden="true" />
           </Button>

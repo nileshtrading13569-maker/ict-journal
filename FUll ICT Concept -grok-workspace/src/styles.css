@@ -505,26 +505,27 @@
    Renders illuminated pure Cinema Red border beam pinned to mouse cursor coordinates
    Active across every Box, Card, Panel, and Button across Today, Weekly, Daily,
    Notebook, Journal, Replay, Analytics, Playbook, and Protocol.
+   Strictly excluded from Settings trigger buttons and Settings modal controls.
    ========================================================================== */
 
 .spotlight-red,
 .btn-spotlight-red,
 [data-spotlight="red"],
-button:not([data-no-spotlight]):not(.no-spotlight),
-section,
-article,
-div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"]),
-div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"]),
-div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"]),
-div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"]),
-div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"]),
-div[class*="rounded-md"]:not(.fixed):not([class*="fixed"]),
-li[class*="rounded-"][class*="border"],
-li[class*="rounded"][class*="border"],
+button:not([data-no-spotlight]):not(.no-spotlight):not([data-settings-trigger]):not([aria-label="Open settings"]):not([aria-label="Settings"]):not([title="Settings"]),
+section:not([data-no-spotlight]):not([data-settings-modal]),
+article:not([data-no-spotlight]):not([data-settings-modal]),
+div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal]),
+div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal]),
+div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal]),
+div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal]),
+div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal]),
+div[class*="rounded-md"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal]),
+li[class*="rounded-"][class*="border"]:not([data-no-spotlight]):not([data-settings-modal]),
+li[class*="rounded"][class*="border"]:not([data-no-spotlight]):not([data-settings-modal]),
 .kpi-card,
 .stat-tile,
-[class*="bg-card"][class*="border"]:not(.fixed):not([class*="fixed"]),
-[class*="bg-surface"][class*="border"]:not(.fixed):not([class*="fixed"]) {
+[class*="bg-card"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal]),
+[class*="bg-surface"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal]) {
   position: relative;
   --mouse-x: -300px;
   --mouse-y: -300px;
@@ -535,21 +536,21 @@ li[class*="rounded"][class*="border"],
 .spotlight-red::before,
 .btn-spotlight-red::before,
 [data-spotlight="red"]::before,
-button:not([data-no-spotlight]):not(.no-spotlight)::before,
-section::before,
-article::before,
-div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"])::before,
-div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"])::before,
-div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"])::before,
-div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"])::before,
-div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"])::before,
-div[class*="rounded-md"]:not(.fixed):not([class*="fixed"])::before,
-li[class*="rounded-"][class*="border"]::before,
-li[class*="rounded"][class*="border"]::before,
+button:not([data-no-spotlight]):not(.no-spotlight):not([data-settings-trigger]):not([aria-label="Open settings"]):not([aria-label="Settings"]):not([title="Settings"])::before,
+section:not([data-no-spotlight]):not([data-settings-modal])::before,
+article:not([data-no-spotlight]):not([data-settings-modal])::before,
+div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::before,
+div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::before,
+div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::before,
+div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::before,
+div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::before,
+div[class*="rounded-md"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::before,
+li[class*="rounded-"][class*="border"]:not([data-no-spotlight]):not([data-settings-modal])::before,
+li[class*="rounded"][class*="border"]:not([data-no-spotlight]):not([data-settings-modal])::before,
 .kpi-card::before,
 .stat-tile::before,
-[class*="bg-card"][class*="border"]:not(.fixed):not([class*="fixed"])::before,
-[class*="bg-surface"][class*="border"]:not(.fixed):not([class*="fixed"])::before {
+[class*="bg-card"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::before,
+[class*="bg-surface"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -577,21 +578,21 @@ li[class*="rounded"][class*="border"]::before,
 .spotlight-red::after,
 .btn-spotlight-red::after,
 [data-spotlight="red"]::after,
-button:not([data-no-spotlight]):not(.no-spotlight)::after,
-section::after,
-article::after,
-div[class*="rounded-"][class*="border"]::after,
-div[class*="rounded"][class*="border"]::after,
-div[class*="rounded-2xl"]::after,
-div[class*="rounded-xl"]::after,
-div[class*="rounded-lg"]::after,
-div[class*="rounded-md"]::after,
-li[class*="rounded-"][class*="border"]::after,
-li[class*="rounded"][class*="border"]::after,
+button:not([data-no-spotlight]):not(.no-spotlight):not([data-settings-trigger]):not([aria-label="Open settings"]):not([aria-label="Settings"]):not([title="Settings"])::after,
+section:not([data-no-spotlight]):not([data-settings-modal])::after,
+article:not([data-no-spotlight]):not([data-settings-modal])::after,
+div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::after,
+div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::after,
+div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::after,
+div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::after,
+div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::after,
+div[class*="rounded-md"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::after,
+li[class*="rounded-"][class*="border"]:not([data-no-spotlight]):not([data-settings-modal])::after,
+li[class*="rounded"][class*="border"]:not([data-no-spotlight]):not([data-settings-modal])::after,
 .kpi-card::after,
 .stat-tile::after,
-[class*="bg-card"][class*="border"]::after,
-[class*="bg-surface"][class*="border"]::after {
+[class*="bg-card"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::after,
+[class*="bg-surface"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -606,5 +607,48 @@ li[class*="rounded"][class*="border"]::after,
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
   z-index: 1;
+}
+
+/* Explicit Hard Barrier: Disable spotlight everywhere on Settings and inside Settings Modal */
+[data-no-spotlight],
+[data-no-spotlight] *,
+[data-settings-modal],
+[data-settings-modal] *,
+[data-settings-trigger],
+[data-settings-trigger] *,
+.no-spotlight,
+.no-spotlight *,
+button[aria-label="Open settings"],
+button[aria-label="Settings"],
+button[title="Settings"] {
+  --spotlight-opacity: 0 !important;
+}
+
+[data-no-spotlight]::before,
+[data-no-spotlight]::after,
+[data-no-spotlight] *::before,
+[data-no-spotlight] *::after,
+[data-settings-modal]::before,
+[data-settings-modal]::after,
+[data-settings-modal] *::before,
+[data-settings-modal] *::after,
+[data-settings-trigger]::before,
+[data-settings-trigger]::after,
+[data-settings-trigger] *::before,
+[data-settings-trigger] *::after,
+.no-spotlight::before,
+.no-spotlight::after,
+.no-spotlight *::before,
+.no-spotlight *::after,
+button[aria-label="Open settings"]::before,
+button[aria-label="Open settings"]::after,
+button[aria-label="Settings"]::before,
+button[aria-label="Settings"]::after,
+button[title="Settings"]::before,
+button[title="Settings"]::after {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  content: none !important;
 }
 

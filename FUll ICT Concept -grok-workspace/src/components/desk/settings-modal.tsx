@@ -729,11 +729,13 @@ export function SettingsModal({
 
         {/* Floating Modal Content */}
         <DialogPrimitive.Content
+          data-settings-modal="true"
+          data-no-spotlight="true"
           style={{ position: "fixed" }}
           className={cn(
             "fixed top-1/2 left-1/2 z-[60] flex flex-col w-[94vw] max-w-4xl -translate-x-1/2 -translate-y-1/2",
-            "max-h-[90vh] h-[88vh] rounded-[28px] overflow-hidden shadow-2xl",
-            "border border-white/10 bg-[#090a0f] text-[#f3f4f6]",
+            "max-h-[88vh] h-[85vh] rounded-[24px] overflow-hidden shadow-2xl",
+            "border border-white/10 bg-[#090a0f] text-[#f3f4f6] no-spotlight",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
             "focus-visible:outline-none",
           )}
@@ -742,155 +744,119 @@ export function SettingsModal({
           <DialogPrimitive.Description className="sr-only">
             Desk preferences, themes, buttons, typography and account settings
           </DialogPrimitive.Description>
-          {/* Circular Close Button */}
-          <DialogPrimitive.Close
-            className="absolute top-5 right-5 z-40 size-8 rounded-full bg-black/35 hover:bg-black/55 text-white flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95"
-            aria-label="Close settings"
-          >
-            <X className="size-4" />
-          </DialogPrimitive.Close>
 
-          {/* Top Header Section */}
-          <div className="relative shrink-0 px-8 pt-7 pb-4 border-b border-white/[0.08] bg-gradient-to-b from-[#13151c] to-[#0c0d12]">
-            {/* Upper Banner: Aa Watermark on Left, 3D Color Fan on Right */}
-            <div className="flex items-start justify-between min-h-[90px] pr-10">
-              {/* Left Typography Watermark */}
-              <div className="flex flex-col select-none">
-                <span
-                  className="text-[70px] sm:text-[80px] font-bold leading-none tracking-tight text-white font-display"
-                  style={{ fontFamily: JOURNAL_FONTS.find((f) => f.id === fontTheme)?.fontFamily }}
-                >
-                  Aa
-                </span>
-                <span className="text-[11px] font-bold tracking-[0.25em] text-zinc-400 uppercase mt-1">
-                  {activeFontDisplayName}
-                </span>
-              </div>
-
-              {/* Right 3D Color Fan */}
-              <div className="relative select-none flex items-center justify-center pr-6 pt-1">
+          {/* Sleek Executive Header Bar (Compact & High Usability) */}
+          <div className="relative shrink-0 px-6 sm:px-8 pt-5 pb-3.5 border-b border-white/[0.08] bg-gradient-to-b from-[#13151f] via-[#0e1017] to-[#0a0b10]">
+            {/* Top Row: Title, Look Pill, Undo/Redo, Save Look, Close */}
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: Settings Title & Active Look Badge */}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="size-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-display">
+                    Settings
+                  </h2>
+                </div>
                 <div
-                  className="relative w-56 h-26 flex items-end justify-center"
-                  style={{ perspective: "1000px" }}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/[0.04] text-[11px] text-zinc-300 font-medium tracking-wide truncate max-w-xs"
+                  title={subtitleBadge}
                 >
-                  {FAN_SWATCHES.map((swatch, idx) => (
-                    <div
-                      key={idx}
-                      className="absolute bottom-0 w-11 h-22 sm:w-12 sm:h-24 rounded-2xl shadow-lg border border-white/10 flex flex-col justify-start p-1.5 transition-all hover:scale-110 hover:z-40 cursor-pointer"
-                      style={{
-                        backgroundColor: swatch.hex,
-                        color: swatch.color,
-                        transformOrigin: "bottom center",
-                        transform: `translateX(${swatch.x}px) translateY(${swatch.y}px) rotate(${swatch.rotate}deg)`,
-                        zIndex: idx + 1,
-                      }}
-                      title={swatch.hex}
-                      onClick={() => handleSelectAccent(swatch.hex, swatch.hex)}
-                    >
-                      <span
-                        className="text-[9px] font-mono font-bold tracking-tight select-none pt-1 pl-0.5 opacity-90 [writing-mode:vertical-lr] rotate-180"
-                        style={{ color: swatch.color }}
-                      >
-                        {swatch.label}
-                      </span>
-                    </div>
-                  ))}
+                  <span className="truncate">{subtitleBadge}</span>
                 </div>
               </div>
-            </div>
 
-            {/* Action Bar: Undo/Redo, Title & Subtitle, Save Look */}
-            <div className="mt-4 flex items-center justify-between">
-              {/* Left: Undo / Redo */}
-              <div className="flex items-center gap-2">
+              {/* Right: Actions (Undo, Redo, Save Look, Close) */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Undo / Redo */}
+                <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.03] p-0.5">
+                  <button
+                    type="button"
+                    data-no-spotlight="true"
+                    onClick={handleUndo}
+                    disabled={historyIndex <= 0}
+                    className="size-7 rounded-md flex items-center justify-center hover:bg-white/[0.08] active:scale-95 disabled:opacity-25 disabled:pointer-events-none transition-all cursor-pointer text-zinc-300 hover:text-white no-spotlight"
+                    title="Undo look changes"
+                    aria-label="Undo"
+                  >
+                    <RotateCcw className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    data-no-spotlight="true"
+                    onClick={handleRedo}
+                    disabled={historyIndex >= history.length - 1}
+                    className="size-7 rounded-md flex items-center justify-center hover:bg-white/[0.08] active:scale-95 disabled:opacity-25 disabled:pointer-events-none transition-all cursor-pointer text-zinc-300 hover:text-white no-spotlight"
+                    title="Redo look changes"
+                    aria-label="Redo"
+                  >
+                    <RotateCw className="size-3.5" />
+                  </button>
+                </div>
+
+                {/* Save this look button */}
                 <button
                   type="button"
-                  onClick={handleUndo}
-                  disabled={historyIndex <= 0}
-                  className="size-9 rounded-xl border border-white/10 bg-white/[0.06] shadow-xs flex items-center justify-center hover:bg-white/[0.12] active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-white"
-                  title="Undo look changes"
-                  aria-label="Undo"
-                >
-                  <RotateCcw className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRedo}
-                  disabled={historyIndex >= history.length - 1}
-                  className="size-9 rounded-xl border border-white/10 bg-white/[0.06] shadow-xs flex items-center justify-center hover:bg-white/[0.12] active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-white"
-                  title="Redo look changes"
-                  aria-label="Redo"
-                >
-                  <RotateCw className="size-4" />
-                </button>
-              </div>
-
-              {/* Center: Title & Subtitle Badge */}
-              <div className="text-center">
-                <h2 className="text-2xl font-bold tracking-tight text-white capitalize">
-                  {activeTab === "buttons"
-                    ? "Buttons"
-                    : activeTab === "themes"
-                    ? "Themes"
-                    : activeTab === "colours"
-                    ? "Colours"
-                    : activeTab === "custom"
-                    ? "Custom"
-                    : "Money"}
-                </h2>
-                <p className="text-xs text-zinc-400 mt-0.5 font-medium tracking-wide">
-                  {subtitleBadge}
-                </p>
-              </div>
-
-              {/* Right: Save this look */}
-              <div>
-                <button
-                  type="button"
+                  data-no-spotlight="true"
                   onClick={handleSaveLook}
                   disabled={isSavingLook}
-                  className="h-9 px-4 rounded-xl border border-white/10 bg-white/[0.08] shadow-xs hover:shadow-sm text-xs font-semibold text-white flex items-center gap-1.5 transition-all hover:bg-white/[0.15] active:scale-95 cursor-pointer disabled:opacity-50"
+                  className="h-8 px-3.5 rounded-lg border border-white/10 bg-white/[0.06] hover:bg-white/[0.12] text-xs font-semibold text-white flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50 no-spotlight"
+                  title="Save current look to cloud and browser"
                 >
-                  <Bookmark className="size-3.5 text-white" />
+                  <Bookmark className="size-3.5 text-red-400" />
                   <span>{isSavingLook ? "Saving…" : "Save this look"}</span>
                 </button>
+
+                {/* Circular Close Button */}
+                <DialogPrimitive.Close
+                  data-no-spotlight="true"
+                  className="size-8 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95 no-spotlight"
+                  aria-label="Close settings"
+                >
+                  <X className="size-4" />
+                </DialogPrimitive.Close>
               </div>
             </div>
 
-            {/* Horizontal Tabs: Buttons, Themes, Colours, Custom, Money */}
-            <div className="mt-5 flex items-center justify-center gap-8 border-t border-white/[0.08] pt-3">
-              {(
-                [
-                  { id: "buttons", label: "Buttons" },
-                  { id: "themes", label: "Themes" },
-                  { id: "colours", label: "Colours" },
-                  { id: "custom", label: "Custom" },
-                  { id: "money", label: "Money" },
-                ] as const
-              ).map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      previewSwitchSound(soundSwitchProfile);
-                    }}
-                    className={cn(
-                      "group relative pb-2 text-sm font-semibold transition-colors cursor-pointer",
-                      isActive
-                        ? "text-white"
-                        : "text-zinc-400 hover:text-white",
-                    )}
-                  >
-                    <span>{tab.label}</span>
-                    {isActive && (
-                      <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-white" />
-                    )}
-                  </button>
-                );
-              })}
+            {/* Bottom Row: Segmented Pill Tab Bar */}
+            <div className="mt-3.5 flex items-center justify-between gap-3">
+              <div className="inline-flex p-1 rounded-xl bg-black/40 border border-white/[0.08] gap-1">
+                {(
+                  [
+                    { id: "buttons", label: "Buttons" },
+                    { id: "themes", label: "Themes" },
+                    { id: "colours", label: "Colours" },
+                    { id: "custom", label: "Custom" },
+                    { id: "money", label: "Money" },
+                  ] as const
+                ).map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      data-no-spotlight="true"
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        previewSwitchSound(soundSwitchProfile);
+                      }}
+                      className={cn(
+                        "px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer no-spotlight",
+                        isActive
+                          ? "bg-white/[0.14] text-white shadow-xs border border-white/15"
+                          : "text-zinc-400 hover:text-white hover:bg-white/[0.04] border border-transparent",
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active Tab helper on desktop */}
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
+                <span>Tab:</span>
+                <span className="text-zinc-300 font-semibold uppercase">{activeTab}</span>
+              </div>
             </div>
           </div>
 
@@ -917,6 +883,8 @@ export function SettingsModal({
                       checked={clickSound}
                       onCheckedChange={handleToggleClickSound}
                       aria-label="Toggle click sound"
+                      data-no-spotlight="true"
+                      className="no-spotlight"
                     />
                   </div>
 
@@ -928,9 +896,10 @@ export function SettingsModal({
                         <button
                           key={profile.id}
                           type="button"
+                          data-no-spotlight="true"
                           onClick={() => handleSelectSoundProfile(profile.id)}
                           className={cn(
-                            "flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-[#181922]",
+                            "flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-all cursor-pointer bg-[#181922] no-spotlight",
                             isSelected
                               ? "border-white shadow-xs ring-1 ring-white"
                               : "border-white/[0.08] hover:border-white/30 hover:bg-white/[0.04]",
@@ -965,6 +934,8 @@ export function SettingsModal({
                       checked={typingSound}
                       onCheckedChange={handleToggleTypingSound}
                       aria-label="Toggle typing sound"
+                      data-no-spotlight="true"
+                      className="no-spotlight"
                     />
                   </div>
                 </div>
@@ -1249,6 +1220,39 @@ export function SettingsModal({
                 ══════════════════════════════════════════════════════════════════ */}
             {activeTab === "themes" && (
               <div className="space-y-4">
+                {/* Active Theme & Typography Preview Card */}
+                <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-r from-[#141620] via-[#101118] to-[#0c0d12] p-5 shadow-lg flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <span
+                      className="text-4xl sm:text-5xl font-bold leading-none tracking-tight text-white font-display select-none"
+                      style={{ fontFamily: JOURNAL_FONTS.find((f) => f.id === fontTheme)?.fontFamily }}
+                    >
+                      Aa
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>{activeThemeDisplayName}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 font-mono">
+                          {activeFontDisplayName}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        Curated obsidian and luxury dark palettes with verified contrast metrics.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-1.5">
+                    {getThemeById(colorTheme, customColors).previewColors.map((hex, i) => (
+                      <span
+                        key={i}
+                        className="size-4 rounded-full border border-white/15 shadow-sm"
+                        style={{ backgroundColor: hex }}
+                        title={hex}
+                      />
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   {COLOR_THEMES.map((theme) => {
                     const isSelected = colorTheme === theme.id;
@@ -1304,6 +1308,47 @@ export function SettingsModal({
                 ══════════════════════════════════════════════════════════════════ */}
             {activeTab === "colours" && (
               <div className="space-y-6">
+                {/* Signature Swatches Showcase */}
+                <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Signature Palette Fan</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Interactive luxury swatches. Click any swatch to instantly apply as signature accent.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-center py-2 overflow-x-auto">
+                    <div
+                      className="relative w-72 h-24 flex items-end justify-center select-none"
+                      style={{ perspective: "1000px" }}
+                    >
+                      {FAN_SWATCHES.map((swatch, idx) => (
+                        <div
+                          key={idx}
+                          data-no-spotlight="true"
+                          className="absolute bottom-0 w-11 h-20 sm:w-12 sm:h-22 rounded-2xl shadow-lg border border-white/10 flex flex-col justify-start p-1.5 transition-all hover:scale-110 hover:-translate-y-2 hover:z-40 cursor-pointer no-spotlight"
+                          style={{
+                            backgroundColor: swatch.hex,
+                            color: swatch.color,
+                            transformOrigin: "bottom center",
+                            transform: `translateX(${swatch.x}px) translateY(${swatch.y}px) rotate(${swatch.rotate}deg)`,
+                            zIndex: idx + 1,
+                          }}
+                          title={`Apply ${swatch.hex}`}
+                          onClick={() => handleSelectAccent(swatch.hex, swatch.hex)}
+                        >
+                          <span
+                            className="text-[9px] font-mono font-bold tracking-tight select-none pt-1 pl-0.5 opacity-90 [writing-mode:vertical-lr] rotate-180"
+                            style={{ color: swatch.color }}
+                          >
+                            {swatch.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Accent Swatches Card */}
                 <div className="rounded-2xl border border-white/[0.08] bg-[#121319] p-5 shadow-lg space-y-3.5">
                   <div>

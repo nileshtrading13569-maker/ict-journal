@@ -8,21 +8,21 @@ export const BOX_SPOTLIGHT_SELECTOR = [
   '.spotlight-red',
   '.btn-spotlight-red',
   '[data-spotlight="red"]',
-  'button:not([data-no-spotlight]):not(.no-spotlight)',
-  'section',
-  'article',
-  'div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"])',
-  'div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"])',
-  'div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"])',
-  'div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"])',
-  'div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"])',
-  'div[class*="rounded-md"]:not(.fixed):not([class*="fixed"])',
-  'li[class*="rounded-"][class*="border"]',
-  'li[class*="rounded"][class*="border"]',
+  'button:not([data-no-spotlight]):not(.no-spotlight):not([data-settings-trigger]):not([aria-label="Open settings"]):not([aria-label="Settings"]):not([title="Settings"])',
+  'section:not([data-no-spotlight]):not([data-settings-modal])',
+  'article:not([data-no-spotlight]):not([data-settings-modal])',
+  'div[class*="rounded-"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])',
+  'div[class*="rounded"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])',
+  'div[class*="rounded-2xl"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])',
+  'div[class*="rounded-xl"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])',
+  'div[class*="rounded-lg"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])',
+  'div[class*="rounded-md"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])',
+  'li[class*="rounded-"][class*="border"]:not([data-no-spotlight]):not([data-settings-modal])',
+  'li[class*="rounded"][class*="border"]:not([data-no-spotlight]):not([data-settings-modal])',
   '.kpi-card',
   '.stat-tile',
-  '[class*="bg-card"][class*="border"]',
-  '[class*="bg-surface"][class*="border"]',
+  '[class*="bg-card"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])',
+  '[class*="bg-surface"][class*="border"]:not(.fixed):not([class*="fixed"]):not([data-no-spotlight]):not([data-settings-modal])',
 ].join(', ');
 
 export function initGlobalSpotlightListener(): void {
@@ -33,8 +33,40 @@ export function initGlobalSpotlightListener(): void {
     const newActive = new Set<HTMLElement>();
     let el = e.target as HTMLElement | null;
 
+    // Hard barrier: if cursor is hovering over Settings button or anywhere inside Settings modal, do NOT apply spotlight
+    if (
+      el &&
+      (el.closest?.('[data-settings-modal]') ||
+        el.closest?.('[data-no-spotlight]') ||
+        el.closest?.('[data-settings-trigger]') ||
+        el.closest?.('.no-spotlight') ||
+        el.closest?.('button[aria-label="Open settings"]') ||
+        el.closest?.('button[aria-label="Settings"]') ||
+        el.closest?.('button[title="Settings"]'))
+    ) {
+      for (const prev of activeElements) {
+        if (prev.style && typeof prev.style.setProperty === "function") {
+          prev.style.setProperty("--spotlight-opacity", "0");
+        }
+      }
+      activeElements.clear();
+      return;
+    }
+
     // Walk up the DOM tree from mouse position to capture both inner controls and outer box/card containers
     while (el && el !== document.body && el !== document.documentElement) {
+      if (
+        el.closest?.('[data-settings-modal]') ||
+        el.closest?.('[data-no-spotlight]') ||
+        el.closest?.('[data-settings-trigger]') ||
+        el.closest?.('.no-spotlight') ||
+        el.closest?.('button[aria-label="Open settings"]') ||
+        el.closest?.('button[aria-label="Settings"]') ||
+        el.closest?.('button[title="Settings"]')
+      ) {
+        break;
+      }
+
       if (el.matches && el.matches(BOX_SPOTLIGHT_SELECTOR)) {
         newActive.add(el);
 

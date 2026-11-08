@@ -9,12 +9,16 @@ describe("Universal Red Spotlight Engine across all Boxes & UI", () => {
     });
   });
 
-  it("contains selectors for sections, panels, cards, tiles, and buttons", () => {
+  it("contains selectors for sections, panels, cards, tiles, and buttons while excluding settings and no-spotlight", () => {
     assert.ok(BOX_SPOTLIGHT_SELECTOR.includes("section"));
     assert.ok(BOX_SPOTLIGHT_SELECTOR.includes(".kpi-card"));
     assert.ok(BOX_SPOTLIGHT_SELECTOR.includes(".stat-tile"));
     assert.ok(BOX_SPOTLIGHT_SELECTOR.includes(".spotlight-red"));
     assert.ok(BOX_SPOTLIGHT_SELECTOR.includes("button"));
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes("data-no-spotlight"));
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes("data-settings-trigger"));
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes("data-settings-modal"));
+    assert.ok(BOX_SPOTLIGHT_SELECTOR.includes("Open settings"));
   });
 
   it("safely handles attachSpotlightToElement when element is null", () => {
