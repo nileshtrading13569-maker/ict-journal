@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
@@ -28,7 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { Panel } from "@/components/desk/fields";
 import { RangeBar } from "@/components/desk/range-bar";
 import { KpiCard } from "@/components/desk/kpi-card";
-import { nowHHMM } from "@/lib/ict-time";
+import { nowHHMM, nowIST12 } from "@/lib/ict-time";
 import { Flame, ShieldAlert, Target, Wallet, Quote, AlertTriangle, CalendarClock, Edit } from "lucide-react";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -44,6 +44,13 @@ function Home() {
   const today = todayISO();
   const [selectedChecklistDate, setSelectedChecklistDate] = useState(today);
   const checklistRef = useRef<HTMLDivElement>(null);
+
+  // Live timer tick to keep live clocks and session status synced
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setClockTick((t) => t + 1), 10000);
+    return () => clearInterval(timer);
+  }, []);
   const day = protocolDayNumber(data);
   const proto = todayProtocol(data);
   const plan = planFor(data, today);
@@ -91,8 +98,10 @@ function Home() {
               <span className="size-1.5 rounded-full bg-up animate-pulse" aria-hidden="true" />
               Live New York
             </span>
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {today} · {nowHHMM()} NY
+            <span className="font-mono text-[11px] text-muted-foreground flex items-center gap-1.5">
+              <span>{today} · {nowHHMM()} NY</span>
+              <span className="text-zinc-600">·</span>
+              <span className="text-emerald-400 font-medium">{nowIST12()} IST</span>
             </span>
           </>
         }

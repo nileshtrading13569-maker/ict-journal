@@ -14,7 +14,7 @@ import { useDeskStore, deskSnapshot } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { DEFAULT_PLAN_QUESTIONS } from "@/lib/ict-defaults";
 import type { PlanQuestion } from "@/lib/ict-types";
-import { todayISO, nyParts, nowHHMM } from "@/lib/ict-time";
+import { todayISO, nyParts, nowHHMM, nowIST12, nyTimeToIST12 } from "@/lib/ict-time";
 import { fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -180,28 +180,47 @@ export function PlanDock() {
     setNewQuestionText("");
   };
 
-  // Active session and rules kept calculations
-  const { activeSessionName, activeSessionDetail, rulesKeptDisplay } = useMemo(() => {
-    const time = nowHHMM();
-    let session = "—";
-    let detail = "—";
+  // Real-time clock tick for dynamic kill zone & dual timezone updates
+  const [clockTick, setClockTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setClockTick((t) => t + 1), 10000);
+    return () => clearInterval(timer);
+  }, []);
 
-    // ICT Kill Zones in NY Time (HH:MM)
+  // Active session and rules kept calculations
+  const { activeSessionName, activeSessionTitle, nyTiming, istTiming, rulesKeptDisplay } = useMemo(() => {
+    const time = nowHHMM();
+    let session = "Inter-session";
+    let title = "Outside Kill Zone";
+    let ny = `${time} NY`;
+    let ist = `${nowIST12()} IST`;
+
+    // ICT Kill Zones in NY Time (HH:MM) with dynamic 12hr AM/PM IST conversion
     if (time >= "02:00" && time <= "05:00") {
       session = "London KZ";
-      detail = "London Kill Zone (02:00–05:00 NY)";
+      title = "London Kill Zone";
+      ny = "02:00–05:00 NY";
+      ist = `${nyTimeToIST12(2, 0)}–${nyTimeToIST12(5, 0)} IST`;
     } else if (time >= "07:00" && time <= "10:00") {
       session = "NY AM KZ";
-      detail = "NY AM Kill Zone (07:00–10:00 NY)";
+      title = "NY AM Kill Zone";
+      ny = "07:00–10:00 NY";
+      ist = `${nyTimeToIST12(7, 0)}–${nyTimeToIST12(10, 0)} IST`;
     } else if (time > "10:00" && time <= "11:30") {
-      session = "NY Continuation";
-      detail = "NY Continuation Window";
+      session = "NY Cont";
+      title = "NY Continuation Window";
+      ny = "10:00–11:30 NY";
+      ist = `${nyTimeToIST12(10, 0)}–${nyTimeToIST12(11, 30)} IST`;
     } else if (time >= "13:30" && time <= "16:00") {
       session = "NY PM";
-      detail = "NY PM Session (13:30–16:00 NY)";
+      title = "NY PM Session";
+      ny = "13:30–16:00 NY";
+      ist = `${nyTimeToIST12(13, 30)}–${nyTimeToIST12(16, 0)} IST`;
     } else if (time >= "19:00" || time <= "00:00") {
       session = "Asia Session";
-      detail = "Asia Accumulation";
+      title = "Asia Accumulation";
+      ny = "19:00–00:00 NY";
+      ist = `${nyTimeToIST12(19, 0)}–${nyTimeToIST12(0, 0)} IST`;
     }
 
     // Rules kept for today's closed trades
@@ -215,10 +234,12 @@ export function PlanDock() {
 
     return {
       activeSessionName: session,
-      activeSessionDetail: detail,
+      activeSessionTitle: title,
+      nyTiming: ny,
+      istTiming: ist,
       rulesKeptDisplay: rulesKept,
     };
-  }, [trades, today]);
+  }, [trades, today, clockTick]);
 
   // Today's recent trades
   const todayTrades = useMemo(() => {
@@ -416,11 +437,18 @@ export function PlanDock() {
         </div>
 
         {sessionSectionOpen && (
-          <div className="space-y-2 mt-1">
-            <p className="text-xs font-semibold text-white">
-              {activeSessionDetail !== "—" ? activeSessionDetail : "—"}
-            </p>
-            <div className="flex items-center justify-between pt-1 border-t border-white/[0.05] text-xs">
+          <div className="space-y-1.5 mt-1">
+            <div className="flex flex-col gap-0.5">
+              <p className="text-xs font-semibold text-white leading-tight">
+                {activeSessionTitle}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] font-mono">
+                <span className="text-zinc-300">{nyTiming}</span>
+                <span className="text-zinc-600">·</span>
+                <span className="text-emerald-400 font-medium">{istTiming}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.05] text-xs">
               <span className="text-zinc-400">Rules kept</span>
               <span className="font-mono text-zinc-200 font-medium">{rulesKeptDisplay}</span>
             </div>
