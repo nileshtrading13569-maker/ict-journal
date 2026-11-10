@@ -33,6 +33,7 @@ import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { closedTrades, fmtCurrency, instrumentOf, tradeDollarPnl } from "@/lib/ict-calc";
 import { formatR } from "@/lib/utils";
+import { calculateTradeRuleAdherence } from "@/lib/tradezella-helpers";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -176,7 +177,7 @@ function PlaybookPage() {
 
     for (const m of models) {
       const sample = closedTrades(
-        trades.filter((t) => t.modelId === m.id || t.modelName.toLowerCase() === m.name.toLowerCase()),
+        trades.filter((t) => t.modelId === m.id || (t.modelName && t.modelName.toLowerCase() === m.name.toLowerCase())),
       );
 
       let netPnL = 0;
@@ -208,15 +209,10 @@ function PlaybookPage() {
         if (t.result === "win") wins += 1;
         else if (t.result === "loss") losses += 1;
 
-        // Rules assessment count
-        const assessments = t.rulesAssessment ? Object.values(t.rulesAssessment) : [];
-        if (assessments.length > 0) {
-          totalAssessed += assessments.length;
-          totalFollowed += assessments.filter((v) => v === "followed").length;
-        } else {
-          totalAssessed += 8;
-          totalFollowed += t.ruleFollowed ? 7 : 4;
-        }
+        // Rules assessment count via model rules adherence
+        const adherence = calculateTradeRuleAdherence(t, m);
+        totalAssessed += adherence.total;
+        totalFollowed += adherence.followed;
       }
 
       const closedCount = sample.length;
@@ -1074,9 +1070,11 @@ function PlaybookPage() {
                           {/* Profit Fac */}
                           <td className="py-3 px-3 text-right font-mono text-[#cccccc]">
                             {stats.profitFactor === Infinity ? (
-                              <span className="text-[#3ddc84] text-sm">∞</span>
+                              <span className="text-[#3ddc84] font-bold">99.99</span>
+                            ) : stats.profitFactor > 0 ? (
+                              stats.profitFactor.toFixed(2)
                             ) : (
-                              pfDisplay
+                              <span className="text-zinc-500">—</span>
                             )}
                           </td>
 
@@ -1099,22 +1097,22 @@ function PlaybookPage() {
                           <td className="py-3 px-3 text-right font-mono text-[11px]">
                             {stats.avgWin !== null && stats.avgLoss !== null ? (
                               <>
-                                <span className="text-[#3ddc84]">+{fmtCurrency(stats.avgWin)}</span>{" "}
+                                <span className="text-[#3ddc84]">{fmtCurrency(stats.avgWin)}</span>{" "}
                                 <span className="text-white/20">/</span>{" "}
-                                <span className="text-[#ff6b7d]">-{fmtCurrency(stats.avgLoss)}</span>
+                                <span className="text-[#ff6b7d]">{fmtCurrency(stats.avgLoss)}</span>
                               </>
                             ) : stats.avgWin !== null ? (
                               <>
-                                <span className="text-[#3ddc84]">+{fmtCurrency(stats.avgWin)}</span>{" "}
-                                <span className="text-white/20">/ -</span>
+                                <span className="text-[#3ddc84]">{fmtCurrency(stats.avgWin)}</span>{" "}
+                                <span className="text-white/20">/ —</span>
                               </>
                             ) : stats.avgLoss !== null ? (
                               <>
-                                <span className="text-white/20">- / </span>
-                                <span className="text-[#ff6b7d]">-{fmtCurrency(stats.avgLoss)}</span>
+                                <span className="text-white/20">— / </span>
+                                <span className="text-[#ff6b7d]">{fmtCurrency(stats.avgLoss)}</span>
                               </>
                             ) : (
-                              <span className="text-[#a1a1aa]">- / -</span>
+                              <span className="text-[#a1a1aa]">— / —</span>
                             )}
                           </td>
 

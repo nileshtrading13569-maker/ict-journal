@@ -230,6 +230,13 @@ export function PlanDock() {
       const followed = todayTrades.filter((t) => t.ruleFollowed).length;
       const pct = Math.round((followed / todayTrades.length) * 100);
       rulesKept = `${pct}%`;
+    } else {
+      const closed = trades.filter((t) => t.result !== "open");
+      if (closed.length > 0) {
+        const followed = closed.filter((t) => t.ruleFollowed).length;
+        const pct = Math.round((followed / closed.length) * 100);
+        rulesKept = `${pct}% (overall)`;
+      }
     }
 
     return {

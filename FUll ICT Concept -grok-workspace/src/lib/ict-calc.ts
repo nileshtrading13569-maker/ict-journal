@@ -237,15 +237,25 @@ export function tradeDollarPnl(
   if (t.result === "open" && t.exitPrice == null) {
     return { gross: null, fees: t.fees ?? 0, net: null };
   }
+  // 1. If full execution details are available, calculate exact live contract P&L
+  if (t.entry != null && t.exitPrice != null && t.lots != null && t.lots > 0) {
+    const metrics = calcTradeMetrics(t, inst);
+    if (metrics.netPnL != null) {
+      return { gross: metrics.grossPnL, fees: metrics.fees, net: metrics.netPnL };
+    }
+  }
+  // 2. If explicit netPnL is persisted on the trade object
   if (t.netPnL != null && Number.isFinite(t.netPnL)) {
     const fees = t.fees ?? 0;
     const gross = t.grossPnL != null && Number.isFinite(t.grossPnL) ? t.grossPnL : Number((t.netPnL + fees).toFixed(2));
     return { gross, fees, net: t.netPnL };
   }
+  // 3. Fallback to calcTradeMetrics if partial data
   const metrics = calcTradeMetrics(t, inst);
   if (metrics.netPnL != null) {
     return { gross: metrics.grossPnL, fees: metrics.fees, net: metrics.netPnL };
   }
+  // 4. Fallback based on R-multiple
   if (t.rMultiple != null) {
     const riskDollar = ((startingBalance > 0 ? startingBalance : 5000) * (t.riskPct || 0.25)) / 100;
     const gross = Number((t.rMultiple * riskDollar).toFixed(2));

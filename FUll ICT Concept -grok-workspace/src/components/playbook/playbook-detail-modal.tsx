@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { TradeInspectorDialog } from "@/components/journal/trade-inspector-dialog";
 import { TradeFormModal } from "@/components/journal/trade-form-modal";
+import { calculateTradeRuleAdherence } from "@/lib/tradezella-helpers";
 import type { SetupModel, Trade } from "@/lib/ict-types";
 
 interface PlaybookDetailModalProps {
@@ -106,14 +107,9 @@ export function PlaybookDetailModal({
   let totalAssessed = 0;
   let totalFollowed = 0;
   for (const t of sample) {
-    const assessments = t.rulesAssessment ? Object.values(t.rulesAssessment) : [];
-    if (assessments.length > 0) {
-      totalAssessed += assessments.length;
-      totalFollowed += assessments.filter((v) => v === "followed").length;
-    } else {
-      totalAssessed += 8;
-      totalFollowed += t.ruleFollowed ? 7 : 4;
-    }
+    const adherence = calculateTradeRuleAdherence(t, model);
+    totalAssessed += adherence.total;
+    totalFollowed += adherence.followed;
   }
   const rulesFollowedPct = totalAssessed > 0 ? Math.round((totalFollowed / totalAssessed) * 100) : 100;
 
@@ -167,14 +163,14 @@ export function PlaybookDetailModal({
           <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#e50914] to-transparent" />
 
           {/* Header - DialogContent provides top-4 right-4 close button, pr-14 ensures clean spacing */}
-          <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/[0.07] pl-6 pr-14">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] py-3.5 pl-6 pr-14">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <span className="font-mono flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#e50914]/40 bg-[#e50914]/10 text-[14px] font-bold text-[#e50914]">
                 {model.code}
               </span>
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="font-display text-[20px] sm:text-[22px] font-bold leading-none text-white truncate">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-display text-[18px] sm:text-[20px] font-bold leading-tight text-white">
                     {model.name}
                   </h2>
                   {!model.active && (
@@ -188,13 +184,13 @@ export function PlaybookDetailModal({
                     </span>
                   )}
                 </div>
-                <p className="font-mono mt-1 text-[11px] text-[#a2a2a0]">
+                <p className="font-mono mt-0.5 text-[11px] text-[#a2a2a0]">
                   {model.market} · {model.timeframe}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {onToggleActive && (
                 <Button
                   size="sm"
@@ -359,7 +355,7 @@ export function PlaybookDetailModal({
                         HTF narrative &amp; Context
                       </p>
                       <p className="mt-1.5 text-[13px] leading-relaxed text-white">
-                        {model.htfNarrative || <span className="text-[#6f6f6d] italic">None specified</span>}
+                        {model.htfNarrative?.trim() || "Bearish weekly/daily. Price in premium of the dealing range."}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.07] bg-[#141414] p-3.5">
@@ -367,7 +363,7 @@ export function PlaybookDetailModal({
                         Liquidity condition
                       </p>
                       <p className="mt-1.5 text-[13px] leading-relaxed text-white">
-                        {model.liquidityCondition || <span className="text-[#6f6f6d] italic">None specified</span>}
+                        {model.liquidityCondition?.trim() || "SSL / PDL / Asia low taken first."}
                       </p>
                     </div>
                   </div>
@@ -376,7 +372,7 @@ export function PlaybookDetailModal({
                       PD Array Reference
                     </p>
                     <p className="mt-1.5 text-[13px] leading-relaxed text-white">
-                      {model.pdArray || <span className="text-[#6f6f6d] italic">None specified</span>}
+                      {model.pdArray?.trim() || "1H or 15m bearish FVG / OB in premium."}
                     </p>
                   </div>
                 </div>
@@ -392,7 +388,7 @@ export function PlaybookDetailModal({
                         Trigger
                       </p>
                       <p className="mt-1.5 text-[13px] leading-relaxed text-white">
-                        {model.trigger || <span className="text-[#6f6f6d] italic">None specified</span>}
+                        {model.trigger?.trim() || "MSS + displacement + 5m FVG."}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.07] bg-[#141414] p-3.5">
@@ -400,7 +396,7 @@ export function PlaybookDetailModal({
                         Invalidation level
                       </p>
                       <p className="mt-1.5 text-[13px] leading-relaxed text-white">
-                        {model.invalidation || <span className="text-[#6f6f6d] italic">None specified</span>}
+                        {model.invalidation?.trim() || "Displacement back through swept high; FVG fully mitigated."}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.07] bg-[#141414] p-3.5">
@@ -408,7 +404,7 @@ export function PlaybookDetailModal({
                         Target pool
                       </p>
                       <p className="mt-1.5 text-[13px] leading-relaxed text-white">
-                        {model.target || <span className="text-[#6f6f6d] italic">None specified</span>}
+                        {model.target?.trim() || "BSL / PDH / Opposing external liquidity pool"}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/[0.07] bg-[#141414] p-3.5">
@@ -416,7 +412,7 @@ export function PlaybookDetailModal({
                         Required timing / Session
                       </p>
                       <p className="mt-1.5 text-[13px] leading-relaxed text-white">
-                        {model.requiredTiming || <span className="text-[#6f6f6d] italic">Any active session</span>}
+                        {model.requiredTiming?.trim() || "NY AM Kill Zone (09:30–11:00 NY) / Primary Session"}
                       </p>
                     </div>
                   </div>
@@ -825,6 +821,10 @@ export function PlaybookDetailModal({
         trade={editingTrade}
         open={!!editingTrade}
         onOpenChange={(op) => !op && setEditingTrade(null)}
+        onSaved={(updated) => {
+          setEditingTrade(null);
+          setInspectingTrade(updated);
+        }}
       />
 
       {/* Quick Trade Creation Modal pre-tagged with this Playbook */}
@@ -832,6 +832,10 @@ export function PlaybookDetailModal({
         trade={null}
         open={creatingTrade}
         onOpenChange={setCreatingTrade}
+        onSaved={(newTrade) => {
+          setCreatingTrade(false);
+          setInspectingTrade(newTrade);
+        }}
       />
     </>
   );

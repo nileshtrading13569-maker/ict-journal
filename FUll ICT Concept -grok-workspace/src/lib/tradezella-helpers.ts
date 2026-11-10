@@ -21,13 +21,13 @@ export const DEFAULT_RISK_DOLLARS = 250;
  * Returns net dollar P&L for a trade.
  */
 export function getTradePnL(trade: Trade, riskDollars = DEFAULT_RISK_DOLLARS): number {
-  if (trade.netPnL != null && Number.isFinite(trade.netPnL)) return trade.netPnL;
-  if (trade.grossPnL != null && Number.isFinite(trade.grossPnL)) {
-    return Number((trade.grossPnL - (trade.fees ?? 0)).toFixed(2));
-  }
   const calc = tradeDollarPnl(trade);
   if (calc.net != null && Number.isFinite(calc.net)) {
     return calc.net;
+  }
+  if (trade.netPnL != null && Number.isFinite(trade.netPnL)) return trade.netPnL;
+  if (trade.grossPnL != null && Number.isFinite(trade.grossPnL)) {
+    return Number((trade.grossPnL - (trade.fees ?? 0)).toFixed(2));
   }
   if (trade.rMultiple != null && Number.isFinite(trade.rMultiple)) {
     return Math.round(trade.rMultiple * riskDollars * 100) / 100;
@@ -212,7 +212,47 @@ export function calculateTradeRuleAdherence(
   trade: Trade,
   model?: SetupModel,
 ): TradeRuleAdherence {
-  // 1. If rulesAssessment is populated on the trade
+  // 1. If a model is provided with structured rules
+  if (model) {
+    const rules = getPlaybookRules(model);
+    const checklist = trade.ruleChecklist ?? {};
+    const keys = Object.keys(checklist);
+
+    if (keys.length > 0) {
+      let followed = 0;
+      for (const rule of rules) {
+        if (checklist[rule.id] === true) followed += 1;
+        else if (checklist[rule.id] === undefined && trade.ruleFollowed) followed += 1;
+      }
+      const total = rules.length > 0 ? rules.length : keys.length;
+      const adherencePct = total > 0 ? Math.round((followed / total) * 100) : 100;
+      const ratio = `${followed}/${total}`;
+      return {
+        adherencePct,
+        followed,
+        total,
+        ratio,
+        formatted: ratio,
+        toString: () => ratio,
+      };
+    }
+
+    // If no interactive checklist toggles yet, base on trade.ruleFollowed
+    const total = rules.length > 0 ? rules.length : 8;
+    const followed = trade.ruleFollowed !== false ? total : Math.max(0, total - 2);
+    const adherencePct = total > 0 ? Math.round((followed / total) * 100) : 100;
+    const ratio = `${followed}/${total}`;
+    return {
+      adherencePct,
+      followed,
+      total,
+      ratio,
+      formatted: ratio,
+      toString: () => ratio,
+    };
+  }
+
+  // 2. If rulesAssessment is populated on the trade
   if (trade.rulesAssessment && Object.keys(trade.rulesAssessment).length > 0) {
     let followed = 0;
     let total = 0;
@@ -238,50 +278,7 @@ export function calculateTradeRuleAdherence(
     };
   }
 
-  // 2. If a model is provided with structured rules
-  if (model) {
-    const rules = getPlaybookRules(model);
-    const checklist = trade.ruleChecklist ?? {};
-    const keys = Object.keys(checklist);
-
-    if (keys.length === 0) {
-      const total = rules.length > 0 ? rules.length : 10;
-      const defaultPct = trade.ruleFollowed ? 90 : 40;
-      const followed = trade.ruleFollowed
-        ? (total === 10 ? 9 : Math.max(1, total - 1))
-        : Math.round((total * defaultPct) / 100);
-      const adherencePct = total > 0 ? Math.round((followed / total) * 100) : 100;
-      const ratio = `${followed}/${total}`;
-      return {
-        adherencePct,
-        followed,
-        total,
-        ratio,
-        formatted: ratio,
-        toString: () => ratio,
-      };
-    }
-
-    let followed = 0;
-    for (const rule of rules) {
-      if (checklist[rule.id] === true) followed += 1;
-      else if (checklist[rule.id] === undefined && trade.ruleFollowed) followed += 1;
-    }
-
-    const total = rules.length;
-    const adherencePct = total > 0 ? Math.round((followed / total) * 100) : 100;
-    const ratio = `${followed}/${total}`;
-    return {
-      adherencePct,
-      followed,
-      total,
-      ratio,
-      formatted: ratio,
-      toString: () => ratio,
-    };
-  }
-
-  // 3. Fallback when model is not provided
+  // 3. Fallback when model is not provided but ruleChecklist exists
   if (trade.ruleChecklist && Object.keys(trade.ruleChecklist).length > 0) {
     const keys = Object.keys(trade.ruleChecklist);
     const total = keys.length;

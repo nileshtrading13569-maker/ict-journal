@@ -58,7 +58,12 @@ export function TradeInspectorDialog({
 }: TradeInspectorDialogProps) {
   if (!trade) return null;
 
-  const model = models.find((m) => m.id === trade.modelId || m.name === trade.modelName);
+  const model = models.find(
+    (m) =>
+      m.id === trade.modelId ||
+      (trade.modelName && m.name.toLowerCase() === trade.modelName.toLowerCase()) ||
+      (trade.modelName && trade.modelName.toLowerCase().includes(m.name.toLowerCase()))
+  );
   const rules = useMemo(() => (model ? getPlaybookRules(model) : []), [model]);
 
   const pnl = getTradePnL(trade);

@@ -347,15 +347,15 @@ export function formatKPIR(r: number): string {
 }
 
 function resolveTradeNetPnL(t: Trade): number {
+  const calc = tradeDollarPnl(t);
+  if (calc.net != null && Number.isFinite(calc.net)) {
+    return calc.net;
+  }
   if (t.netPnL != null && Number.isFinite(t.netPnL)) {
     return t.netPnL;
   }
   if (t.grossPnL != null && Number.isFinite(t.grossPnL)) {
     return Number((t.grossPnL - (t.fees ?? 0)).toFixed(2));
-  }
-  const calc = tradeDollarPnl(t);
-  if (calc.net != null && Number.isFinite(calc.net)) {
-    return calc.net;
   }
   if (t.rMultiple != null && Number.isFinite(t.rMultiple)) {
     const risk = 125.0; // standard 0.25% of 50k
