@@ -60,7 +60,7 @@ function AnalyticsPage() {
     (modelFilter === "all" || trade.modelId === modelFilter) &&
     (sessionFilter === "all" || trade.session === sessionFilter),
   );
-  const curve = equityCurve(filteredTrades);
+  const curve = equityCurve(filteredTrades, data.rules.startingBalance);
   const pay = payoutProgress(data);
   const concepts = conceptMatrix(filteredTrades).slice(0, 18);
   const errors = errorBreakdown(filteredTrades);
@@ -135,7 +135,7 @@ function AnalyticsPage() {
         <KpiCard
           label="Equity"
           value={formatMoney(currentBalance(data))}
-          hint={formatPct(sumPnlPct(filteredTrades))}
+          hint={formatPct(sumPnlPct(filteredTrades, data.rules.startingBalance))}
           icon={Wallet}
         />
         <KpiCard
@@ -155,7 +155,7 @@ function AnalyticsPage() {
         <KpiCard
           label="Profit Factor"
           value={pf.toFixed(2)}
-          hint={`Max DD ${formatPct(-maxDrawdownPct(filteredTrades))}`}
+          hint={`Max DD ${formatPct(-maxDrawdownPct(filteredTrades, data.rules.startingBalance))}`}
           icon={TrendingUp}
           variant={pf >= 1.5 ? "up" : "default"}
         />

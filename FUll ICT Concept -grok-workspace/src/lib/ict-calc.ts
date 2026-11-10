@@ -70,8 +70,13 @@ export function computeTradeR(t: Trade) {
   return rFromPrices(t.side, t.entry, t.sl, t.exitPrice);
 }
 
-export function pnlPctOf(t: Trade) {
-  if (t.rMultiple == null || t.result === "open") return 0;
+export function pnlPctOf(t: Trade, startingBalance = 5000): number {
+  if (t.result === "open") return 0;
+  const pnl = tradeDollarPnl(t, undefined, startingBalance);
+  if (pnl.net != null && Number.isFinite(pnl.net) && startingBalance > 0) {
+    return (pnl.net / startingBalance) * 100;
+  }
+  if (t.rMultiple == null) return 0;
   return t.riskPct * t.rMultiple;
 }
 
@@ -224,7 +229,11 @@ export function calcTradeMetrics(
   };
 }
 
-export function tradeDollarPnl(t: Trade, inst?: Instrument): { gross: number | null; fees: number; net: number | null } {
+export function tradeDollarPnl(
+  t: Trade,
+  inst?: Instrument,
+  startingBalance = 5000,
+): { gross: number | null; fees: number; net: number | null } {
   if (t.result === "open" && t.exitPrice == null) {
     return { gross: null, fees: t.fees ?? 0, net: null };
   }
@@ -238,9 +247,9 @@ export function tradeDollarPnl(t: Trade, inst?: Instrument): { gross: number | n
     return { gross: metrics.grossPnL, fees: metrics.fees, net: metrics.netPnL };
   }
   if (t.rMultiple != null) {
-    const estRisk = 125.0; // standard $125 (0.25% of 50k)
-    const gross = Number((t.rMultiple * estRisk).toFixed(2));
-    const fees = t.fees ?? 1.75;
+    const riskDollar = ((startingBalance > 0 ? startingBalance : 5000) * (t.riskPct || 0.25)) / 100;
+    const gross = Number((t.rMultiple * riskDollar).toFixed(2));
+    const fees = t.fees ?? 0;
     const net = Number((gross - fees).toFixed(2));
     return { gross, fees, net };
   }

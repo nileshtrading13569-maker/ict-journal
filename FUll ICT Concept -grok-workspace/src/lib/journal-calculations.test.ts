@@ -1,10 +1,16 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { calcTradeMetrics, tradeDollarPnl } from "./ict-calc.ts";
+import { calcTradeMetrics, pnlPctOf, tradeDollarPnl } from "./ict-calc.ts";
 import { getTradePnL } from "./tradezella-helpers.ts";
-import { calculateJournalKPIs } from "./ict-stats.ts";
-import { emptyTrade } from "./ict-defaults.ts";
-import type { Trade } from "./ict-types.ts";
+import {
+  calculateJournalKPIs,
+  currentBalance,
+  equityCurve,
+  payoutProgress,
+  sumPnlPct,
+} from "./ict-stats.ts";
+import { emptyDesk, emptyTrade } from "./ict-defaults.ts";
+import type { DeskData, Trade } from "./ict-types.ts";
 
 describe("Journal Calculations Verification (Exact User Screenshot Scenario)", () => {
   // Trade exactly matching the user's uploaded screenshot:
@@ -64,4 +70,42 @@ describe("Journal Calculations Verification (Exact User Screenshot Scenario)", (
     assert.equal(kpis.winRatePct, 100);
     assert.equal(kpis.avgRealizedR, 14.67);
   });
+
+  it("computes pnlPctOf, currentBalance, sumPnlPct, payoutProgress, and equityCurve from actual net dollar gain", () => {
+    const desk: DeskData = {
+      ...emptyDesk(),
+      rules: {
+        ...emptyDesk().rules,
+        startingBalance: 5000,
+        payoutThresholdPct: 8, // 8% of $5,000 = $400
+      },
+      trades: [userScreenshotTrade],
+    };
+
+    // pnlPctOf should compute percentage from actual dollar gain ($438.25 on $5,000 = 8.765%)
+    const pct = pnlPctOf(userScreenshotTrade, 5000);
+    assert.equal(Number(pct.toFixed(3)), 8.765);
+
+    // sumPnlPct should match actual percentage
+    const totalPct = sumPnlPct(desk.trades, desk.rules.startingBalance);
+    assert.equal(Number(totalPct.toFixed(3)), 8.765);
+
+    // currentBalance should be $5,000 + $438.25 = $5,438.25 (NOT $5,183!)
+    const balance = currentBalance(desk);
+    assert.equal(balance, 5438.25, `Expected balance 5438.25, got ${balance}`);
+
+    // payoutProgress: gained = $438.25, target = $400, pct = 109.5625%
+    const pay = payoutProgress(desk);
+    assert.equal(pay.gained, 438.25);
+    assert.equal(pay.target, 400.0);
+    assert.equal(Number(pay.pct.toFixed(2)), 109.56);
+
+    // equityCurve should track the actual dollar gain percentage
+    const curve = equityCurve(desk.trades, desk.rules.startingBalance);
+    assert.equal(curve.length, 1);
+    assert.equal(Number(curve[0].pct.toFixed(3)), 8.765);
+    assert.equal(curve[0].r, 14.67);
+  });
 });
+
+

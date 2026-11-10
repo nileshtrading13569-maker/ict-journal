@@ -35,8 +35,9 @@ export function worstStreak(trades: Trade[]) {
   return worst;
 }
 
-export function sumPnlPct(trades: Trade[]) {
-  return trades.reduce((acc, t) => acc + pnlPctOf(t), 0);
+export function sumPnlPct(trades: Trade[], startingBalance = 5000) {
+  const base = startingBalance > 0 ? startingBalance : 5000;
+  return trades.reduce((acc, t) => acc + pnlPctOf(t, base), 0);
 }
 
 export function sumR(trades: Trade[]) {
@@ -88,16 +89,17 @@ export function ruleFollowRate(trades: Trade[]) {
   return (trades.filter((t) => t.ruleFollowed).length / trades.length) * 100;
 }
 
-export function equityCurve(trades: Trade[]) {
+export function equityCurve(trades: Trade[], startingBalance = 5000) {
   const closed = closedTrades(trades)
     .slice()
     .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
   let r = 0;
   let pct = 0;
   let peak = 0;
+  const base = startingBalance > 0 ? startingBalance : 5000;
   return closed.map((t) => {
     r += t.rMultiple ?? 0;
-    pct += pnlPctOf(t);
+    pct += pnlPctOf(t, base);
     peak = Math.max(peak, pct);
     const dd = peak - pct;
     return {
@@ -112,14 +114,22 @@ export function equityCurve(trades: Trade[]) {
   });
 }
 
-export function maxDrawdownPct(trades: Trade[]) {
-  const curve = equityCurve(trades);
+export function maxDrawdownPct(trades: Trade[], startingBalance = 5000) {
+  const curve = equityCurve(trades, startingBalance);
   return curve.reduce((m, p) => Math.max(m, p.dd), 0);
 }
 
 export function currentBalance(data: DeskData) {
-  const pct = sumPnlPct(data.trades);
-  return data.rules.startingBalance * (1 + pct / 100);
+  const starting = data.rules.startingBalance || 5000;
+  const totalNet = data.trades.reduce((acc, t) => {
+    if (t.result === "open") return acc;
+    const pnl = tradeDollarPnl(t, undefined, starting);
+    if (pnl.net != null && Number.isFinite(pnl.net)) {
+      return acc + pnl.net;
+    }
+    return acc + ((pnlPctOf(t, starting) / 100) * starting);
+  }, 0);
+  return Number((starting + totalNet).toFixed(2));
 }
 
 export function payoutProgress(data: DeskData) {
@@ -161,7 +171,8 @@ export function lockInfo(data: DeskData, date = todayISO()): LockInfo {
   if (losses >= data.rules.maxConsecutiveLosses) {
     reasons.push(`${losses} consecutive losses — stop. Analyse, do not take the next trade.`);
   }
-  const lostPct = -Math.min(0, sumPnlPct(todays));
+  const starting = data.rules.startingBalance || 5000;
+  const lostPct = -Math.min(0, sumPnlPct(todays, starting));
   if (lostPct >= plan.maxDailyLossPct) {
     reasons.push(
       `Daily loss limit hit (${lostPct.toFixed(2)}% ≥ ${plan.maxDailyLossPct}%). Platform close.`,
@@ -170,7 +181,7 @@ export function lockInfo(data: DeskData, date = todayISO()): LockInfo {
   if (todays.length >= plan.maxTrades) {
     reasons.push(`Max trades for today reached (${todays.length}/${plan.maxTrades}).`);
   }
-  const totalDd = -Math.min(0, sumPnlPct(data.trades));
+  const totalDd = -Math.min(0, sumPnlPct(data.trades, starting));
   if (totalDd >= data.rules.maxTotalDrawdownPct) {
     reasons.push(`Max total drawdown reached (${totalDd.toFixed(2)}%).`);
   }
@@ -190,9 +201,10 @@ export function lockInfo(data: DeskData, date = todayISO()): LockInfo {
 export function remainingRToDanger(data: DeskData, date = todayISO()) {
   const plan = planFor(data, date);
   const todays = tradesOn(data.trades, date);
-  const lostToday = -Math.min(0, sumPnlPct(todays));
+  const starting = data.rules.startingBalance || 5000;
+  const lostToday = -Math.min(0, sumPnlPct(todays, starting));
   const dailyLeftPct = Math.max(0, plan.maxDailyLossPct - lostToday);
-  const totalDd = -Math.min(0, sumPnlPct(data.trades));
+  const totalDd = -Math.min(0, sumPnlPct(data.trades, starting));
   const totalLeftPct = Math.max(0, data.rules.maxTotalDrawdownPct - totalDd);
   const risk = plan.riskPerTrade || data.rules.normalRiskPct || 0.25;
   const dailyR = risk > 0 ? dailyLeftPct / risk : 0;

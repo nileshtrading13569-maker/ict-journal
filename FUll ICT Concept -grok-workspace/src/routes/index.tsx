@@ -123,7 +123,7 @@ function Home() {
         <KpiCard
           label="Equity"
           value={formatMoney(currentBalance(data))}
-          hint={formatPct(sumPnlPct(data.trades))}
+          hint={formatPct(sumPnlPct(data.trades, data.rules.startingBalance))}
           icon={Wallet}
           variant={currentBalance(data) >= data.rules.startingBalance ? "up" : "down"}
         />
@@ -143,7 +143,7 @@ function Home() {
         />
         <KpiCard
           label="Payout path"
-          value={`${Math.max(0, Math.round(pay.pct))}%`}
+          value={`${Math.min(100, Math.max(0, Math.round(pay.pct)))}%`}
           hint={`Target ${formatPct(data.rules.payoutThresholdPct, 0)}`}
           icon={Target}
           variant="up"
