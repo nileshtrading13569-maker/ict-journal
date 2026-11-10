@@ -74,16 +74,16 @@ export function PlaybookDetailModal({
   const [checkedValidRules, setCheckedValidRules] = useState<Record<number, boolean>>({});
   const [checkedInvalidRules, setCheckedInvalidRules] = useState<Record<number, boolean>>({});
 
-  if (!model) return null;
-
   // Filter sample trades associated with this model
-  const sample = closedTrades(
-    trades.filter(
-      (t) =>
-        t.modelId === model.id ||
-        (t.modelName && t.modelName.toLowerCase() === model.name.toLowerCase()),
-    ),
-  );
+  const sample = model
+    ? closedTrades(
+        trades.filter(
+          (t) =>
+            t.modelId === model.id ||
+            (t.modelName && t.modelName.toLowerCase() === model.name.toLowerCase()),
+        ),
+      )
+    : [];
 
   const wins = sample.filter((t) => t.result === "win");
   const losses = sample.filter((t) => t.result === "loss");
@@ -106,14 +106,16 @@ export function PlaybookDetailModal({
   // Calculate rules followed adherence
   let totalAssessed = 0;
   let totalFollowed = 0;
-  for (const t of sample) {
-    const adherence = calculateTradeRuleAdherence(t, model);
-    totalAssessed += adherence.total;
-    totalFollowed += adherence.followed;
+  if (model) {
+    for (const t of sample) {
+      const adherence = calculateTradeRuleAdherence(t, model);
+      totalAssessed += adherence.total;
+      totalFollowed += adherence.followed;
+    }
   }
   const rulesFollowedPct = totalAssessed > 0 ? Math.round((totalFollowed / totalAssessed) * 100) : 100;
 
-  const validRulesList = model.validWhen?.length
+  const validRulesList = model?.validWhen?.length
     ? model.validWhen
     : [
         "HTF narrative aligned with dealing range",
@@ -122,7 +124,7 @@ export function PlaybookDetailModal({
         "Execution within primary session kill zone",
       ];
 
-  const invalidRulesList = model.invalidWhen?.length
+  const invalidRulesList = model?.invalidWhen?.length
     ? model.invalidWhen
     : [
         "Price trading in mid-range of dealing range",
@@ -142,7 +144,7 @@ export function PlaybookDetailModal({
 
   // Initialize checkedValidRules from the latest trade checklist if available
   useEffect(() => {
-    if (sample.length > 0) {
+    if (model && sample.length > 0) {
       const target = sample[0];
       const rules = getPlaybookRules(model);
       const checklist = target.ruleChecklist;
@@ -166,7 +168,7 @@ export function PlaybookDetailModal({
     const nextValid = { ...checkedValidRules, [index]: nextVal };
     setCheckedValidRules(nextValid);
 
-    if (sample.length > 0) {
+    if (model && sample.length > 0) {
       const target = sample[0];
       const rules = getPlaybookRules(model);
       const checklist: Record<string, boolean> = { ...(target.ruleChecklist ?? {}) };
@@ -198,7 +200,7 @@ export function PlaybookDetailModal({
     const nextInvalid = { ...checkedInvalidRules, [index]: nextVal };
     setCheckedInvalidRules(nextInvalid);
 
-    if (sample.length > 0) {
+    if (model && sample.length > 0) {
       const target = sample[0];
       const rules = getPlaybookRules(model);
       const checklist: Record<string, boolean> = { ...(target.ruleChecklist ?? {}) };
@@ -225,8 +227,10 @@ export function PlaybookDetailModal({
     }
   };
 
-  const notesText = model.description || model.notes || "";
-  const blueprintSnapshot = propSnapshot || model.snapshot || model.canvasBlueprint;
+  const notesText = model ? (model.description || model.notes || "") : "";
+  const blueprintSnapshot = model ? (propSnapshot || model.snapshot || model.canvasBlueprint) : undefined;
+
+  if (!model) return null;
 
   return (
     <>
