@@ -295,6 +295,10 @@ const grokOAuthPlugin = authConfigured
     })
   : null;
 
+// Explicit 30-day session lifetime (2,592,000 seconds)
+export const SESSION_30_DAYS_SECONDS = 60 * 60 * 24 * 30; // 30 days
+export const SESSION_REFRESH_INTERVAL_SECONDS = 60 * 60 * 24; // 1 day auto-refresh
+
 export const auth = betterAuth({
   baseURL,
   // Deployed apps inject BETTER_AUTH_SECRET. Preview: process-stable secret on
@@ -349,8 +353,8 @@ export const auth = betterAuth({
 
   // Explicit 30-day session lifespan + 1-day auto-refresh to prevent unexpected logouts
   session: {
-    expiresIn: 60 * 60 * 24 * 30, // 30 days
-    updateAge: 60 * 60 * 24, // 24 hours
+    expiresIn: SESSION_30_DAYS_SECONDS, // 30 days (2,592,000 seconds)
+    updateAge: SESSION_REFRESH_INTERVAL_SECONDS, // 24 hours auto-refresh
     cookieCache: { enabled: true, maxAge: 300 },
   },
 
@@ -371,17 +375,36 @@ export const auth = betterAuth({
       secure: secureCookies,
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 30, // 30 days persistent cookie
+      maxAge: SESSION_30_DAYS_SECONDS, // 30 days persistent cookie
     },
     cookies: {
       session_token: {
         name: SESSION_TOKEN_COOKIE,
         options: {
-          maxAge: 60 * 60 * 24 * 30,
+          maxAge: SESSION_30_DAYS_SECONDS,
+          path: "/",
+          sameSite: "lax",
+          secure: secureCookies,
         },
       },
-      session_data: { name: `${cookiePrefix}.session_data` },
-      account_data: { name: `${cookiePrefix}.account_data` },
+      session_data: {
+        name: `${cookiePrefix}.session_data`,
+        options: {
+          maxAge: SESSION_30_DAYS_SECONDS,
+          path: "/",
+          sameSite: "lax",
+          secure: secureCookies,
+        },
+      },
+      account_data: {
+        name: `${cookiePrefix}.account_data`,
+        options: {
+          maxAge: SESSION_30_DAYS_SECONDS,
+          path: "/",
+          sameSite: "lax",
+          secure: secureCookies,
+        },
+      },
       dont_remember: { name: `${cookiePrefix}.dont_remember` },
     },
   },
