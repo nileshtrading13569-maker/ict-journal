@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Check,
   X,
@@ -36,8 +36,8 @@ import { toast } from "sonner";
 import { syncDeskToServer } from "@/lib/desk-sync";
 import { TradeInspectorDialog } from "@/components/journal/trade-inspector-dialog";
 import { TradeFormModal } from "@/components/journal/trade-form-modal";
-import { calculateTradeRuleAdherence } from "@/lib/tradezella-helpers";
-import type { SetupModel, Trade } from "@/lib/ict-types";
+import { calculateTradeRuleAdherence, getPlaybookRules } from "@/lib/tradezella-helpers";
+import type { PlaybookStructuredRule, SetupModel, Trade } from "@/lib/ict-types";
 
 interface PlaybookDetailModalProps {
   open: boolean;
@@ -130,18 +130,99 @@ export function PlaybookDetailModal({
         "Target already delivered prior to entry",
       ];
 
+  const validTotal = validRulesList.length;
+  const validCheckedCount = validRulesList.filter((_, i) => checkedValidRules[i] !== false).length;
+  const invalidCheckedCount = invalidRulesList.filter((_, i) => !!checkedInvalidRules[i]).length;
+  const isDisqualified = invalidCheckedCount > 0;
+  const liveChecklistPct = isDisqualified
+    ? 0
+    : validTotal > 0
+    ? Math.round((validCheckedCount / validTotal) * 100)
+    : 100;
+
+  // Initialize checkedValidRules from the latest trade checklist if available
+  useEffect(() => {
+    if (sample.length > 0) {
+      const target = sample[0];
+      const rules = getPlaybookRules(model);
+      const checklist = target.ruleChecklist;
+      if (checklist && Object.keys(checklist).length > 0) {
+        const initValid: Record<number, boolean> = {};
+        validRulesList.forEach((_, idx) => {
+          const ruleId = rules[idx]?.id;
+          if (ruleId && checklist[ruleId] !== undefined) {
+            initValid[idx] = checklist[ruleId];
+          }
+        });
+        if (Object.keys(initValid).length > 0) {
+          setCheckedValidRules(initValid);
+        }
+      }
+    }
+  }, [sample[0]?.id, model?.id]);
+
   const toggleValidRule = (index: number) => {
-    setCheckedValidRules((prev) => ({
-      ...prev,
-      [index]: prev[index] === undefined ? false : !prev[index],
-    }));
+    const nextVal = checkedValidRules[index] === undefined ? false : !checkedValidRules[index];
+    const nextValid = { ...checkedValidRules, [index]: nextVal };
+    setCheckedValidRules(nextValid);
+
+    if (sample.length > 0) {
+      const target = sample[0];
+      const rules = getPlaybookRules(model);
+      const checklist: Record<string, boolean> = { ...(target.ruleChecklist ?? {}) };
+
+      rules.forEach((r: PlaybookStructuredRule, idx: number) => {
+        if (idx < validRulesList.length) {
+          checklist[r.id] = nextValid[idx] !== false;
+        } else {
+          checklist[r.id] = true;
+        }
+      });
+
+      const vCount = validRulesList.filter((_, i) => nextValid[i] !== false).length;
+      const invCount = invalidRulesList.filter((_, i) => !!checkedInvalidRules[i]).length;
+      const allPassed = invCount === 0 && vCount === validRulesList.length;
+      const pct = invCount > 0 ? 0 : Math.round((vCount / validRulesList.length) * 100);
+
+      upsertTrade({
+        ...target,
+        ruleChecklist: checklist,
+        ruleFollowed: allPassed,
+        ruleAdherencePct: pct,
+      });
+    }
   };
 
   const toggleInvalidRule = (index: number) => {
-    setCheckedInvalidRules((prev) => ({
-      ...prev,
-      [index]: prev[index] === undefined ? true : !prev[index],
-    }));
+    const nextVal = checkedInvalidRules[index] === undefined ? true : !checkedInvalidRules[index];
+    const nextInvalid = { ...checkedInvalidRules, [index]: nextVal };
+    setCheckedInvalidRules(nextInvalid);
+
+    if (sample.length > 0) {
+      const target = sample[0];
+      const rules = getPlaybookRules(model);
+      const checklist: Record<string, boolean> = { ...(target.ruleChecklist ?? {}) };
+
+      rules.forEach((r: PlaybookStructuredRule, idx: number) => {
+        if (idx < validRulesList.length) {
+          checklist[r.id] = checkedValidRules[idx] !== false;
+        } else {
+          checklist[r.id] = true;
+        }
+      });
+
+      const vCount = validRulesList.filter((_, i) => checkedValidRules[i] !== false).length;
+      const invCount = invalidRulesList.filter((_, i) => !!nextInvalid[i]).length;
+      const allPassed = invCount === 0 && vCount === validRulesList.length;
+      const pct = invCount > 0 ? 0 : Math.round((vCount / validRulesList.length) * 100);
+
+      upsertTrade({
+        ...target,
+        ruleChecklist: checklist,
+        ruleFollowed: allPassed,
+        ruleAdherencePct: pct,
+      });
+    }
   };
 
   const notesText = model.description || model.notes || "";
@@ -620,37 +701,118 @@ export function PlaybookDetailModal({
             {/* TAB 3: RULES CHECKLIST */}
             {activeTab === "rules" && (
               <div className="space-y-6">
-                {/* Conformance Summary Bar */}
-                <div className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-[#121212] p-4">
-                  <div>
-                    <span className="text-[10px] font-semibold tracking-wider text-[#a2a2a0] uppercase">
-                      Historical Rules Conformance
-                    </span>
-                    <p className="font-mono mt-1 text-2xl font-bold text-white">
-                      {rulesFollowedPct}%
-                    </p>
-                    <p className="font-mono text-[11px] text-[#a2a2a0]">
-                      {totalFollowed} of {totalAssessed} rule assessments honored across logged trades
-                    </p>
+                {/* Conformance & Live Criteria Status */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* Metric 1: Historical Conformance */}
+                  <div className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-[#121212] p-4">
+                    <div>
+                      <span className="text-[10px] font-semibold tracking-wider text-[#a2a2a0] uppercase">
+                        Historical Conformance
+                      </span>
+                      <p className="font-mono mt-1 text-2xl font-bold text-white">
+                        {rulesFollowedPct}%
+                      </p>
+                      <p className="font-mono text-[11px] text-[#a2a2a0]">
+                        {totalFollowed} of {totalAssessed} rules honored across logged trades
+                      </p>
+                    </div>
+                    <div className="flex size-12 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.02]">
+                      <span
+                        className={`font-mono text-lg font-bold ${
+                          rulesFollowedPct >= 80 ? "text-[#3ddc84]" : "text-[#f5b942]"
+                        }`}
+                      >
+                        {rulesFollowedPct >= 80 ? "A+" : "B"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex size-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.02]">
-                    <span
-                      className={`font-mono text-xl font-bold ${
-                        rulesFollowedPct >= 80 ? "text-[#3ddc84]" : "text-[#f5b942]"
-                      }`}
-                    >
-                      {rulesFollowedPct >= 80 ? "A+" : "B"}
-                    </span>
+
+                  {/* Metric 2: Live Interactive Execution Score (Updates dynamically on click!) */}
+                  <div
+                    className={`flex items-center justify-between rounded-xl border p-4 transition-all duration-200 ${
+                      isDisqualified
+                        ? "border-[#ff6b7d]/40 bg-[#ff6b7d]/10"
+                        : liveChecklistPct === 100
+                        ? "border-[#3ddc84]/40 bg-[#3ddc84]/10"
+                        : "border-amber-500/30 bg-amber-500/10"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold tracking-wider uppercase text-[#a2a2a0]">
+                          Live Criteria Score
+                        </span>
+                        <span className="inline-block size-1.5 rounded-full bg-current animate-pulse" />
+                      </div>
+                      <p
+                        className={`font-mono mt-1 text-2xl font-bold ${
+                          isDisqualified
+                            ? "text-[#ff6b7d]"
+                            : liveChecklistPct === 100
+                            ? "text-[#3ddc84]"
+                            : "text-amber-400"
+                        }`}
+                      >
+                        {liveChecklistPct}%
+                      </p>
+                      <p className="font-mono text-[11px] text-zinc-300">
+                        {isDisqualified
+                          ? `Disqualified: ${invalidCheckedCount} invalid condition active`
+                          : `${validCheckedCount} of ${validTotal} mandatory criteria met`}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span
+                        className={`font-mono text-[11px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
+                          isDisqualified
+                            ? "bg-[#ff6b7d]/20 text-[#ff6b7d] border border-[#ff6b7d]/30"
+                            : liveChecklistPct === 100
+                            ? "bg-[#3ddc84]/20 text-[#3ddc84] border border-[#3ddc84]/30"
+                            : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        }`}
+                      >
+                        {isDisqualified ? "DISQUALIFIED" : liveChecklistPct === 100 ? "VALID ENTRY" : "INCOMPLETE"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Valid When Rules */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold tracking-wider text-[#3ddc84] uppercase">
-                      ✓ Mandatory Entry Criteria (Valid When)
+                      ✓ Mandatory Entry Criteria ({validCheckedCount}/{validTotal} Met)
                     </span>
-                    <span className="text-[11px] text-[#a2a2a0]">Interactive Checklist Preview</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allChecked: Record<number, boolean> = {};
+                          validRulesList.forEach((_, idx) => {
+                            allChecked[idx] = true;
+                          });
+                          setCheckedValidRules(allChecked);
+                          setCheckedInvalidRules({});
+                          if (sample.length > 0) {
+                            const target = sample[0];
+                            const rules = getPlaybookRules(model);
+                            const checklist: Record<string, boolean> = { ...(target.ruleChecklist ?? {}) };
+                            rules.forEach((r: PlaybookStructuredRule) => { checklist[r.id] = true; });
+                            upsertTrade({
+                              ...target,
+                              ruleChecklist: checklist,
+                              ruleFollowed: true,
+                              ruleAdherencePct: 100,
+                            });
+                          }
+                        }}
+                        className="text-[11px] text-[#a2a2a0] hover:text-white transition-colors"
+                      >
+                        Reset All Met
+                      </button>
+                      <span className="text-zinc-600">·</span>
+                      <span className="text-[11px] text-[#a2a2a0]">Interactive Live Checklist</span>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     {validRulesList.map((r, i) => {
