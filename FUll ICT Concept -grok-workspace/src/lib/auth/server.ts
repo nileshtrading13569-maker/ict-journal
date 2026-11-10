@@ -67,12 +67,15 @@ void ensureDbReady();
  * signing secret or every existing session becomes invalid mid-dev. Process
  * restart clears both the secret and PGLite together.
  */
+const FALLBACK_AUTH_SECRET = "ict-desk-terminal-persisted-secret-key-32-chars-min";
+
 const globalAuthRef = globalThis as typeof globalThis & {
   __grokAuthPreviewSecret__?: string;
 };
 function previewAuthSecret(): string {
-  globalAuthRef.__grokAuthPreviewSecret__ ??= randomBytes(32).toString("hex");
-  return globalAuthRef.__grokAuthPreviewSecret__;
+  // Use a stable fallback so serverless cold starts or process restarts
+  // do not invalidate session signatures and log users out!
+  return FALLBACK_AUTH_SECRET;
 }
 
 /** Read an env var, treating empty/whitespace as unset. */
@@ -344,11 +347,12 @@ export const auth = betterAuth({
     },
   },
 
-  // Cache the session in the short-lived signed `session_data` cookie so reads
-  // (incl. the client's `/get-session`) skip the DB — this shrinks the "loading"
-  // window and reduces auth flicker. See the `auth` skill for the full
-  // flicker-prevention guidance (gate on `isPending`; SSR the session).
-  session: { cookieCache: { enabled: true, maxAge: 300 } },
+  // Explicit 30-day session lifespan + 1-day auto-refresh to prevent unexpected logouts
+  session: {
+    expiresIn: 60 * 60 * 24 * 30, // 30 days
+    updateAge: 60 * 60 * 24, // 24 hours
+    cookieCache: { enabled: true, maxAge: 300 },
+  },
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
   ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
@@ -363,9 +367,19 @@ export const auth = betterAuth({
   // down.
   advanced: {
     useSecureCookies: false,
-    defaultCookieAttributes: { secure: secureCookies, sameSite: "lax", path: "/" },
+    defaultCookieAttributes: {
+      secure: secureCookies,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30, // 30 days persistent cookie
+    },
     cookies: {
-      session_token: { name: SESSION_TOKEN_COOKIE },
+      session_token: {
+        name: SESSION_TOKEN_COOKIE,
+        options: {
+          maxAge: 60 * 60 * 24 * 30,
+        },
+      },
       session_data: { name: `${cookiePrefix}.session_data` },
       account_data: { name: `${cookiePrefix}.account_data` },
       dont_remember: { name: `${cookiePrefix}.dont_remember` },
