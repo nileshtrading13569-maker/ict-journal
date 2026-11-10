@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { addDaysISO } from "./ict-time";
+import { calcTradeMetrics } from "./ict-calc";
 import {
   type CustomThemeColors,
   getCustomThemeColors,
@@ -91,7 +92,34 @@ export const useDeskStore = create<DeskStore>()(
         if (!get().hasBootstrapped) set(createInitialState());
       },
       resetAll: (data = createResetState()) => set({ ...data, hasBootstrapped: true }),
-      replaceAll: (data) => set({ ...data, hasBootstrapped: true }),
+      replaceAll: (data) => {
+        const instruments = data.instruments ?? [];
+        const normalizedTrades = (data.trades ?? []).map((t) => {
+          if (
+            t.result !== "open" &&
+            t.entry != null &&
+            t.exitPrice != null &&
+            t.lots != null &&
+            t.lots > 0 &&
+            (t.netPnL == null || t.grossPnL == null)
+          ) {
+            const inst = instruments.find(
+              (i) => i.symbol.toLowerCase() === (t.market || "").toLowerCase()
+            );
+            const metrics = calcTradeMetrics(t, inst);
+            if (metrics.netPnL != null) {
+              return {
+                ...t,
+                grossPnL: t.grossPnL ?? metrics.grossPnL,
+                netPnL: t.netPnL ?? metrics.netPnL,
+                rMultiple: t.rMultiple ?? metrics.realizedR,
+              };
+            }
+          }
+          return t;
+        });
+        set({ ...data, trades: normalizedTrades, hasBootstrapped: true });
+      },
       patchAccount: (patch) =>
         set((s) => {
           const { accountName, phaseId, mantra, ...rest } = patch;
@@ -105,7 +133,32 @@ export const useDeskStore = create<DeskStore>()(
       setPhaseId: (id) => set({ phaseId: id }),
       updatePhase: (phase) =>
         set((s) => ({ phases: s.phases.map((p) => (p.id === phase.id ? phase : p)) })),
-      upsertTrade: (trade) => set((s) => ({ trades: upsert(s.trades, trade) })),
+      upsertTrade: (trade) =>
+        set((s) => {
+          let t = trade;
+          if (
+            t.result !== "open" &&
+            t.entry != null &&
+            t.exitPrice != null &&
+            t.lots != null &&
+            t.lots > 0 &&
+            (t.netPnL == null || t.grossPnL == null)
+          ) {
+            const inst = s.instruments.find(
+              (i) => i.symbol.toLowerCase() === (t.market || "").toLowerCase()
+            );
+            const metrics = calcTradeMetrics(t, inst);
+            if (metrics.netPnL != null) {
+              t = {
+                ...t,
+                grossPnL: t.grossPnL ?? metrics.grossPnL,
+                netPnL: t.netPnL ?? metrics.netPnL,
+                rMultiple: t.rMultiple ?? metrics.realizedR,
+              };
+            }
+          }
+          return { trades: upsert(s.trades, t) };
+        }),
       removeTrade: (id) => set((s) => ({ trades: s.trades.filter((x) => x.id !== id) })),
       updateTradeReview: (id, reviewed) =>
         set((s) => ({

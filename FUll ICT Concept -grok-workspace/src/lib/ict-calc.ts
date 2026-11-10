@@ -7,6 +7,7 @@ import type {
   Trade,
   TradeResult,
 } from "./ict-types";
+import { DEFAULT_INSTRUMENTS } from "./ict-defaults.ts";
 
 export function dealingMeta(range: DealingRange) {
   const high = range.high;
@@ -150,6 +151,7 @@ export function fmtLots(n: number | null | undefined) {
 
 export function calcTradeMetrics(
   t: {
+    market?: string;
     side?: Trade["side"];
     entry?: number | null;
     sl?: number | null;
@@ -162,8 +164,17 @@ export function calcTradeMetrics(
   },
   inst?: Instrument,
 ) {
-  const tickSize = inst?.tickSize ?? 0.01;
-  const tickValuePerLot = inst?.tickValuePerLot ?? 1.0;
+  const resolvedInst =
+    inst ??
+    (t.market
+      ? DEFAULT_INSTRUMENTS.find(
+          (i) => i.symbol.toLowerCase() === t.market?.toLowerCase()
+        )
+      : undefined) ??
+    DEFAULT_INSTRUMENTS[0];
+
+  const tickSize = resolvedInst.tickSize ?? 0.01;
+  const tickValuePerLot = resolvedInst.tickValuePerLot ?? 1.0;
   const pointValuePerLot = (1 / tickSize) * tickValuePerLot; // for XAUUSD: 100
 
   const lots = t.lots ?? 0;
@@ -216,6 +227,11 @@ export function calcTradeMetrics(
 export function tradeDollarPnl(t: Trade, inst?: Instrument): { gross: number | null; fees: number; net: number | null } {
   if (t.result === "open" && t.exitPrice == null) {
     return { gross: null, fees: t.fees ?? 0, net: null };
+  }
+  if (t.netPnL != null && Number.isFinite(t.netPnL)) {
+    const fees = t.fees ?? 0;
+    const gross = t.grossPnL != null && Number.isFinite(t.grossPnL) ? t.grossPnL : Number((t.netPnL + fees).toFixed(2));
+    return { gross, fees, net: t.netPnL };
   }
   const metrics = calcTradeMetrics(t, inst);
   if (metrics.netPnL != null) {

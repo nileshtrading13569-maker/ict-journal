@@ -22,6 +22,7 @@ import {
 } from "@/lib/ict-types";
 import { defaultPlanFrom, emptyTrade } from "@/lib/ict-defaults";
 import {
+  calcTradeMetrics,
   computeTradeR,
   confluenceScore,
   fmtLots,
@@ -168,6 +169,21 @@ export function TradeWizard({
       plan: planFor(data, form.date),
       warnings: [...tradeLock.reasons, ...tradeLock.warnings],
     };
+    const isClosed = form.result !== "open";
+    const inst = instrumentOf(data, form.market);
+    const metrics = calcTradeMetrics(
+      {
+        market: form.market,
+        side: form.side,
+        entry: form.entry,
+        sl: form.sl,
+        exitPrice: isClosed ? form.exitPrice : null,
+        tp1: form.tp1,
+        lots: lots,
+        fees: form.fees,
+      },
+      inst,
+    );
     const updatedTrade: Trade = {
       ...form,
       ruleFollowed: tradeLock.locked ? false : form.ruleFollowed,
@@ -175,6 +191,8 @@ export function TradeWizard({
       rMultiple: r,
       result: form.result === "open" ? "open" : resultFromR(r, form.result),
       lots: lots,
+      grossPnL: isClosed ? metrics.grossPnL : null,
+      netPnL: isClosed ? metrics.netPnL : null,
       modelName: model?.name ?? form.modelName,
     };
     const prevTrades = useDeskStore.getState().trades;

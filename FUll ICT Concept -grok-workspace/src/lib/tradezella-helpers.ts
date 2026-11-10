@@ -1,4 +1,5 @@
 import type { PlaybookStructuredRule, SetupModel, Trade, TradeResult } from "./ict-types";
+import { tradeDollarPnl } from "./ict-calc.ts";
 
 export type CandleBar = {
   time: string;
@@ -20,13 +21,16 @@ export const DEFAULT_RISK_DOLLARS = 250;
  * Returns net dollar P&L for a trade.
  */
 export function getTradePnL(trade: Trade, riskDollars = DEFAULT_RISK_DOLLARS): number {
-  if (trade.netPnL != null) return trade.netPnL;
-  if (trade.rMultiple != null) {
-    return Math.round(trade.rMultiple * riskDollars * 100) / 100;
+  if (trade.netPnL != null && Number.isFinite(trade.netPnL)) return trade.netPnL;
+  if (trade.grossPnL != null && Number.isFinite(trade.grossPnL)) {
+    return Number((trade.grossPnL - (trade.fees ?? 0)).toFixed(2));
   }
-  if (trade.entry != null && trade.exitPrice != null && trade.lots != null) {
-    const diff = trade.side === "long" ? trade.exitPrice - trade.entry : trade.entry - trade.exitPrice;
-    return Math.round(diff * trade.lots * 100 * 100) / 100;
+  const calc = tradeDollarPnl(trade);
+  if (calc.net != null && Number.isFinite(calc.net)) {
+    return calc.net;
+  }
+  if (trade.rMultiple != null && Number.isFinite(trade.rMultiple)) {
+    return Math.round(trade.rMultiple * riskDollars * 100) / 100;
   }
   return 0;
 }

@@ -1,5 +1,5 @@
 import type { DailyPlan, DeskData, ProtocolDay, Trade } from "./ict-types.ts";
-import { closedTrades, pnlPctOf } from "./ict-calc.ts";
+import { closedTrades, pnlPctOf, tradeDollarPnl } from "./ict-calc.ts";
 import { defaultPlanFrom } from "./ict-defaults.ts";
 import { inWindow, todayISO, weekdayShort } from "./ict-time.ts";
 
@@ -341,13 +341,13 @@ function resolveTradeNetPnL(t: Trade): number {
   if (t.grossPnL != null && Number.isFinite(t.grossPnL)) {
     return Number((t.grossPnL - (t.fees ?? 0)).toFixed(2));
   }
+  const calc = tradeDollarPnl(t);
+  if (calc.net != null && Number.isFinite(calc.net)) {
+    return calc.net;
+  }
   if (t.rMultiple != null && Number.isFinite(t.rMultiple)) {
     const risk = 125.0; // standard 0.25% of 50k
     return Number((t.rMultiple * risk - (t.fees ?? 0)).toFixed(2));
-  }
-  if (t.entry != null && t.exitPrice != null && t.lots != null && t.lots > 0) {
-    const diff = t.side === "long" ? t.exitPrice - t.entry : t.entry - t.exitPrice;
-    return Number((diff * t.lots * 100 - (t.fees ?? 0)).toFixed(2));
   }
   return 0;
 }

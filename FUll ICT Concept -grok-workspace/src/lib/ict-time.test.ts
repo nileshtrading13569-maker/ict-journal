@@ -78,3 +78,4 @@ describe("ICT Time & Dual Indian Time (IST) 12hr AM/PM Engine", () => {
     assert.equal(inWindow("19:00", "02:00", "15:00"), false);
   });
 });
+

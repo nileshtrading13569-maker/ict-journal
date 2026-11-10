@@ -114,7 +114,7 @@ export function AllView({
   const models = useDeskStore((s) => s.models);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRangeKey, setSelectedRangeKey] = useState<string>("oct_2026");
+  const [selectedRangeKey, setSelectedRangeKey] = useState<string>("all");
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6; // Matching screenshot 2: 6 trades per page
@@ -122,16 +122,16 @@ export function AllView({
   // Label for Date Range Selector button
   const dateRangeLabel = useMemo(() => {
     switch (selectedRangeKey) {
-      case "oct_2026":
-        return "Oct 1 – Oct 29, 2026";
       case "all":
         return "All Logged Dates";
+      case "oct_2026":
+        return "Oct 1 – Oct 29, 2026";
       case "last_7":
         return "Last 7 Days";
       case "last_30":
         return "Last 30 Days";
       default:
-        return "Oct 1 – Oct 29, 2026";
+        return "All Logged Dates";
     }
   }, [selectedRangeKey]);
 
@@ -166,15 +166,15 @@ export function AllView({
           return false;
         }
       } else if (selectedRangeKey === "last_7") {
-        const now = new Date("2026-10-29T23:59:59Z").getTime();
+        const now = Date.now();
         const tradeTime = new Date(`${t.date}T12:00:00Z`).getTime();
-        if (now - tradeTime > 7 * 86400000 || tradeTime > now) {
+        if (now - tradeTime > 7 * 86400000 || tradeTime > now + 86400000) {
           return false;
         }
       } else if (selectedRangeKey === "last_30") {
-        const now = new Date("2026-10-29T23:59:59Z").getTime();
+        const now = Date.now();
         const tradeTime = new Date(`${t.date}T12:00:00Z`).getTime();
-        if (now - tradeTime > 30 * 86400000 || tradeTime > now) {
+        if (now - tradeTime > 30 * 86400000 || tradeTime > now + 86400000) {
           return false;
         }
       }

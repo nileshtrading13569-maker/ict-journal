@@ -192,6 +192,8 @@ export function TradeFormModal({ open, onOpenChange, trade, onSaved }: TradeForm
       mfeR: numericMfe,
       result: tradeResult,
       rMultiple: calculatedR,
+      grossPnL: position === "closed" ? metrics.grossPnL : null,
+      netPnL: position === "closed" ? metrics.netPnL : null,
       notes: notes.trim(),
       grade: (grade as Grade) || "",
       reviewed,
