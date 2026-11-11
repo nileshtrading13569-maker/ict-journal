@@ -442,6 +442,10 @@ export async function saveUserNotebook(
     )
     on conflict (google_user_id)
     do update set
+      user_id = excluded.user_id,
+      email = coalesce(excluded.email, google_user_databases.email),
+      name = coalesce(excluded.name, google_user_databases.name),
+      picture = coalesce(excluded.picture, google_user_databases.picture),
       notebook_state = excluded.notebook_state,
       updated_at = now()
     returning google_user_id

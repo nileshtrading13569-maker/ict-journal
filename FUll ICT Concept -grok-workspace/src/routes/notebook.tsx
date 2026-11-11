@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import {
+  ArrowUpRight,
   Calendar,
   ChevronDown,
   ChevronLeft,
@@ -18,6 +19,7 @@ import {
   MoreHorizontal,
   Pin,
   Plus,
+  RefreshCw,
   RotateCcw,
   RotateCw,
   Search,
@@ -43,6 +45,13 @@ import {
   type NotebookEntry,
 } from "@/lib/notebook-defaults";
 import { loadNotebookState, saveNotebookState } from "@/lib/notebook-sync";
+import {
+  buildDailyJournalEntryFromTrades,
+  computeNotebookDayMetrics,
+  formatTradeMarkdownBlock,
+  mergeJournalDatesIntoNotes,
+  resolveTradeInstrument,
+} from "@/lib/notebook-journal-sync";
 
 export type { NotebookEntry };
 
@@ -71,6 +80,7 @@ interface IntradayEquityCurveProps {
 }
 
 function IntradayEquityCurve({ metrics }: IntradayEquityCurveProps) {
+  const instruments = useDeskStore((s) => s.instruments);
   const [hoveredPoint, setHoveredPoint] = useState<IntradayEquityPoint | null>(null);
 
   const { points, yZero, isProfit, topTick, midTick, botTick, gradId } = useMemo(() => {
@@ -88,11 +98,13 @@ function IntradayEquityCurve({ metrics }: IntradayEquityCurveProps) {
     let raw: RawItem[] = [];
 
     if (metrics?.hasLiveTrades && metrics.trades && metrics.trades.length > 0) {
-      const sorted = [...metrics.trades].sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+      const sorted = [...metrics.trades]
+        .filter((t) => t.result !== "open")
+        .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
       raw.push({ label: "Day Open", time: "00:00", tradePnl: 0, cumulativePnl: 0 });
       let cum = 0;
       sorted.forEach((t, i) => {
-        const pnl = tradeDollarPnl(t).net ?? 0;
+        const pnl = tradeDollarPnl(t, resolveTradeInstrument(instruments, t.market)).net ?? 0;
         cum = Number((cum + pnl).toFixed(2));
         raw.push({
           label: `Trade #${i + 1} (${t.market || "Exec"})`,
@@ -101,6 +113,9 @@ function IntradayEquityCurve({ metrics }: IntradayEquityCurveProps) {
           cumulativePnl: cum,
         });
       });
+      if (sorted.length === 0) {
+        raw.push({ label: "Open Executions", time: "Live", tradePnl: 0, cumulativePnl: 0 });
+      }
     } else if (metrics && metrics.totalTrades && metrics.totalTrades > 0) {
       // Manual or seed metrics
       raw.push({ label: "Day Open", time: "09:30", tradePnl: 0, cumulativePnl: 0 });
@@ -192,7 +207,7 @@ function IntradayEquityCurve({ metrics }: IntradayEquityCurveProps) {
       botTick: fmtCurrency(minP < 0 ? minP : 0, false),
       gradId: gId,
     };
-  }, [metrics]);
+  }, [metrics, instruments]);
 
   const linePath = useMemo(() => {
     if (points.length === 0) return "";
@@ -305,10 +320,32 @@ function IntradayEquityCurve({ metrics }: IntradayEquityCurveProps) {
 const NOTEBOOK_STORAGE_KEY_V2 = "first-payout-notebook-notes-v2";
 const NOTEBOOK_FOLDERS_KEY = "first-payout-notebook-folders-v1";
 const NOTEBOOK_STORAGE_KEY_V1 = "first-payout-notebook-notes-v1";
+const NOTEBOOK_DISMISSED_DATES_KEY = "first-payout-notebook-dismissed-dates-v1";
 
 function NotebookPage() {
   const deskTrades = useDeskStore((s) => s.trades);
+  const deskInstruments = useDeskStore((s) => s.instruments);
+  const deskModels = useDeskStore((s) => s.models);
+  const deskDailyPlans = useDeskStore((s) => s.dailyPlans);
+  const deskHasBootstrapped = useDeskStore((s) => s.hasBootstrapped);
   const accountName = useDeskStore((s) => s.accountName);
+  const searchStr = useRouterState({ select: (s) => s.location.searchStr });
+
+  const dailyPlanNotesMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const [dateIso, plan] of Object.entries(deskDailyPlans)) {
+      if (plan?.notes?.trim()) {
+        map[dateIso] = plan.notes;
+      }
+    }
+    return map;
+  }, [deskDailyPlans]);
+
+  const requestedDate = useMemo(() => {
+    const raw = searchStr || (typeof window !== "undefined" ? window.location.search : "");
+    const param = new URLSearchParams(raw).get("date");
+    return param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : null;
+  }, [searchStr]);
 
   const { user, isPending } = useCurrentUserState();
   const userId = user?.id ?? null;
@@ -316,12 +353,36 @@ function NotebookPage() {
 
   const getScopedKey = (base: string) => `${base}:${userScope}`;
 
+  const getDismissedDates = (): Set<string> => {
+    try {
+      const raw = window.localStorage.getItem(getScopedKey(NOTEBOOK_DISMISSED_DATES_KEY));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      return new Set();
+    }
+  };
+
+  const recordDismissedDates = (datesToAdd: string[]) => {
+    if (datesToAdd.length === 0) return;
+    try {
+      const current = getDismissedDates();
+      datesToAdd.forEach((d) => current.add(d));
+      window.localStorage.setItem(
+        getScopedKey(NOTEBOOK_DISMISSED_DATES_KEY),
+        JSON.stringify(Array.from(current)),
+      );
+    } catch {}
+  };
+
   // Folders state
   const [folders, setFolders] = useState<string[]>([...DEFAULT_FOLDERS]);
 
   const [activeFolder, setActiveFolder] = useState<string>("Daily Journal");
   const [notes, setNotes] = useState<NotebookEntry[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string>("");
+  const [notebookLoaded, setNotebookLoaded] = useState(false);
+  const [syncingJournal, setSyncingJournal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== "undefined" && window.innerWidth < 1024);
@@ -344,6 +405,31 @@ function NotebookPage() {
   foldersRef.current = folders;
   const notesRef = useRef(notes);
   notesRef.current = notes;
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+  const handledDeepLinkRef = useRef<string | null>(null);
+
+  // Sync active account label once DeskProvider loads from Neon Postgres
+  useEffect(() => {
+    if (accountName) {
+      setActiveAccountLabel(accountName);
+    }
+  }, [accountName]);
+
+  // Flush any pending debounced note save cleanly when leaving/unmounting the page
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        if (userIdRef.current) {
+          void saveNotebookState({
+            data: { folders: foldersRef.current, notes: notesRef.current },
+          }).catch(() => undefined);
+        }
+      }
+    };
+  }, []);
 
   // Load and sync folders & notes: full backend database/storage when authenticated, local cache fallback
   useEffect(() => {
@@ -351,6 +437,7 @@ function NotebookPage() {
 
     // While auth status is loading, wait for resolution before loading notes
     if (isPending) return;
+    setNotebookLoaded(false);
 
     const readLocalCache = () => {
       try {
@@ -372,6 +459,7 @@ function NotebookPage() {
           if (Array.isArray(parsed) && parsed.length > 0) {
             setNotes(parsed);
             setSelectedNoteId((curr) => (curr && parsed.some((p: NotebookEntry) => p.id === curr) ? curr : parsed[0].id));
+            setNotebookLoaded(true);
             return;
           }
         }
@@ -399,6 +487,7 @@ function NotebookPage() {
             setNotes(combined);
             setSelectedNoteId(combined[0].id);
             window.localStorage.setItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2), JSON.stringify(combined));
+            setNotebookLoaded(true);
             return;
           }
         }
@@ -407,6 +496,7 @@ function NotebookPage() {
       }
       setNotes(SEED_NOTES);
       setSelectedNoteId(SEED_NOTES[0].id);
+      setNotebookLoaded(true);
     };
 
     if (userId) {
@@ -428,6 +518,7 @@ function NotebookPage() {
               window.localStorage.setItem(getScopedKey(NOTEBOOK_STORAGE_KEY_V2), JSON.stringify(remote.notes));
             } catch {}
             setAutoSaveStatus("saved");
+            setNotebookLoaded(true);
             return;
           }
         } catch (err) {
@@ -486,8 +577,9 @@ function NotebookPage() {
       }
     } else {
       saveTimerRef.current = setTimeout(async () => {
+        saveTimerRef.current = null;
         try {
-          await saveNotebookState({ data: { folders: foldersRef.current, notes: updated } });
+          await saveNotebookState({ data: { folders: foldersRef.current, notes: notesRef.current } });
           setAutoSaveStatus("saved");
         } catch (err) {
           console.error("[notebook] failed to persist notes to backend:", err);
@@ -495,6 +587,96 @@ function NotebookPage() {
           toast.error("Cloud save failed. Check your connection.");
         }
       }, 400);
+    }
+  };
+
+  // Auto-sync Journal trade dates into Daily Journal & honor ?date=YYYY-MM-DD deep links
+  useEffect(() => {
+    if (!notebookLoaded) return;
+    if (userId && !deskHasBootstrapped) return;
+
+    const currentNotes = notesRef.current;
+    const { nextNotes, addedDates } = mergeJournalDatesIntoNotes(
+      currentNotes,
+      deskTrades,
+      deskInstruments,
+      deskModels,
+      getDismissedDates(),
+      dailyPlanNotesMap,
+    );
+
+    if (addedDates.length > 0) {
+      void persistNotes(nextNotes, true);
+      if (!selectedNoteId || SEED_NOTES.some((s) => s.id === selectedNoteId)) {
+        const newestSynced = nextNotes.find((n) => n.date === addedDates[0] && n.folder === "Daily Journal");
+        if (newestSynced) {
+          setSelectedNoteId(newestSynced.id);
+        }
+      }
+    }
+
+    if (requestedDate && handledDeepLinkRef.current !== requestedDate) {
+      handledDeepLinkRef.current = requestedDate;
+      const workingNotes = addedDates.length > 0 ? nextNotes : currentNotes;
+      const existing =
+        workingNotes.find((n) => n.date === requestedDate && n.folder === "Daily Journal") ??
+        workingNotes.find((n) => n.date === requestedDate);
+
+      if (existing) {
+        setActiveFolder(existing.folder);
+        setSelectedNoteId(existing.id);
+        setMobileView("detail");
+      } else {
+        const dayTrades = deskTrades.filter((t) => t.date === requestedDate);
+        const created = buildDailyJournalEntryFromTrades(
+          requestedDate,
+          dayTrades,
+          deskInstruments,
+          deskModels,
+          dailyPlanNotesMap[requestedDate],
+        );
+        const withCreated = [created, ...workingNotes];
+        setActiveFolder("Daily Journal");
+        setSelectedNoteId(created.id);
+        setMobileView("detail");
+        void persistNotes(withCreated, true);
+      }
+    }
+  }, [notebookLoaded, deskHasBootstrapped, deskTrades, dailyPlanNotesMap, requestedDate, userId]);
+
+  const handleManualJournalSync = async () => {
+    setSyncingJournal(true);
+    try {
+      try {
+        window.localStorage.removeItem(getScopedKey(NOTEBOOK_DISMISSED_DATES_KEY));
+      } catch {}
+      const { nextNotes, addedDates } = mergeJournalDatesIntoNotes(
+        notesRef.current,
+        deskTrades,
+        deskInstruments,
+        deskModels,
+        undefined,
+        dailyPlanNotesMap,
+      );
+      if (addedDates.length > 0) {
+        await persistNotes(nextNotes, true);
+        const target = nextNotes.find((n) => n.date === addedDates[0] && n.folder === "Daily Journal");
+        if (target) {
+          setActiveFolder("Daily Journal");
+          setSelectedNoteId(target.id);
+        }
+        toast.success(`Synced ${addedDates.length} trading day${addedDates.length === 1 ? "" : "s"} from Journal DB`);
+      } else {
+        if (userId) {
+          await persistNotes(notesRef.current, true);
+        }
+        toast.success("Notebook is up to date with Journal database");
+      }
+    } catch (err) {
+      console.error("[notebook] manual journal sync failed:", err);
+      toast.error("Failed to sync with Journal database");
+    } finally {
+      setSyncingJournal(false);
     }
   };
 
@@ -526,94 +708,25 @@ function NotebookPage() {
     return notes.find((n) => n.id === selectedNoteId) || notes[0];
   }, [notes, selectedNoteId]);
 
-  // Desk trades metrics for the active note date
+  // Desk trades metrics for the active note date (identical math to Journal KPIs)
   const liveDayMetrics = useMemo(() => {
     if (!selectedNote) return null;
-    const noteDate = selectedNote.date;
-
-    // Filter desk trades matching this date
-    const dayTrades = deskTrades.filter((t) => t.date === noteDate);
-    if (dayTrades.length === 0) {
-      // Fallback to manual metrics if specified
-      if (selectedNote.manualMetrics) {
-        return {
-          ...selectedNote.manualMetrics,
-          hasLiveTrades: false,
-          trades: [] as Trade[],
-        };
-      }
-      return null;
-    }
-
-    let grossPnl = 0;
-    let netPnl = 0;
-    let commissions = 0;
-    let winners = 0;
-    let losers = 0;
-    let totalLots = 0;
-
-    let winGross = 0;
-    let lossGross = 0;
-
-    dayTrades.forEach((t) => {
-      const pnlInfo = tradeDollarPnl(t);
-      const gross = pnlInfo.gross ?? 0;
-      const net = pnlInfo.net ?? 0;
-      const fee = pnlInfo.fees ?? 0;
-
-      grossPnl += gross;
-      netPnl += net;
-      commissions += fee;
-      totalLots += t.lots ?? 1;
-
-      if (net > 0) {
-        winners++;
-        winGross += net;
-      } else if (net < 0) {
-        losers++;
-        lossGross += Math.abs(net);
-      }
-    });
-
-    const totalTrades = dayTrades.length;
-    const winrate = totalTrades > 0 ? (winners / totalTrades) * 100 : 0;
-    const profitFactor = lossGross > 0 ? winGross / lossGross : winGross > 0 ? 99.9 : 0;
-
-    return {
-      netPnl: Number(netPnl.toFixed(2)),
-      grossPnl: Number(grossPnl.toFixed(2)),
-      commissions: Number(commissions.toFixed(2)),
-      totalTrades,
-      winners,
-      losers,
-      winrate: Number(winrate.toFixed(1)),
-      volume: Number(totalLots.toFixed(1)),
-      profitFactor: Number(profitFactor.toFixed(2)),
-      hasLiveTrades: true,
-      trades: dayTrades,
-    };
-  }, [selectedNote, deskTrades]);
+    return computeNotebookDayMetrics(
+      selectedNote.date,
+      deskTrades,
+      deskInstruments,
+      selectedNote.manualMetrics,
+    );
+  }, [selectedNote, deskTrades, deskInstruments]);
 
   // Helper to compute metrics for any note (combining live desk trades matching date and manual metrics)
   const getNoteMetrics = (n: NotebookEntry) => {
-    const dayTrades = deskTrades.filter((t) => t.date === n.date);
-    if (dayTrades.length > 0) {
-      let net = 0;
-      dayTrades.forEach((t) => {
-        net += tradeDollarPnl(t).net ?? 0;
-      });
-      return {
-        netPnl: Number(net.toFixed(2)),
-        totalTrades: dayTrades.length,
-      };
-    }
-    if (n.manualMetrics) {
-      return {
-        netPnl: n.manualMetrics.netPnl,
-        totalTrades: n.manualMetrics.totalTrades,
-      };
-    }
-    return null;
+    const metrics = computeNotebookDayMetrics(n.date, deskTrades, deskInstruments, n.manualMetrics);
+    if (!metrics) return null;
+    return {
+      netPnl: metrics.netPnl,
+      totalTrades: metrics.totalTrades,
+    };
   };
 
   // Filtered & sorted notes
@@ -650,7 +763,7 @@ function NotebookPage() {
         }
         return 0;
       });
-  }, [notes, activeFolder, searchQuery, sortOrder, deskTrades]);
+  }, [notes, activeFolder, searchQuery, sortOrder, deskTrades, deskInstruments]);
 
   // All distinct tags with count
   const allTagsWithCount = useMemo(() => {
@@ -684,39 +797,48 @@ function NotebookPage() {
     const targetFolder = folderParam ?? (activeFolder === "All notes" ? "Daily Journal" : activeFolder);
     const today = new Date();
     const isDaily = targetFolder === "Daily Journal";
-    const title = isDaily
-      ? today.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-      : "Untitled Trading Note";
     const dateStr = today.toISOString().split("T")[0];
-    const timeStr = today.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    const todaysLiveTrades = isDaily ? deskTrades.filter((t) => t.date === dateStr) : [];
 
-    const newNote: NotebookEntry = {
-      id: `note-${Date.now()}`,
-      folder: targetFolder,
-      title,
-      subDate: today.toLocaleDateString("en-US"),
-      date: dateStr,
-      createdAt: `${dateStr} ${timeStr}`,
-      updatedAt: timeStr,
-      pinned: false,
-      tags: isDaily ? ["DailyLog"] : ["Desk"],
-      manualMetrics: isDaily
+    const newNote: NotebookEntry =
+      isDaily && todaysLiveTrades.length > 0
         ? {
-            netPnl: 0,
-            grossPnl: 0,
-            commissions: 0,
-            totalTrades: 0,
-            winners: 0,
-            losers: 0,
-            winrate: 0,
-            volume: 0,
-            profitFactor: 0,
+            ...buildDailyJournalEntryFromTrades(
+              dateStr,
+              todaysLiveTrades,
+              deskInstruments,
+              deskModels,
+            ),
+            id: `note-${Date.now()}`,
           }
-        : undefined,
-      content: isDaily
-        ? `## 🎯 ${title} - Daily Journal\n\n### 📋 Pre-Market Bias & Session Plan\n- HTF Bias:\n- Dealing Range:\n- Kill Zone Target:\n\n### ⏱️ Session Tape Log\n- 09:30:\n- 10:00:\n`
-        : `## Note Title\n\n- Key observations:\n- Rules followed:\n`,
-    };
+        : (() => {
+            const title = isDaily
+              ? today.toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "Untitled Trading Note";
+            const timeStr = today.toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return {
+              id: `note-${Date.now()}`,
+              folder: targetFolder,
+              title,
+              subDate: today.toLocaleDateString("en-US"),
+              date: dateStr,
+              createdAt: `${dateStr} ${timeStr}`,
+              updatedAt: timeStr,
+              pinned: false,
+              tags: isDaily ? ["DailyLog"] : ["Desk"],
+              content: isDaily
+                ? `## 🎯 ${title} - Daily Journal\n\n### 📋 Pre-Market Bias & Session Plan\n- HTF Bias:\n- Dealing Range:\n- Kill Zone Target:\n\n### ⏱️ Session Tape Log\n- 09:30:\n- 10:00:\n`
+                : `## Note Title\n\n- Key observations:\n- Rules followed:\n`,
+            };
+          })();
 
     const updated = [newNote, ...notes];
     try {
@@ -733,6 +855,10 @@ function NotebookPage() {
     if (notes.length <= 1) {
       toast.error("Cannot delete the only remaining note.");
       return;
+    }
+    const target = notes.find((n) => n.id === id);
+    if (target && target.folder === "Daily Journal" && target.date) {
+      recordDismissedDates([target.date]);
     }
     const updated = notes.filter((n) => n.id !== id);
     try {
@@ -876,6 +1002,10 @@ function NotebookPage() {
       toast.error("Cannot delete all notes. Keep at least one.");
       return;
     }
+    const deletedDailyDates = notes
+      .filter((n) => selectedNoteIds.has(n.id) && n.folder === "Daily Journal" && n.date)
+      .map((n) => n.date);
+    recordDismissedDates(deletedDailyDates);
     const updated = notes.filter((n) => !selectedNoteIds.has(n.id));
     try {
       await persistNotes(updated, true);
@@ -999,7 +1129,9 @@ function NotebookPage() {
 
               {accountDropdownOpen && (
                 <div className="absolute right-0 mt-1.5 w-44 bg-[#121215] border border-white/[0.12] rounded-lg shadow-2xl py-1 z-50 text-xs">
-                  {["Demo account", "Apex 50K #1", "Topstep 150K", accountName].filter(Boolean).map((acc) => (
+                  {Array.from(
+                    new Set([accountName, "Demo account", "Apex 50K #1", "Topstep 150K"].filter(Boolean)),
+                  ).map((acc) => (
                     <button
                       key={acc}
                       type="button"
@@ -1019,6 +1151,18 @@ function NotebookPage() {
                 </div>
               )}
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualJournalSync}
+              disabled={syncingJournal}
+              title="Sync trading days and execution notes from Journal DB"
+              className="h-8 gap-1.5 border-white/[0.1] bg-white/[0.03] text-xs text-[#d6d6d4] hover:bg-white/[0.08] shrink-0"
+            >
+              <RefreshCw className={cn("size-3.5 text-[#3ddc84]", syncingJournal && "animate-spin")} />
+              <span className="hidden md:inline">Sync Journal</span>
+            </Button>
 
             <Button
               variant="outline"
@@ -1691,6 +1835,83 @@ function NotebookPage() {
                               </div>
                             </div>
                           </div>
+
+                          {/* Linked Journal Executions Strip */}
+                          {liveDayMetrics?.hasLiveTrades && liveDayMetrics.trades.length > 0 && (
+                            <div className="2xl:col-span-12 rounded-lg border border-white/[0.06] bg-[#070709] p-2.5">
+                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="size-1.5 rounded-full bg-[#3ddc84]" />
+                                  <span className="text-[10px] font-semibold tracking-wider text-[#a1a1aa] uppercase">
+                                    Linked Journal Executions ({liveDayMetrics.trades.length}) · DB Live
+                                  </span>
+                                </div>
+                                <Link
+                                  to="/journal"
+                                  search={{ date: selectedNote.date } as any}
+                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#3ddc84] hover:underline"
+                                >
+                                  <span>Open in Journal</span>
+                                  <ArrowUpRight className="size-3" />
+                                </Link>
+                              </div>
+                              <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                                {liveDayMetrics.trades.map((t) => {
+                                  const inst = resolveTradeInstrument(deskInstruments, t.market);
+                                  const pnl = tradeDollarPnl(t, inst);
+                                  const net = pnl.net ?? 0;
+                                  return (
+                                    <div
+                                      key={t.id}
+                                      className="flex items-center justify-between gap-2 rounded-md border border-white/[0.07] bg-[#101014] px-2.5 py-1.5 text-[11px]"
+                                    >
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-1.5 font-mono">
+                                          <span className="font-semibold text-white">{t.market}</span>
+                                          <span
+                                            className={cn(
+                                              "text-[9px] uppercase font-bold",
+                                              t.side === "long" ? "text-[#3ddc84]" : "text-[#ff6b7d]"
+                                            )}
+                                          >
+                                            {t.side}
+                                          </span>
+                                          <span className="text-[#888886]">· {t.lots ?? "—"} lots</span>
+                                        </div>
+                                        <div className="truncate text-[10px] text-[#a2a2a0]">
+                                          {t.modelName || t.notes || t.time}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <span
+                                          className={cn(
+                                            "font-mono font-semibold",
+                                            net > 0 ? "text-[#3ddc84]" : net < 0 ? "text-[#ff6b7d]" : "text-[#a2a2a0]"
+                                          )}
+                                        >
+                                          {fmtCurrency(net)}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const block = `\n\n${formatTradeMarkdownBlock(t, deskInstruments, deskModels)}\n`;
+                                            handleUpdateNote({
+                                              content: `${selectedNote.content.trimEnd()}${block}`,
+                                            });
+                                            toast.success(`Inserted ${t.market} execution note`);
+                                          }}
+                                          title="Insert trade breakdown & notes into this entry"
+                                          className="rounded border border-white/[0.1] bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-[#d6d6d4] hover:border-[#3ddc84]/50 hover:text-white"
+                                        >
+                                          + Note
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

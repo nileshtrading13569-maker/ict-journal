@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { deskSnapshot, useDeskStore } from "@/lib/ict-store";
@@ -106,7 +107,7 @@ export function DayView({
       const pnl = tradeDollarPnl(t, inst);
       netPnL += pnl.net ?? 0;
       netR += t.rMultiple ?? 0;
-      totalFees += t.fees ?? 1.75;
+      totalFees += pnl.fees ?? 0;
       if (t.result === "win") wins += 1;
     }
 
@@ -145,13 +146,13 @@ export function DayView({
 
   const formatSelectedHeadline = (dateStr: string) => {
     if (!dateStr) return "Today";
-    const d = new Date(dateStr);
+    const d = new Date(`${dateStr}T12:00:00`);
     if (Number.isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   };
 
   const formatDayListItem = (dateStr: string) => {
-    const d = new Date(dateStr);
+    const d = new Date(`${dateStr}T12:00:00`);
     if (Number.isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   };
@@ -299,11 +300,21 @@ export function DayView({
 
         {/* Daily journal notes section */}
         <div className="px-6 pt-5">
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-[13px] font-semibold text-white">Daily journal</h3>
-            <span className="font-mono text-[12px] text-[#a2a2a0]">
-              {activePlan?.savedAt ? `Saved ${activePlan.savedAt}` : "Autosave ready"}
-            </span>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/notebook"
+                search={{ date: selectedDate } as any}
+                className="inline-flex items-center gap-1 rounded-md border border-white/[0.1] bg-white/[0.03] px-2 py-0.5 text-[11px] font-medium text-[#3ddc84] transition-colors hover:border-[#3ddc84]/40 hover:bg-[#3ddc84]/10"
+              >
+                <span>Open in Notebook</span>
+                <ChevronRight className="size-3" />
+              </Link>
+              <span className="font-mono text-[12px] text-[#a2a2a0]">
+                {activePlan?.savedAt ? `Saved ${activePlan.savedAt}` : "Autosave ready"}
+              </span>
+            </div>
           </div>
 
           <textarea

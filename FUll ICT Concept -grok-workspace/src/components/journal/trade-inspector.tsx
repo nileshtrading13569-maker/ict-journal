@@ -673,7 +673,17 @@ export function TradeInspector({
 
               {/* Trade Note */}
               <div className="border-t border-white/[0.07] pt-4">
-                <h3 className="text-[13px] font-semibold text-white">Trade note</h3>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-[13px] font-semibold text-white">Trade note</h3>
+                  <Link
+                    to="/notebook"
+                    search={{ date: trade.date } as any}
+                    className="inline-flex items-center gap-1 rounded-md border border-white/[0.1] bg-white/[0.03] px-2 py-0.5 text-[11px] font-medium text-[#3ddc84] transition-colors hover:border-[#3ddc84]/40 hover:bg-[#3ddc84]/10"
+                  >
+                    <span>Open in Notebook</span>
+                    <ChevronRight className="size-3" />
+                  </Link>
+                </div>
                 <p className="mt-2 rounded-md border border-white/[0.08] bg-[#151515]/70 p-3 text-[13px] leading-relaxed text-[#d6d6d4]">
                   {trade.notes || "No notes logged for this trade."}
                 </p>

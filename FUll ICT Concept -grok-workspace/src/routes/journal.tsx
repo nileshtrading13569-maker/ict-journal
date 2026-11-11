@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
@@ -30,6 +30,7 @@ function JournalPage() {
   const removeTrade = useDeskStore((s) => s.removeTrade);
   const removeMissed = useDeskStore((s) => s.removeMissed);
 
+  const searchStr = useRouterState({ select: (s) => s.location.searchStr });
   const [activeTab, setActiveTab] = useState<"all" | "day" | "calendar" | "quarter" | "missed">("all");
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [tradeFormOpen, setTradeFormOpen] = useState(false);
@@ -40,6 +41,15 @@ function JournalPage() {
   const [isImporting, setIsImporting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const raw = searchStr || (typeof window !== "undefined" ? window.location.search : "");
+    const paramDate = new URLSearchParams(raw).get("date");
+    if (paramDate && /^\d{4}-\d{2}-\d{2}$/.test(paramDate)) {
+      setSelectedDayDate(paramDate);
+      setActiveTab("day");
+    }
+  }, [searchStr]);
 
   // Active month period label for prop desk subtitle (e.g. "OCT 2026")
   const activePeriodLabel = useMemo(() => {
