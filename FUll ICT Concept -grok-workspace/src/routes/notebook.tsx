@@ -13,6 +13,8 @@ import {
   FolderPlus,
   Hash,
   LayoutDashboard,
+  Maximize2,
+  Minimize2,
   MoreHorizontal,
   Pin,
   Plus,
@@ -390,6 +392,7 @@ function NotebookPage() {
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== "undefined" && window.innerWidth < 1024);
   const [mobileView, setMobileView] = useState<"list" | "detail" | "folders">("list");
+  const [noteFocusMode, setNoteFocusMode] = useState(false);
   const [perfCollapsed, setPerfCollapsed] = useState(false);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "pnl" | "title">("newest");
   const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | "local" | "error">("saved");
@@ -409,6 +412,14 @@ function NotebookPage() {
   const userIdRef = useRef(userId);
   userIdRef.current = userId;
   const handledDeepLinkRef = useRef<string | null>(null);
+  const lastTapRef = useRef<{ id: string; time: number } | null>(null);
+  const touchOpenedAtRef = useRef<number>(0);
+
+  const openNoteFull = (noteId: string) => {
+    setSelectedNoteId(noteId);
+    setMobileView("detail");
+    setNoteFocusMode(true);
+  };
 
   // Sync active account label once DeskProvider loads from Neon Postgres
   useEffect(() => {
@@ -1155,8 +1166,12 @@ function NotebookPage() {
           <aside
             className={cn(
               "border-r border-white/[0.08] bg-[#09090b] flex-col shrink-0 min-h-0 transition-all duration-200",
-              mobileView === "folders" ? "flex w-full" : "hidden md:flex",
-              sidebarCollapsed ? "md:w-11 sm:md:w-12 md:items-center" : "md:w-44 lg:w-48 xl:w-52"
+              noteFocusMode
+                ? "hidden"
+                : mobileView === "folders"
+                  ? "flex w-full md:w-44 lg:w-48 xl:w-52"
+                  : "hidden md:flex",
+              !noteFocusMode && (sidebarCollapsed ? "md:w-11 sm:md:w-12 md:items-center" : "md:w-44 lg:w-48 xl:w-52")
             )}
           >
             {/* Mobile return to Notes List bar */}
@@ -1342,7 +1357,11 @@ function NotebookPage() {
           <section
             className={cn(
               "border-r border-white/[0.08] bg-[#0c0c0e] flex-col shrink-0 min-h-0",
-              mobileView === "list" ? "flex w-full" : "hidden md:flex md:w-56 lg:w-64 xl:w-72"
+              noteFocusMode
+                ? "hidden"
+                : mobileView === "list"
+                  ? "flex w-full md:w-60 lg:w-64 xl:w-72"
+                  : "hidden md:flex md:w-60 lg:w-64 xl:w-72"
             )}
           >
             {/* Actions Bar */}
@@ -1403,7 +1422,7 @@ function NotebookPage() {
                 <span className="text-[11px]">Select all</span>
               </label>
 
-              {selectedNoteIds.size > 0 && (
+              {selectedNoteIds.size > 0 ? (
                 <button
                   type="button"
                   onClick={handleDeleteSelected}
@@ -1412,6 +1431,8 @@ function NotebookPage() {
                   <Trash2 className="size-3" />
                   <span>Delete ({selectedNoteIds.size})</span>
                 </button>
+              ) : (
+                <span className="text-[10px] font-mono text-[#6f6f6d]">Double-tap to open</span>
               )}
             </div>
 
@@ -1432,14 +1453,36 @@ function NotebookPage() {
                   return (
                     <div
                       key={n.id}
+                      tabIndex={0}
                       onClick={() => {
                         setSelectedNoteId(n.id);
-                        if (typeof window !== "undefined" && window.innerWidth < 768) {
-                          setMobileView("detail");
+                      }}
+                      onDoubleClick={() => {
+                        if (Date.now() - touchOpenedAtRef.current < 500) return;
+                        openNoteFull(n.id);
+                      }}
+                      onTouchEnd={(e) => {
+                        const targetEl = e.target as HTMLElement | null;
+                        if (targetEl?.closest("input, button")) return;
+                        const now = Date.now();
+                        const prev = lastTapRef.current;
+                        if (prev && prev.id === n.id && now - prev.time <= 350) {
+                          lastTapRef.current = null;
+                          touchOpenedAtRef.current = now;
+                          openNoteFull(n.id);
+                        } else {
+                          lastTapRef.current = { id: n.id, time: now };
                         }
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          openNoteFull(n.id);
+                        }
+                      }}
+                      title="Double-tap or double-click to open full view"
                       className={cn(
-                        "p-2.5 rounded-lg border cursor-pointer transition-all relative group",
+                        "p-2.5 rounded-lg border cursor-pointer select-none transition-all relative group focus:outline-none focus-visible:ring-1 focus-visible:ring-[#e50914]",
                         isSelected
                           ? "bg-[#151518] border-[#e50914]/50 shadow-[0_4px_16px_rgba(229,9,20,0.18)]"
                           : "bg-[#101012] border-white/[0.06] hover:bg-[#141416] hover:border-white/[0.12]"
@@ -1451,6 +1494,7 @@ function NotebookPage() {
                             type="checkbox"
                             aria-label={`Select note ${n.title}`}
                             checked={isChecked}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={(e) => {
                               e.stopPropagation();
                               handleToggleSelectCard(n.id, e.target.checked);
@@ -1474,13 +1518,30 @@ function NotebookPage() {
                         )}
                       </div>
 
-                      <div className="mt-1 flex items-center justify-between text-[10px] text-[#a1a1aa]">
-                        <span className="font-mono">{n.subDate || n.date}</span>
-                        {tradesCount ? (
-                          <span className="bg-white/[0.06] px-1.5 py-0.5 rounded text-[10px] text-[#a2a2a0]">
-                            {tradesCount} {tradesCount === 1 ? "trade" : "trades"}
-                          </span>
-                        ) : null}
+                      <div className="mt-1 flex items-center justify-between gap-1 text-[10px] text-[#a1a1aa]">
+                        <span className="font-mono truncate">{n.subDate || n.date}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {tradesCount ? (
+                            <span className="bg-white/[0.06] px-1.5 py-0.5 rounded text-[10px] text-[#a2a2a0]">
+                              {tradesCount} {tradesCount === 1 ? "trade" : "trades"}
+                            </span>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openNoteFull(n.id);
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-0.5 rounded border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-[#d6d6d4] hover:border-[#e50914]/50 hover:text-white transition-opacity",
+                              isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                            )}
+                            title="Open note full screen"
+                          >
+                            <span>Open</span>
+                            <ArrowUpRight className="size-2.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1493,7 +1554,7 @@ function NotebookPage() {
           <section
             className={cn(
               "flex-1 min-w-0 bg-black flex-col overflow-y-auto min-h-0",
-              mobileView === "detail" ? "flex w-full" : "hidden md:flex"
+              noteFocusMode || mobileView === "detail" ? "flex w-full" : "hidden md:flex"
             )}
           >
             {selectedNote ? (
@@ -1502,21 +1563,36 @@ function NotebookPage() {
                 <div className="p-3.5 sm:p-5 border-b border-white/[0.08] bg-[#070709] space-y-3.5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (typeof window !== "undefined" && window.innerWidth < 768) {
+                      {noteFocusMode ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNoteFocusMode(false);
                             setMobileView("list");
-                          } else {
-                            setSidebarCollapsed((v) => !v);
-                          }
-                        }}
-                        className="p-1.5 rounded-md hover:bg-white/[0.06] text-[#a1a1aa] hover:text-white shrink-0 transition-colors"
-                        title={sidebarCollapsed ? "Expand sidebar" : "Back to list / collapse"}
-                        aria-label={sidebarCollapsed ? "Expand sidebar" : "Back to list / collapse"}
-                      >
-                        <ChevronLeft className={cn("size-4 transition-transform", sidebarCollapsed && "md:rotate-180")} />
-                      </button>
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md border border-white/[0.1] bg-[#121215] px-2.5 py-1 text-xs font-medium text-[#d6d6d4] hover:border-[#e50914]/50 hover:text-white shrink-0 transition-colors"
+                          title="Back to notes list"
+                        >
+                          <ChevronLeft className="size-3.5 text-[#e50914]" />
+                          <span>All notes</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (typeof window !== "undefined" && window.innerWidth < 768) {
+                              setMobileView("list");
+                            } else {
+                              setSidebarCollapsed((v) => !v);
+                            }
+                          }}
+                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-[#a1a1aa] hover:text-white shrink-0 transition-colors"
+                          title={sidebarCollapsed ? "Expand sidebar" : "Back to list / collapse"}
+                          aria-label={sidebarCollapsed ? "Expand sidebar" : "Back to list / collapse"}
+                        >
+                          <ChevronLeft className={cn("size-4 transition-transform", sidebarCollapsed && "md:rotate-180")} />
+                        </button>
+                      )}
                       <div className="p-1.5 rounded-md bg-[#17171b] border border-white/[0.08] text-[#a2a2a0] shrink-0">
                         <Calendar className="size-4 text-[#e50914]" />
                       </div>
@@ -1547,6 +1623,30 @@ function NotebookPage() {
                           <span>✓ Synced</span>
                         )}
                       </span>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (noteFocusMode) {
+                            setNoteFocusMode(false);
+                            if (typeof window !== "undefined" && window.innerWidth < 768) {
+                              setMobileView("list");
+                            }
+                          } else {
+                            setNoteFocusMode(true);
+                            setMobileView("detail");
+                          }
+                        }}
+                        title={noteFocusMode ? "Exit full-screen note" : "Expand note full-screen"}
+                        aria-label={noteFocusMode ? "Exit full-screen note" : "Expand note full-screen"}
+                        className="p-1.5 rounded-lg border border-white/[0.08] bg-[#121215] text-[#a2a2a0] hover:text-white"
+                      >
+                        {noteFocusMode ? (
+                          <Minimize2 className="size-3.5 text-[#e50914]" />
+                        ) : (
+                          <Maximize2 className="size-3.5" />
+                        )}
+                      </button>
 
                       <div className="relative">
                         <button
