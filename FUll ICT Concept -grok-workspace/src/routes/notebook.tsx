@@ -7,21 +7,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Code,
   Copy,
   Download,
   Folder,
   FolderPlus,
   Hash,
   LayoutDashboard,
-  Mic,
-  MicOff,
   MoreHorizontal,
   Pin,
   Plus,
   RefreshCw,
-  RotateCcw,
-  RotateCw,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -52,6 +47,14 @@ import {
   mergeJournalDatesIntoNotes,
   resolveTradeInstrument,
 } from "@/lib/notebook-journal-sync";
+import {
+  notebookContentToPlainText,
+  richHtmlToMarkdown,
+} from "@/lib/notebook-rich-text";
+import {
+  RichNoteEditor,
+  type RichNoteEditorHandle,
+} from "@/components/notebook/rich-note-editor";
 
 export type { NotebookEntry };
 
@@ -392,14 +395,12 @@ function NotebookPage() {
   const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | "local" | "error">("saved");
   const [currentFontSize, setCurrentFontSize] = useState<number>(15);
   const [currentFontFamily, setCurrentFontFamily] = useState<string>("font-sans");
-  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
-  const [slashQuery, setSlashQuery] = useState("");
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [activeAccountLabel, setActiveAccountLabel] = useState<string>(accountName || "Demo account");
   const [newTagInput, setNewTagInput] = useState("");
 
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const richEditorRef = useRef<RichNoteEditorHandle | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const foldersRef = useRef(folders);
   foldersRef.current = folders;
@@ -737,7 +738,7 @@ function NotebookPage() {
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().replace(/^#/, "");
           const matchTitle = n.title.toLowerCase().includes(q);
-          const matchContent = n.content.toLowerCase().includes(q);
+          const matchContent = notebookContentToPlainText(n.content).toLowerCase().includes(q);
           const matchTag = n.tags.some((t) => t.toLowerCase().replace(/^#/, "").includes(q));
           if (!matchTitle && !matchContent && !matchTag) return false;
         }
@@ -1019,68 +1020,30 @@ function NotebookPage() {
     }
   };
 
-  // Text formatting commands
-  const insertTextAtCursor = (text: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea || !selectedNote) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const before = selectedNote.content.substring(0, start);
-    const after = selectedNote.content.substring(end);
-    const nextContent = before + text + after;
-    handleUpdateNote({ content: nextContent });
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + text.length, start + text.length);
-    }, 50);
-  };
-
-  const wrapTextSelection = (prefix: string, suffix = prefix) => {
-    const textarea = textareaRef.current;
-    if (!textarea || !selectedNote) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = selectedNote.content.substring(start, end) || "text";
-    const before = selectedNote.content.substring(0, start);
-    const after = selectedNote.content.substring(end);
-    const replacement = `${prefix}${selected}${suffix}`;
-    const nextContent = before + replacement + after;
-    handleUpdateNote({ content: nextContent });
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
-    }, 50);
-  };
-
-  // Template snippets
+  // Template snippets inserted via RichNoteEditor
   const insertTemplateSnippet = (type: "prep" | "tape" | "confluence" | "psych") => {
     let snippet = "";
     if (type === "prep") {
-      snippet = `\n\n### 📋 Pre-Market Dealing Range Blueprint\n- **Midnight Open (00:00 EST)**: \n- **HTF Bias**: Bullish / Bearish continuation\n- **Target Liquidity**: BSL [ ] SSL [ ]\n- **Red Folder News**: Flat before 10:00 AM\n`;
+      snippet = `### 📋 Pre-Market Dealing Range Blueprint\n- **Midnight Open (00:00 EST)**: \n- **HTF Bias**: Bullish / Bearish continuation\n- **Target Liquidity**: BSL / SSL\n- **Red Folder News**: Flat before 10:00 AM`;
     } else if (type === "tape") {
-      snippet = `\n\n### ⏱️ Session Tape Reading\n- **09:30**: Opening drive & Asian high/low liquidity check\n- **09:45**: 5m MSS with Displacement candle\n- **10:00**: Consequent Encroachment retracement to FVG\n- **10:30**: Delivery to external liquidity pool\n`;
+      snippet = `### ⏱️ Session Tape Reading\n- **09:30**: Opening drive & Asian high/low liquidity check\n- **09:45**: 5m MSS with Displacement candle\n- **10:00**: Consequent Encroachment retracement to FVG\n- **10:30**: Delivery to external liquidity pool`;
     } else if (type === "confluence") {
-      snippet = `\n\n> **🛡️ ICT Confluence Checklist**\n> - [x] HTF Dealing range alignment\n> - [x] Liquidity raid confirmed before entry\n> - [x] Displacement created clean FVG / Breaker\n> - [x] Executed within session Kill Zone\n`;
+      snippet = `> **🛡️ ICT Confluence Checklist**\n- [x] HTF Dealing range alignment\n- [x] Liquidity raid confirmed before entry\n- [x] Displacement created clean FVG / Breaker\n- [x] Executed within session Kill Zone`;
     } else {
-      snippet = `\n\n> **⚡ Trader Psychology & Discipline Audit**\n> - State of mind: Calm / Focused\n> - Did I wait for candle close? Yes / No\n> - Rule compliance: 100%\n`;
+      snippet = `> **⚡ Trader Psychology & Discipline Audit**\n> - State of mind: Calm / Focused\n> - Did I wait for candle close? Yes / No\n> - Rule compliance: 100%`;
     }
-    insertTextAtCursor(snippet);
+    if (richEditorRef.current) {
+      richEditorRef.current.insertMarkdownBlock(snippet);
+    } else if (selectedNote) {
+      handleUpdateNote({ content: `${selectedNote.content}\n\n${snippet}` });
+    }
     toast.success("Template snippet inserted");
-  };
-
-  // Slash command handler
-  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "/" && !slashMenuOpen) {
-      setSlashMenuOpen(true);
-      setSlashQuery("");
-    } else if (e.key === "Escape" && slashMenuOpen) {
-      setSlashMenuOpen(false);
-    }
   };
 
   const handleExportMarkdown = () => {
     if (!selectedNote) return;
-    const blob = new Blob([selectedNote.content], { type: "text/markdown;charset=utf-8" });
+    const md = richHtmlToMarkdown(selectedNote.content);
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `${selectedNote.title.replace(/[^a-zA-Z0-9_-]/g, "_")}.md`;
@@ -1894,10 +1857,14 @@ function NotebookPage() {
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            const block = `\n\n${formatTradeMarkdownBlock(t, deskInstruments, deskModels)}\n`;
-                                            handleUpdateNote({
-                                              content: `${selectedNote.content.trimEnd()}${block}`,
-                                            });
+                                            const block = formatTradeMarkdownBlock(t, deskInstruments, deskModels);
+                                            if (richEditorRef.current) {
+                                              richEditorRef.current.insertMarkdownBlock(block);
+                                            } else {
+                                              handleUpdateNote({
+                                                content: `${selectedNote.content.trimEnd()}\n\n${block}`,
+                                              });
+                                            }
                                             toast.success(`Inserted ${t.market} execution note`);
                                           }}
                                           title="Insert trade breakdown & notes into this entry"
@@ -1990,254 +1957,22 @@ function NotebookPage() {
                   </div>
                 </div>
 
-                {/* Rich Formatting Toolbar */}
-                <div className="border-b border-white/[0.07] bg-[#0c0c0e] px-4 py-2 flex flex-wrap items-center gap-1 sticky top-0 z-20 text-[#a2a2a0]">
-                  {/* Undo / Redo */}
-                  <button
-                    type="button"
-                    onClick={() => insertTextAtCursor("\n")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white"
-                    title="New line"
-                    aria-label="New line"
-                  >
-                    <RotateCcw className="size-3.5" />
-                  </button>
-
-                  {/* Dictation voice notes helper */}
-                  <button
-                    type="button"
-                    onClick={() => toast.info("Voice note dictation active")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#e50914]"
-                    title="Voice notes"
-                    aria-label="Voice notes"
-                  >
-                    <Mic className="size-3.5" />
-                  </button>
-
-                  <span className="w-px h-4 bg-white/[0.1] mx-1" />
-
-                  {/* Font Family Selector */}
-                  <select
-                    value={currentFontFamily}
-                    onChange={(e) => setCurrentFontFamily(e.target.value)}
-                    aria-label="Font family"
-                    className="bg-[#121215] border border-white/[0.08] text-white text-[11px] rounded px-2 py-1 focus:outline-none"
-                  >
-                    <option value="font-sans">IBM Plex Sans</option>
-                    <option value="font-display">Plus Jakarta Sans</option>
-                    <option value="font-mono">IBM Plex Mono</option>
-                  </select>
-
-                  {/* Font Size Selector */}
-                  <div className="flex items-center border border-white/[0.08] rounded bg-[#121215] text-[11px] px-1">
-                    <button
-                      type="button"
-                      onClick={() => setCurrentFontSize((s) => Math.max(12, s - 1))}
-                      aria-label="Decrease font size"
-                      className="px-1.5 py-0.5 hover:text-white"
-                    >
-                      -
-                    </button>
-                    <span className="font-mono px-1.5 text-white">{currentFontSize}</span>
-                    <button
-                      type="button"
-                      onClick={() => setCurrentFontSize((s) => Math.min(24, s + 1))}
-                      aria-label="Increase font size"
-                      className="px-1.5 py-0.5 hover:text-white"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  <span className="w-px h-4 bg-white/[0.1] mx-1" />
-
-                  {/* Bold, Italic, Underline, Code */}
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection("**")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white font-bold text-xs"
-                    title="Bold"
-                    aria-label="Bold text"
-                  >
-                    B
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection("*")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white italic text-xs"
-                    title="Italic"
-                    aria-label="Italic text"
-                  >
-                    I
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection("<u>", "</u>")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white underline text-xs"
-                    title="Underline"
-                    aria-label="Underline text"
-                  >
-                    U
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection("`")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-white font-mono text-xs"
-                    title="Code"
-                    aria-label="Code block"
-                  >
-                    &lt;&gt;
-                  </button>
-
-                  <span className="w-px h-4 bg-white/[0.1] mx-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection('<span style="color:#e50914">', "</span>")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#e50914] font-bold text-xs"
-                    title="Crimson Highlight"
-                    aria-label="Crimson highlight"
-                  >
-                    A
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTextSelection('<span style="color:#3ddc84">', "</span>")}
-                    className="p-1.5 rounded hover:bg-white/[0.06] hover:text-[#3ddc84] font-bold text-xs"
-                    title="Profit Green Highlight"
-                    aria-label="Green highlight"
-                  >
-                    A
-                  </button>
-
-                  <span className="flex-1" />
-
-                  <div className="text-[11px] text-[#a1a1aa] hidden md:flex items-center gap-1 font-mono">
-                    <span>press</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-[#17171b] border border-white/[0.1] text-white text-[10px]">
-                      /
-                    </kbd>
-                    <span>for commands</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm("Clear all text from this note?")) {
-                        handleUpdateNote({ content: "" });
-                      }
-                    }}
-                    className="p-1.5 rounded hover:bg-[#ff6b7d]/20 hover:text-[#ff6b7d] ml-1"
-                    title="Clear content"
-                    aria-label="Clear content"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-
-                {/* Editor Textarea with Slash Command Menu */}
-                <div className="relative flex-1 p-6 sm:p-8 min-h-[460px]">
-                  {/* Floating Slash Commands Menu */}
-                  {slashMenuOpen && (
-                    <div className="absolute top-4 left-8 z-50 w-72 bg-[#121215] border border-white/[0.14] rounded-xl shadow-2xl overflow-hidden text-xs">
-                      <div className="p-2 border-b border-white/[0.08] bg-[#0c0c0e] text-[10px] uppercase font-semibold text-[#a1a1aa] tracking-wider flex items-center justify-between">
-                        <span>Insert ICT Block / Format</span>
-                        <button
-                          type="button"
-                          onClick={() => setSlashMenuOpen(false)}
-                          aria-label="Close slash commands menu"
-                          className="text-[#a1a1aa] hover:text-white"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </div>
-                      <div className="p-1 max-h-60 overflow-y-auto space-y-0.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            insertTextAtCursor("\n# Main Section Heading\n");
-                            setSlashMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#e50914]/15 hover:text-white flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded bg-white/[0.05] flex items-center justify-center font-bold text-xs text-white">
-                            H1
-                          </span>
-                          <div>
-                            <p className="font-medium text-white leading-tight">Heading 1</p>
-                            <p className="text-[10px] text-[#a1a1aa]">Big section headline</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            insertTemplateSnippet("confluence");
-                            setSlashMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#e50914]/15 hover:text-white flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded bg-[#3ddc84]/10 text-[#3ddc84] flex items-center justify-center text-xs">
-                            ✓
-                          </span>
-                          <div>
-                            <p className="font-medium text-white leading-tight">ICT Rule Confluence Check</p>
-                            <p className="text-[10px] text-[#a1a1aa]">Checklist for HTF bias &amp; kill zone</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            insertTemplateSnippet("psych");
-                            setSlashMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#e50914]/15 hover:text-white flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded bg-[#e50914]/10 text-[#e50914] flex items-center justify-center text-xs">
-                            ⚡
-                          </span>
-                          <div>
-                            <p className="font-medium text-white leading-tight">Psychology / Warning Callout</p>
-                            <p className="text-[10px] text-[#a1a1aa]">Highlighted execution warning</p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            insertTemplateSnippet("tape");
-                            setSlashMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#e50914]/15 hover:text-white flex items-center gap-2.5"
-                        >
-                          <span className="w-6 h-6 rounded bg-white/[0.05] flex items-center justify-center text-xs">
-                            ⏱️
-                          </span>
-                          <div>
-                            <p className="font-medium text-white leading-tight">Session Tape Timeline</p>
-                            <p className="text-[10px] text-[#a1a1aa]">Timestamped candle breakdown</p>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <textarea
-                    ref={textareaRef}
-                    value={selectedNote.content}
-                    onChange={(e) => handleUpdateNote({ content: e.target.value })}
-                    onKeyDown={handleEditorKeyDown}
-                    onBlur={() => {
-                      if (saveTimerRef.current) {
-                        void persistNotes(notesRef.current, true);
-                      }
-                    }}
-                    style={{ fontSize: `${currentFontSize}px` }}
-                    className={cn(
-                      "w-full h-full min-h-[440px] resize-none bg-transparent outline-none leading-relaxed text-[#e8e8e6] placeholder-[#6f6f6d]",
-                      currentFontFamily
-                    )}
-                    placeholder="Write something, or press '/' for commands"
-                  />
-                </div>
+                {/* True WYSIWYG Rich Note Editor & Formatting Toolbar */}
+                <RichNoteEditor
+                  ref={richEditorRef}
+                  noteId={selectedNote.id}
+                  value={selectedNote.content}
+                  fontSize={currentFontSize}
+                  fontFamily={currentFontFamily}
+                  onFontSizeChange={setCurrentFontSize}
+                  onFontFamilyChange={setCurrentFontFamily}
+                  onChange={(nextContent) => handleUpdateNote({ content: nextContent })}
+                  onBlurFlush={() => {
+                    if (saveTimerRef.current) {
+                      void persistNotes(notesRef.current, true);
+                    }
+                  }}
+                />
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full py-24 text-center text-[#a2a2a0]">

@@ -113,3 +113,4 @@ describe("Notebook <-> Journal Database Synchronization & Calculations", () => {
     assert.equal(entry.date, "2026-11-09");
   });
 });
+
